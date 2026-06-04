@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-04 | 当前阶段: Phase 4 — 成绩模块
+> 最后更新: 2026-06-04 | 当前阶段: Phase 5 — 空教室模块
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
 ```
 
 ---
@@ -98,14 +98,24 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 ---
 
-## Phase 4: 成绩模块
+## Phase 4: 成绩模块 ✅ 已完成
 
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
-| 4.1 | 数据层 (Repository) | ⏳ 待开始 | — |
-| 4.2 | 成绩 UI (学期列表 + GPA) | ⏳ 待开始 | — |
-| 4.3 | GPA 计算器 | ⏳ 待开始 | 策略模式 |
-| 4.4 | GradeViewModel | ⏳ 待开始 | — |
+| 4.1 | 数据层 (Repository) | ✅ | 成绩列表 + 明细 + 多学期批量 |
+| 4.2 | 成绩 UI (学期列表 + GPA 卡片) | ✅ | GpaCard + SemesterSection 展开列表 |
+| 4.3 | GPA 计算器 | ✅ | 策略模式 (4.0/5.0/百分制加权) |
+| 4.4 | GradeViewModel + 图表 | ✅ | 明细懒加载 + Vico 趋势折线图 |
+
+### Phase 4 交付物 (8 文件)
+- GradeModels.kt: 领域模型 + GpaCalculator (3 种策略)
+- GradeRepository: 3 API 端点 + 多学期全量拉取
+- GradeViewModel: 展开/折叠 + 明细 BottomSheet + 策略切换
+- GpaCard: 顶部 GPA 总览 + FilterChip 策略选择
+- SemesterSection: 按学期展开列表 + 颜色分数标签
+- GradeDetailSheet: ModalBottomSheet 成绩构成 + 进度条
+- GradeTrendChart: Vico 折线图（多学期 GPA 趋势）
+- GradeScreen: 四态覆盖（加载/错误/空/数据）
 
 ---
 

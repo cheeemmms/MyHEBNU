@@ -1,17 +1,15 @@
 package com.myhebnu.di
 
+import com.myhebnu.data.remote.PersistentCookieJar
+import com.myhebnu.data.remote.interceptor.AuthInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import okhttp3.Cookie
-import okhttp3.CookieJar
-import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -21,22 +19,25 @@ object NetworkModule {
 
     const val BASE_URL = "http://jwgl.hebtu.edu.cn/"
 
-    @Provides
-    @Singleton
-    fun provideCookieJar(): CookieJar = PersistentCookieJar()
+    const val CAS_BASE_URL = "http://cas.hebtu.edu.cn/"
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(cookieJar: CookieJar): OkHttpClient {
+    fun provideOkHttpClient(
+        cookieJar: PersistentCookieJar,
+        authInterceptor: AuthInterceptor
+    ): OkHttpClient {
         return OkHttpClient.Builder()
             .cookieJar(cookieJar)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor(authInterceptor)
             .addInterceptor(HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BODY
             })
-            .followRedirects(false) // Important: handle SSO redirects manually
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .followRedirects(false) // SSO redirects are handled manually
+            .followSslRedirects(false)
             .build()
     }
 
@@ -50,23 +51,14 @@ object NetworkModule {
             .build()
     }
 
-    /**
-     * CookieJar implementation that persists cookies in memory.
-     * Phase 2 will add EncryptedSharedPreferences persistence for auto-login.
-     */
-    class PersistentCookieJar : CookieJar {
-        private val cookieStore = ConcurrentHashMap<String, MutableList<Cookie>>()
-
-        override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-            cookieStore[url.host] = cookies.toMutableList()
-        }
-
-        override fun loadForRequest(url: HttpUrl): List<Cookie> {
-            return cookieStore[url.host] ?: emptyList()
-        }
-
-        fun clearAll() {
-            cookieStore.clear()
-        }
+    @Provides
+    @Singleton
+    @javax.inject.Named("cas")
+    fun provideCasRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(CAS_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
     }
 }

@@ -2,7 +2,11 @@ package com.myhebnu.di
 
 import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.preferences.UserPreferences
+import com.myhebnu.data.remote.CasApi
 import com.myhebnu.data.remote.EASystemApi
+import com.myhebnu.data.remote.PersistentCookieJar
+import com.myhebnu.data.remote.SessionManager
+import com.myhebnu.data.remote.interceptor.AuthInterceptor
 import com.myhebnu.data.repository.*
 import dagger.Module
 import dagger.Provides
@@ -23,10 +27,18 @@ object RepositoryModule {
 
     @Provides
     @Singleton
+    fun provideCasApi(@javax.inject.Named("cas") retrofit: Retrofit): CasApi {
+        return retrofit.create(CasApi::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthRepository(
-        api: EASystemApi,
-        preferences: UserPreferences
-    ): AuthRepository = AuthRepository(api, preferences)
+        cookieJar: PersistentCookieJar,
+        sessionManager: SessionManager,
+        preferences: UserPreferences,
+        authInterceptor: AuthInterceptor
+    ): AuthRepository = AuthRepository(cookieJar, sessionManager, preferences, authInterceptor)
 
     @Provides
     @Singleton

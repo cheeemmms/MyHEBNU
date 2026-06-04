@@ -57,7 +57,6 @@ dependencies {
     implementation(libs.compose.material.icons)
     implementation(libs.compose.material.window)
     debugImplementation(libs.compose.ui.tooling)
-    debugImplementation(libs.compose.ui.test.manifest)
 
     // Activity & Core
     implementation(libs.activity.compose)

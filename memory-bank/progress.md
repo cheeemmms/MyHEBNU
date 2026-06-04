@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-04 | 当前阶段: Phase 2 — SSO 认证
+> 最后更新: 2026-06-04 | 当前阶段: Phase 3 — 课表模块
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
 ```
 
 ---
@@ -58,15 +58,24 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 ---
 
-## Phase 2: SSO 认证模块
+## Phase 2: SSO 认证模块 ✅ 已完成
 
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
-| 2.1 | SSO WebView 登录 | ⏳ 待开始 | 依赖 Phase 0 |
-| 2.2 | Cookie/Session 管理 | ⏳ 待开始 | CookieJar + EncryptedPrefs |
-| 2.3 | 自动登录 | ⏳ 待开始 | — |
-| 2.4 | 会话过期处理 | ⏳ 待开始 | AuthInterceptor |
-| 2.5 | 登录 UI | ⏳ 待开始 | — |
+| 2.1 | SSO WebView 登录 | ✅ | WebView 加载 CAS + 监听 URL 检测登录成功 |
+| 2.2 | Cookie/Session 管理 | ✅ | PersistentCookieJar + EncryptedSharedPreferences |
+| 2.3 | 自动登录 | ✅ | 启动时检查存储的加密 Cookie |
+| 2.4 | 会话过期处理 | ✅ | AuthInterceptor 检测 302/401/403 |
+| 2.5 | 登录 UI | ✅ | LoginScreen + LoginViewModel |
+
+### Phase 2 交付物 (7 新文件, 4 修改文件)
+- CryptoUtil: RSA 公钥解析 + 密码加密
+- SessionManager: EncryptedSharedPreferences Cookie 存储
+- PersistentCookieJar: OkHttp CookieJar + 持久化
+- AuthInterceptor: 会话过期检测 → 信号发射
+- CasApi: CAS REST 接口
+- LoginScreen: WebView SSO 登录
+- LoginViewModel: 登录状态管理
 
 ---
 

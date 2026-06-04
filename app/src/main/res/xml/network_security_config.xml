@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext for campus教务系统 (HTTP on local network) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">jwgl.hebtu.edu.cn</domain>
+        <domain includeSubdomains="true">cas.hebtu.edu.cn</domain>
+    </domain-config>
+</network-security-config>

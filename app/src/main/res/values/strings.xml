@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyHEBNU</string>
+
+    <!-- Navigation -->
+    <string name="nav_schedule">课表</string>
+    <string name="nav_grade">成绩</string>
+    <string name="nav_empty_room">空教室</string>
+    <string name="nav_exam">考试</string>
+    <string name="menu">菜单</string>
+
+    <!-- Notifications -->
+    <string name="channel_class_reminder">上课提醒</string>
+    <string name="channel_class_reminder_desc">课前15分钟提醒下一节课的时间和地点</string>
+    <string name="channel_exam_reminder">考试提醒</string>
+    <string name="channel_exam_reminder_desc">考试前1天和1小时提醒</string>
+
+    <!-- Common -->
+    <string name="loading">加载中…</string>
+    <string name="error_network">网络连接失败</string>
+    <string name="error_server">教务系统异常</string>
+    <string name="error_session_expired">登录已过期，请重新登录</string>
+    <string name="retry">重试</string>
+    <string name="offline_mode">离线模式</string>
+    <string name="empty_data">暂无数据</string>
+    <string name="confirm">确认</string>
+    <string name="cancel">取消</string>
+    <string name="logout">退出登录</string>
+    <string name="settings">设置</string>
+    <string name="language">语言</string>
+    <string name="dark_mode">深色模式</string>
+    <string name="current_week">当前教学周</string>
+    <string name="semester_start">学期起始日期</string>
+
+    <!-- Schedule -->
+    <string name="week_selector">第 %d 周</string>
+    <string name="current_week_label">本周</string>
+    <string name="no_schedule">本学期暂无课表</string>
+
+    <!-- Grade -->
+    <string name="gpa_label">GPA</string>
+    <string name="weighted_avg">加权平均分</string>
+    <string name="total_credits">总学分</string>
+    <string name="grade_detail">成绩明细</string>
+    <string name="grade_no_data">暂无成绩数据</string>
+
+    <!-- Empty Room -->
+    <string name="room_filter">筛选条件</string>
+    <string name="room_query">查询</string>
+    <string name="room_available">空闲教室</string>
+    <string name="room_campus">校区</string>
+    <string name="room_building">楼号</string>
+    <string name="room_venue_type">场地类别</string>
+    <string name="room_week">周次</string>
+    <string name="room_day">星期</string>
+    <string name="room_period">节次</string>
+    <string name="room_seats">座位</string>
+
+    <!-- Exam -->
+    <string name="exam_days_left">距今天数</string>
+    <string name="exam_seat">座位号</string>
+    <string name="exam_no_data">暂无考试安排</string>
+
+    <!-- Login -->
+    <string name="login_title">统一身份认证</string>
+    <string name="login_hint">请使用学校统一认证账号登录</string>
+</resources>

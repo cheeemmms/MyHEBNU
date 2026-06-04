@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MyHEBNU</string>
+
+    <!-- Navigation -->
+    <string name="nav_schedule">Schedule</string>
+    <string name="nav_grade">Grades</string>
+    <string name="nav_empty_room">Empty Rooms</string>
+    <string name="nav_exam">Exams</string>
+    <string name="menu">Menu</string>
+
+    <!-- Notifications -->
+    <string name="channel_class_reminder">Class Reminder</string>
+    <string name="channel_class_reminder_desc">Remind 15 minutes before class</string>
+    <string name="channel_exam_reminder">Exam Reminder</string>
+    <string name="channel_exam_reminder_desc">Remind 1 day and 1 hour before exams</string>
+
+    <!-- Common -->
+    <string name="loading">Loading…</string>
+    <string name="error_network">Network error</string>
+    <string name="error_server">Server error</string>
+    <string name="error_session_expired">Session expired, please login again</string>
+    <string name="retry">Retry</string>
+    <string name="offline_mode">Offline mode</string>
+    <string name="empty_data">No data</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="logout">Logout</string>
+    <string name="settings">Settings</string>
+    <string name="language">Language</string>
+    <string name="dark_mode">Dark mode</string>
+    <string name="current_week">Current week</string>
+    <string name="semester_start">Semester start date</string>
+
+    <!-- Schedule -->
+    <string name="week_selector">Week %d</string>
+    <string name="current_week_label">This week</string>
+    <string name="no_schedule">No schedule this semester</string>
+
+    <!-- Grade -->
+    <string name="gpa_label">GPA</string>
+    <string name="weighted_avg">Weighted Average</string>
+    <string name="total_credits">Total Credits</string>
+    <string name="grade_detail">Grade Details</string>
+    <string name="grade_no_data">No grade data</string>
+
+    <!-- Empty Room -->
+    <string name="room_filter">Filters</string>
+    <string name="room_query">Search</string>
+    <string name="room_available">Available Rooms</string>
+    <string name="room_campus">Campus</string>
+    <string name="room_building">Building</string>
+    <string name="room_venue_type">Venue Type</string>
+    <string name="room_week">Week</string>
+    <string name="room_day">Day</string>
+    <string name="room_period">Period</string>
+    <string name="room_seats">Seats</string>
+
+    <!-- Exam -->
+    <string name="exam_days_left">Days left</string>
+    <string name="exam_seat">Seat No.</string>
+    <string name="exam_no_data">No exam schedule</string>
+
+    <!-- Login -->
+    <string name="login_title">SSO Login</string>
+    <string name="login_hint">Login with your school account</string>
+</resources>

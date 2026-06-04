@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-04 | 当前阶段: MVP 完成 🎉
+> 最后更新: 2026-06-05 | 状态: MVP 代码完成，待编译验证通过
 
 ---
 
@@ -180,6 +180,20 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 | 2 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
 | 3 | 会话过期响应未捕获 | 🟡 开发中处理 | 通用 401/403 拦截方案 |
 | 4 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
+| 5 | 首次编译有编译错误 | 🔴 待下次验证 | 30 个 import/API 错误已修复，待重新编译验证 |
+| 6 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
+
+---
+
+## 工作环境
+
+| 项 | 值 |
+|----|-----|
+| Android Studio | `D:\Software\Android\bin\studio64.exe` |
+| 代理端口 | `127.0.0.1:7892` (已写入 gradle.properties) |
+| Gradle 镜像 | 阿里云 (settings.gradle.kts) |
+| Git 仓库 | `D:\Personal_file\VibeCoding\Program\My-University` |
+| 当前分支 | main (13 次提交) |
 
 ---
 
@@ -187,11 +201,16 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 | 日期 | 变更 | 原因 |
 |------|------|------|
-| 2026-06-04 | 初始化 memory-bank，创建四文件 | 项目启动 |
-| 2026-06-04 | 完成 8 轮需求沟通，确认 35 项产品决策 | 产品规划阶段 |
-| 2026-06-04 | Phase 0 完成：7 个 HAR 文件，17 个 API 端点文档 | API 侦察 |
-| 2026-06-04 | 确认成绩明细 API，加入产品设计 | 补充抓包 |
-| 2026-06-04 | Phase 1 完成：45 个文件，完整 Android 项目骨架 | 项目初始化 |
+| 2026-06-04 | 初始化 memory-bank + 8 轮需求沟通 | 项目启动 |
+| 2026-06-04 | Phase 0: 7 HAR + 17 API 端点文档 | API 侦察 |
+| 2026-06-04 | Phase 1: 45 文件项目骨架 | 项目初始化 |
+| 2026-06-04 | Phase 2: SSO 认证 (WebView+CookieJar+EncryptedPrefs) | 认证 |
+| 2026-06-04 | Phase 3: 课表 (周视图+Room缓存+CourseCard) | 课表 |
+| 2026-06-04 | Phase 4: 成绩 (GPA+明细Sheet+Canvas趋势图) | 成绩 |
+| 2026-06-04 | Phase 5: 空教室 (双校区+多条件筛选+位掩码) | 空教室 |
+| 2026-06-04 | Git init + 配置代理/镜像/Wrapper | 构建工具链 |
+| 2026-06-05 | 修复 30 个编译错误 (Vico→Canvas 替换等) | 首次编译 |
+| **2026-06-05** | **🎉 MVP 核心闭环: 83 文件, ~4800 行, 13 次提交** | **里程碑** |
 
 ---
 

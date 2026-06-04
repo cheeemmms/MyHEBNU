@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-04 | 当前阶段: Phase 3 — 课表模块
+> 最后更新: 2026-06-04 | 当前阶段: Phase 4 — 成绩模块
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
 ```
 
 ---
@@ -79,14 +79,22 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 ---
 
-## Phase 3: 课表模块
+## Phase 3: 课表模块 ✅ 已完成
 
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
-| 3.1 | 数据层 (Room + Repository) | ⏳ 待开始 | — |
-| 3.2 | 周视图 UI (Grid + Cards) | ⏳ 待开始 | — |
-| 3.3 | ScheduleViewModel | ⏳ 待开始 | — |
-| 3.4 | 刷新 + 周次切换 | ⏳ 待开始 | — |
+| 3.1 | 数据层 (Room + Repository) | ✅ | API 解析 + JSON → Entity + Room 缓存 |
+| 3.2 | 周视图 UI (Grid + Cards) | ✅ | 7列×6行网格 + CourseCard 颜色卡片 |
+| 3.3 | ScheduleViewModel | ✅ | 加载/缓存/错误/空 四态 + 周次导航 |
+| 3.4 | 刷新 + 周次切换 | ✅ | 缓存优先策略 + 下拉刷新 |
+
+### Phase 3 交付物 (6 文件)
+- ScheduleRepository: API fetch → JSON parse → Room cache (cache-first)
+- ScheduleViewModel: UiState 管理（Loading/Cached/Error/Empty）
+- WeekViewGrid: 7天×6节次可滚动网格，当天高亮
+- CourseCard: 彩色课程卡片（名称+教师+教室）
+- WeekSelector: 周次导航栏（前/后/本周按钮）
+- ScheduleScreen: 完整页面组合（四态全覆盖）
 
 ---
 

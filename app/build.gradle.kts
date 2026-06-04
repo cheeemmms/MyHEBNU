@@ -88,9 +88,6 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
-    // Charts (Vico)
-    implementation(libs.vico.compose)
-
     // Widget (Glance)
     implementation(libs.glance.appwidget)
 
@@ -105,6 +102,9 @@ dependencies {
 
     // WorkManager
     implementation(libs.workmanager.ktx)
+
+    // Security (EncryptedSharedPreferences)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Testing (Phase 8)
     testImplementation(libs.junit)

@@ -144,6 +144,7 @@ private fun CourseRow(
     }
 }
 
+@Composable
 private fun scoreColor(score: String): androidx.compose.ui.graphics.Color {
     val s = score.toFloatOrNull() ?: return MaterialTheme.colorScheme.outline
     return when {

@@ -107,7 +107,6 @@ dependencies {
     // WorkManager
     implementation(libs.workmanager.ktx)
 
-    // Testing
+    // Testing (Phase 8)
     testImplementation(libs.junit)
-    androidTestImplementation(libs.compose.ui.test)
 }

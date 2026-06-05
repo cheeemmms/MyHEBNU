@@ -64,26 +64,6 @@ class LoginViewModel @Inject constructor(
         }
     }
 
-    fun checkBrowserLogin() {
-        viewModelScope.launch {
-            try {
-                // Check system cookie store for JWGL cookies
-                val cookieManager = android.webkit.CookieManager.getInstance()
-                val jwglCookies = cookieManager.getCookie("http://jwgl.hebtu.edu.cn") ?: ""
-
-                if (jwglCookies.isNotBlank()) {
-                    // User has logged in via browser — transfer cookies
-                    authRepository.onBrowserLoginSuccess(jwglCookies)
-                    _uiState.update { it.copy(isLoggedIn = true) }
-                } else {
-                    android.util.Log.w("MyHEBNU", "No JWGL cookies found in browser yet")
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MyHEBNU", "checkBrowserLogin failed: ${e.message}")
-            }
-        }
-    }
-
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }

@@ -28,10 +28,10 @@ class AuthRepository @Inject constructor(
     private val authInterceptor: AuthInterceptor
 ) {
     companion object {
-        // CAS login page
-        const val CAS_LOGIN_URL = "http://cas.hebtu.edu.cn/cas/login"
+        // Mobile-friendly login page
+        const val LOGIN_URL = "http://jwgl.hebtu.edu.cn/xtgl/login_slogin.html?ydType=0"
 
-        // Success indicator URL after full SSO flow completes
+        // Success indicator URL after login completes
         const val LOGIN_SUCCESS_PATH = "/xtgl/index_initMenu.html"
 
         // Additional success indicators
@@ -84,23 +84,6 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Called after the user logs in via system browser.
-     * Directly uses the JWGL cookies provided.
-     */
-    suspend fun onBrowserLoginSuccess(jwglCookieString: String) {
-        transferCookies(jwglCookieString, JWGL_DOMAIN)
-
-        val allCookies = mutableMapOf<String, String>()
-        parseCookieString(jwglCookieString).forEach { (name, value) ->
-            allCookies["${JWGL_DOMAIN}_$name"] = value
-        }
-        sessionManager.saveCookies(allCookies)
-
-        preferences.setLoggedIn(true)
-        authInterceptor.resetExpiredFlag()
-    }
-
-    /**
      * Check if a URL indicates successful login.
      */
     fun isLoginSuccessUrl(url: String): Boolean {
@@ -110,7 +93,7 @@ class AuthRepository @Inject constructor(
     /**
      * Get the CAS login URL for WebView.
      */
-    fun getLoginUrl(): String = CAS_LOGIN_URL
+    fun getLoginUrl(): String = LOGIN_URL
 
     /**
      * Logout: clear all cookies, stored session, and preferences.

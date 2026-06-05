@@ -1,8 +1,6 @@
 package com.myhebnu.ui.room.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -64,11 +62,12 @@ fun RoomList(
                 )
             }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+            // Use Column (not LazyColumn) — parent RoomScreen already provides verticalScroll
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(rooms, key = { it.roomCode }) { room ->
+                rooms.forEach { room ->
                     RoomCard(room = room)
                 }
             }

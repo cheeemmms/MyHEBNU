@@ -84,6 +84,23 @@ class AuthRepository @Inject constructor(
     }
 
     /**
+     * Called after the user logs in via system browser.
+     * Directly uses the JWGL cookies provided.
+     */
+    suspend fun onBrowserLoginSuccess(jwglCookieString: String) {
+        transferCookies(jwglCookieString, JWGL_DOMAIN)
+
+        val allCookies = mutableMapOf<String, String>()
+        parseCookieString(jwglCookieString).forEach { (name, value) ->
+            allCookies["${JWGL_DOMAIN}_$name"] = value
+        }
+        sessionManager.saveCookies(allCookies)
+
+        preferences.setLoggedIn(true)
+        authInterceptor.resetExpiredFlag()
+    }
+
+    /**
      * Check if a URL indicates successful login.
      */
     fun isLoginSuccessUrl(url: String): Boolean {

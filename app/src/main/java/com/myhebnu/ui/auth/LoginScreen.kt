@@ -1,29 +1,33 @@
 package com.myhebnu.ui.auth
 
-import android.annotation.SuppressLint
-import android.webkit.ConsoleMessage
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.content.Intent
+import android.net.Uri
+import android.webkit.CookieManager
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
 
-@SuppressLint("SetJavaScriptEnabled")
+/**
+ * SSO login screen using Chrome Custom Tabs or system browser.
+ *
+ * Strategy: open the CAS login page in the system browser (which fully supports
+ * JS/CSS), then capture cookies via CookieManager when returning to the app.
+ *
+ * This avoids WebView rendering issues on Android 16+ / Xiaomi devices.
+ */
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),
     onLoginSuccess: () -> Unit
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
     // Navigate away when logged in
@@ -36,122 +40,57 @@ fun LoginScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         when {
             uiState.isLoading -> {
-                // Loading state — checking stored session
                 CircularProgressIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
             uiState.loginUrl.isNotEmpty() -> {
-                // Show WebView for CAS login — fullscreen, no chrome
-                AndroidView(
-                        factory = { context ->
-                            WebView(context).apply {
-                                // JavaScript (CAS login is JS-rendered)
-                                settings.javaScriptEnabled = true
-                                settings.domStorageEnabled = true
-                                settings.databaseEnabled = true
-                                settings.allowContentAccess = true
-                                settings.allowFileAccess = true
-
-                                // Critical: let JS load from any origin
-                                settings.allowUniversalAccessFromFileURLs = true
-                                settings.allowFileAccessFromFileURLs = true
-
-                                // Mixed content: HTTP resources on HTTP pages
-                                settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-
-                                // Do not block any resource loads
-                                settings.blockNetworkLoads = false
-                                settings.blockNetworkImage = false
-
-                                // Disable safe browsing (can interfere)
-                                @Suppress("DEPRECATION")
-                                settings.safeBrowsingEnabled = false
-
-                                // Cache mode: use cache if available
-                                settings.cacheMode = WebSettings.LOAD_DEFAULT
-
-                                // Geolocation + media playback
-                                settings.setGeolocationEnabled(false)
-                                settings.mediaPlaybackRequiresUserGesture = false
-
-                                // Viewport & rendering
-                                settings.setSupportZoom(true)
-                                settings.builtInZoomControls = true
-                                settings.displayZoomControls = false
-                                settings.loadWithOverviewMode = true
-                                settings.useWideViewPort = true
-                                settings.textZoom = 100
-
-                                // Modern mobile UA
-                                settings.userAgentString =
-                                    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
-                                    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-
-                                // Capture JS console errors for debugging
-                                webChromeClient = object : WebChromeClient() {
-                                    override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
-                                        android.util.Log.e("MyHEBNU", "WebView JS [${msg.messageLevel()}] ${msg.sourceId()}:${msg.lineNumber()} — ${msg.message()}")
-                                        return true
-                                    }
-                                }
-
-                                webViewClient = object : WebViewClient() {
-                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                        android.util.Log.w("MyHEBNU", "WebView onPageStarted: $url")
-                                    }
-
-                                    override fun shouldOverrideUrlLoading(
-                                        view: WebView?,
-                                        request: WebResourceRequest?
-                                    ): Boolean {
-                                        // Track URL changes for login success detection
-                                        request?.url?.toString()?.let { url ->
-                                            android.util.Log.w("MyHEBNU", "WebView shouldOverrideUrlLoading: $url")
-                                            viewModel.onWebViewUrlChanged(url)
-                                        }
-                                        return false // Let WebView handle the navigation
-                                    }
-
-                                    @Deprecated("Deprecated in Java")
-                                    override fun shouldOverrideUrlLoading(
-                                        view: WebView?,
-                                        url: String?
-                                    ): Boolean {
-                                        android.util.Log.w("MyHEBNU", "WebView shouldOverrideUrlLoading(deprecated): $url")
-                                        url?.let { viewModel.onWebViewUrlChanged(it) }
-                                        return false
-                                    }
-
-                                    override fun onPageFinished(
-                                        view: WebView?,
-                                        url: String?
-                                    ) {
-                                        android.util.Log.w("MyHEBNU", "WebView onPageFinished: $url")
-                                        url?.let { viewModel.onWebViewUrlChanged(it) }
-                                    }
-
-                                    override fun onReceivedError(
-                                        view: WebView?,
-                                        request: WebResourceRequest?,
-                                        error: android.webkit.WebResourceError?
-                                    ) {
-                                        val desc = error?.description?.toString()
-                                        val url = request?.url?.toString()
-                                        android.util.Log.w("MyHEBNU", "WebView onReceivedError: desc=$desc url=$url")
-                                        viewModel.onLoginError(desc)
-                                    }
-                                }
-
-                                loadUrl(uiState.loginUrl)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
+                // Show a UI explaining the login flow
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.app_name),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        text = stringResource(R.string.login_hint),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(32.dp))
+
+                    Button(
+                        onClick = {
+                            openCasInBrowser(context, uiState.loginUrl)
+                            // After returning, check cookies
+                            viewModel.checkBrowserLogin()
+                        }
+                    ) {
+                        Text("打开统一认证登录")
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    TextButton(
+                        onClick = {
+                            openCasInBrowser(context, uiState.loginUrl)
+                            viewModel.checkBrowserLogin()
+                        }
+                    ) {
+                        Text("重新打开登录页面")
+                    }
+                }
             }
         }
 
-        // Error snackbar
+        // Error
         uiState.errorMessage?.let { error ->
             Snackbar(
                 modifier = Modifier
@@ -166,5 +105,16 @@ fun LoginScreen(
                 Text(error)
             }
         }
+    }
+}
+
+private fun openCasInBrowser(context: android.content.Context, url: String) {
+    try {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        android.util.Log.e("MyHEBNU", "Failed to open browser: ${e.message}")
     }
 }

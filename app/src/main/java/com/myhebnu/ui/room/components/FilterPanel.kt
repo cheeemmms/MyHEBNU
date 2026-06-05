@@ -178,7 +178,7 @@ private fun FilterDropdown(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                content(closeMenu = { expanded = false })
+                content({ expanded = false })
             }
         }
     }

@@ -16,8 +16,8 @@ import com.myhebnu.ui.room.components.RoomList
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreen(
-    viewModel: RoomViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: RoomViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

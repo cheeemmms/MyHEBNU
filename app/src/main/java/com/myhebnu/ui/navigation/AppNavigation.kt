@@ -4,11 +4,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.MeetingRoom
-import androidx.compose.material.icons.outlined.Assignment
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.myhebnu.R
 
@@ -45,8 +45,8 @@ sealed class TopLevelRoute(
     data object Exam : TopLevelRoute(
         route = "exam",
         titleResId = R.string.nav_exam,
-        selectedIcon = Icons.Filled.Assignment,
-        unselectedIcon = Icons.Outlined.Assignment
+        selectedIcon = Icons.AutoMirrored.Filled.Assignment,
+        unselectedIcon = Icons.AutoMirrored.Outlined.Assignment
     )
 }
 

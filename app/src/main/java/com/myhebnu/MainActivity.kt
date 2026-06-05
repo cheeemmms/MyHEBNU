@@ -58,20 +58,25 @@ fun MyHEBNUApp(
 
     // Check auth state on launch
     LaunchedEffect(Unit) {
-        isLoggedIn = authRepository.hasValidSession()
+        android.util.Log.w("MyHEBNU", "hasValidSession starting...")
+        val result = authRepository.hasValidSession()
+        android.util.Log.w("MyHEBNU", "hasValidSession = $result")
+        isLoggedIn = result
     }
 
     // Listen for login success from LoginViewModel
     val loginState by loginViewModel.uiState.collectAsState()
     LaunchedEffect(loginState.isLoggedIn) {
         if (loginState.isLoggedIn) {
+            android.util.Log.w("MyHEBNU", "LoginViewModel reports logged in")
             isLoggedIn = true
         }
     }
 
+    android.util.Log.w("MyHEBNU", "Composing MyHEBNUApp, isLoggedIn = $isLoggedIn")
     when (isLoggedIn) {
         null -> {
-            // Loading — checking stored session
+            android.util.Log.w("MyHEBNU", "Showing loading spinner")
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = androidx.compose.ui.Alignment.Center
@@ -80,14 +85,14 @@ fun MyHEBNUApp(
             }
         }
         false -> {
-            // Not logged in — show login screen
+            android.util.Log.w("MyHEBNU", "Showing LoginScreen")
             LoginScreen(
                 viewModel = loginViewModel,
                 onLoginSuccess = { isLoggedIn = true }
             )
         }
         true -> {
-            // Logged in — show main app
+            android.util.Log.w("MyHEBNU", "Showing MainAppContent")
             MainAppContent()
         }
     }

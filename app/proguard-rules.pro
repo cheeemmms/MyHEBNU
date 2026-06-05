@@ -1,18 +1,11 @@
 # MyHEBNU ProGuard Rules
 
-# Retrofit
--keepattributes Signature
--keepattributes Exceptions
--keep class com.myhebnu.data.remote.** { *; }
--keepclassmembers interface com.myhebnu.data.remote.** { *; }
+# Attributes
+-keepattributes Signature,Exceptions,RuntimeVisibleAnnotations,AnnotationDefault
 
-# Gson
--keepattributes *Annotation*
--keep class com.google.gson.** { *; }
--keep class * extends com.google.gson.TypeAdapter
--keep class * implements com.google.gson.TypeAdapterFactory
--keep class * implements com.google.gson.JsonSerializer
--keep class * implements com.google.gson.JsonDeserializer
+# Data models — Gson/Retrofit reflection targets
+-keep class com.myhebnu.data.remote.** { <fields>; }
+-keepclassmembers interface com.myhebnu.data.remote.** { *; }
 
 # Room
 -keep class * extends androidx.room.RoomDatabase

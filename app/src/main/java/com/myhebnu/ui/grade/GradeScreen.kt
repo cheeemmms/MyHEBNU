@@ -17,8 +17,8 @@ import com.myhebnu.ui.grade.components.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GradeScreen(
-    viewModel: GradeViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: GradeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

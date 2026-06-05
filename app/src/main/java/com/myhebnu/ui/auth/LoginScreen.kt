@@ -2,6 +2,7 @@ package com.myhebnu.ui.auth
 
 import android.annotation.SuppressLint
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.*
@@ -39,37 +40,47 @@ fun LoginScreen(
                 )
             }
             uiState.loginUrl.isNotEmpty() -> {
-                // Show WebView for CAS login
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Top bar with title
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                        // WebView loading indicator would go here
-                    )
-
-                    AndroidView(
+                // Show WebView for CAS login — fullscreen, no chrome
+                AndroidView(
                         factory = { context ->
                             WebView(context).apply {
+                                // Enable JavaScript (CAS login page is JS-rendered)
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
                                 settings.allowContentAccess = true
-                                settings.databaseEnabled = true
+                                settings.allowFileAccess = false
+
+                                // Critical: allow mixed content (HTTP resources on HTTP page)
+                                settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
+                                // Don't block any loads
+                                settings.blockNetworkLoads = false
+                                settings.blockNetworkImage = false
+
+                                // Viewport & zoom
                                 settings.setSupportZoom(true)
                                 settings.builtInZoomControls = true
                                 settings.displayZoomControls = false
                                 settings.loadWithOverviewMode = true
                                 settings.useWideViewPort = true
+
+                                // Modern mobile UA for proper page rendering
                                 settings.userAgentString =
                                     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
                                     "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
                                 webViewClient = object : WebViewClient() {
+                                    override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                        android.util.Log.w("MyHEBNU", "WebView onPageStarted: $url")
+                                    }
+
                                     override fun shouldOverrideUrlLoading(
                                         view: WebView?,
                                         request: WebResourceRequest?
                                     ): Boolean {
                                         // Track URL changes for login success detection
                                         request?.url?.toString()?.let { url ->
+                                            android.util.Log.w("MyHEBNU", "WebView shouldOverrideUrlLoading: $url")
                                             viewModel.onWebViewUrlChanged(url)
                                         }
                                         return false // Let WebView handle the navigation
@@ -80,6 +91,7 @@ fun LoginScreen(
                                         view: WebView?,
                                         url: String?
                                     ): Boolean {
+                                        android.util.Log.w("MyHEBNU", "WebView shouldOverrideUrlLoading(deprecated): $url")
                                         url?.let { viewModel.onWebViewUrlChanged(it) }
                                         return false
                                     }
@@ -88,23 +100,27 @@ fun LoginScreen(
                                         view: WebView?,
                                         url: String?
                                     ) {
+                                        android.util.Log.w("MyHEBNU", "WebView onPageFinished: $url")
                                         url?.let { viewModel.onWebViewUrlChanged(it) }
                                     }
 
                                     override fun onReceivedError(
                                         view: WebView?,
-                                        errorCode: Int,
-                                        description: String?,
-                                        failingUrl: String?
+                                        request: WebResourceRequest?,
+                                        error: android.webkit.WebResourceError?
                                     ) {
-                                        viewModel.onLoginError(description)
+                                        val desc = error?.description?.toString()
+                                        val url = request?.url?.toString()
+                                        android.util.Log.w("MyHEBNU", "WebView onReceivedError: desc=$desc url=$url")
+                                        viewModel.onLoginError(desc)
                                     }
                                 }
+
+                                loadUrl(uiState.loginUrl)
                             }
                         },
                         modifier = Modifier.fillMaxSize()
                     )
-                }
             }
         }
 

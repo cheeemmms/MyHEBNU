@@ -183,7 +183,7 @@ data class CourseEntity(
 
 ### 4.2 DataStore 键值
 
-```kotlin
+```text
 // UserPreferences
 currentSemesterId: String          // 当前学期ID
 currentWeek: Int                   // 当前教学周（手动设置）

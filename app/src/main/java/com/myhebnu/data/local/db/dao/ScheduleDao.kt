@@ -16,14 +16,14 @@ interface ScheduleDao {
     @Query("SELECT * FROM courses WHERE semesterYear = :year AND semesterTerm = :term")
     suspend fun getCourseListBySemester(year: String, term: String): List<CourseEntity>
 
-    @Upsert
-    suspend fun upsertAll(courses: List<CourseEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(courses: List<CourseEntity>): List<Long>
 
     @Query("DELETE FROM courses WHERE semesterYear = :year AND semesterTerm = :term")
-    suspend fun deleteBySemester(year: String, term: String)
+    suspend fun deleteBySemester(year: String, term: String): Int
 
     @Query("DELETE FROM courses")
-    suspend fun deleteAll()
+    suspend fun deleteAll(): Int
 
     @Query("SELECT DISTINCT semesterYear, semesterTerm, semesterName FROM courses ORDER BY semesterYear DESC, semesterTerm DESC")
     suspend fun getAvailableSemesters(): List<SemesterTuple>

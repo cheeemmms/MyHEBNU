@@ -1,6 +1,8 @@
 package com.myhebnu.ui.auth
 
 import android.annotation.SuppressLint
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -85,6 +87,14 @@ fun LoginScreen(
                                 settings.userAgentString =
                                     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
                                     "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+
+                                // Capture JS console errors for debugging
+                                webChromeClient = object : WebChromeClient() {
+                                    override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
+                                        android.util.Log.e("MyHEBNU", "WebView JS [${msg.messageLevel()}] ${msg.sourceId()}:${msg.lineNumber()} — ${msg.message()}")
+                                        return true
+                                    }
+                                }
 
                                 webViewClient = object : WebViewClient() {
                                     override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {

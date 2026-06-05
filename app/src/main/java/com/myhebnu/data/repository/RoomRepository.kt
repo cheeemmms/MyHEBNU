@@ -59,43 +59,42 @@ class RoomRepository @Inject constructor(
             }
 
             val body = readJsonBody(response.body(), "getCampusInfo")
-                    val buildings = mutableListOf<Building>()
-                    val lhList = body.getAsJsonArray("lhList")
-                    if (lhList != null) {
-                        for (i in 0 until lhList.size()) {
-                            val item = lhList[i].asJsonObject
-                            buildings.add(
-                                Building(
-                                    code = item.get("JXLDM")?.asString ?: "",
-                                    name = item.get("JXLMC")?.asString ?: ""
-                                )
-                            )
-                        }
-                    }
-
-                    val periods = mutableListOf<PeriodSlot>()
-                    val jcList = body.getAsJsonArray("jcList")
-                    if (jcList != null) {
-                        for (i in 0 until jcList.size()) {
-                            val item = jcList[i].asJsonObject
-                            periods.add(
-                                PeriodSlot(
-                                    name = item.get("jcmc")?.asString ?: "",
-                                    startTime = item.get("qssj")?.asString ?: "",
-                                    endTime = item.get("jssj")?.asString ?: ""
-                                )
-                            )
-                        }
-                    }
-
-                    Result.success(
-                        CampusInfo(
-                            campusId = campusId,
-                            buildings = buildings,
-                            periods = periods
+            val buildings = mutableListOf<Building>()
+            val lhList = body.getAsJsonArray("lhList")
+            if (lhList != null) {
+                for (i in 0 until lhList.size()) {
+                    val item = lhList[i].asJsonObject
+                    buildings.add(
+                        Building(
+                            code = item.get("JXLDM")?.asString ?: "",
+                            name = item.get("JXLMC")?.asString ?: ""
                         )
                     )
+                }
             }
+
+            val periods = mutableListOf<PeriodSlot>()
+            val jcList = body.getAsJsonArray("jcList")
+            if (jcList != null) {
+                for (i in 0 until jcList.size()) {
+                    val item = jcList[i].asJsonObject
+                    periods.add(
+                        PeriodSlot(
+                            name = item.get("jcmc")?.asString ?: "",
+                            startTime = item.get("qssj")?.asString ?: "",
+                            endTime = item.get("jssj")?.asString ?: ""
+                        )
+                    )
+                }
+            }
+
+            Result.success(
+                CampusInfo(
+                    campusId = campusId,
+                    buildings = buildings,
+                    periods = periods
+                )
+            )
         } catch (e: Exception) {
             android.util.Log.e("MyHEBNU", "getCampusInfo exception: ${e.message}", e)
             Result.failure(e)

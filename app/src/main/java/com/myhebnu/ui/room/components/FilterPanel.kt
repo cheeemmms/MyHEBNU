@@ -22,6 +22,10 @@ private val DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
 
 @Composable
 fun FilterPanel(
+    semesterYear: String,
+    onYearChange: (String) -> Unit,
+    semesterTerm: String,
+    onTermChange: (String) -> Unit,
     campuses: List<Building>,
     selectedCampusId: String,
     onCampusChange: (String) -> Unit,
@@ -48,7 +52,57 @@ fun FilterPanel(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Row 1: Campus + Building
+            // Row 1: Year + Semester
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val yearOptions = listOf(
+                    "2024" to "2024-2025",
+                    "2025" to "2025-2026",
+                    "2026" to "2026-2027"
+                )
+                FilterDropdown(
+                    label = "学年",
+                    value = yearOptions.find { it.first == semesterYear }?.second ?: semesterYear,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isLoading
+                ) { closeMenu ->
+                    yearOptions.forEach { (code, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                onYearChange(code)
+                                closeMenu()
+                            }
+                        )
+                    }
+                }
+
+                val termOptions = listOf(
+                    "3" to "第1学期",
+                    "12" to "第2学期",
+                    "16" to "暑假"
+                )
+                FilterDropdown(
+                    label = "学期",
+                    value = termOptions.find { it.first == semesterTerm }?.second ?: semesterTerm,
+                    modifier = Modifier.weight(1f),
+                    enabled = !isLoading
+                ) { closeMenu ->
+                    termOptions.forEach { (code, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                onTermChange(code)
+                                closeMenu()
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Row 2: Campus + Building
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)

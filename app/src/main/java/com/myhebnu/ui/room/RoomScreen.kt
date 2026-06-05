@@ -28,6 +28,10 @@ fun RoomScreen(
         // Filter panel
         item {
             FilterPanel(
+                semesterYear = uiState.semesterYear,
+                onYearChange = viewModel::setYear,
+                semesterTerm = uiState.semesterTerm,
+                onTermChange = viewModel::setTerm,
                 campuses = uiState.campuses,
                 selectedCampusId = uiState.selectedCampusId,
                 onCampusChange = viewModel::setCampus,

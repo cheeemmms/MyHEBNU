@@ -113,6 +113,14 @@ class RoomViewModel @Inject constructor(
         _uiState.update { it.copy(selectedBuilding = building, queryResult = null) }
     }
 
+    fun setYear(year: String) {
+        _uiState.update { it.copy(semesterYear = year, queryResult = null) }
+    }
+
+    fun setTerm(term: String) {
+        _uiState.update { it.copy(semesterTerm = term, queryResult = null) }
+    }
+
     fun setWeek(week: Int) {
         _uiState.update { it.copy(selectedWeek = week, queryResult = null) }
     }

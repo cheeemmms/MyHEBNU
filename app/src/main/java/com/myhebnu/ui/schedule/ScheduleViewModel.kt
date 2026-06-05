@@ -76,11 +76,15 @@ class ScheduleViewModel @Inject constructor(
                 )
             }
 
-            // First, check cache
+            // Check cache first
             val cached = repository.hasCachedData(year, term)
             if (cached) {
                 _uiState.update { it.copy(isCached = true) }
-                // Observe cached data
+            }
+
+            // Always subscribe to Room Flow (in its own coroutine — findActiveCourse
+            // needs periodLabels which are already set above)
+            viewModelScope.launch {
                 repository.observeSchedule(year, term).collect { courses ->
                     _uiState.update {
                         it.copy(
@@ -92,7 +96,7 @@ class ScheduleViewModel @Inject constructor(
                 }
             }
 
-            // Refresh from network
+            // Refresh from network (not blocked by the Flow collect above)
             refreshSchedule()
         }
     }

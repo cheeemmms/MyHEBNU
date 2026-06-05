@@ -11,6 +11,15 @@ import javax.inject.Singleton
 class RoomRepository @Inject constructor(
     private val api: EASystemApi
 ) {
+    companion object {
+        /** Quick check: response body is not raw HTML (教务系统门控 reject) */
+        fun isHtmlResponse(body: Any?): Boolean {
+            val s = body?.toString() ?: return false
+            return s.contains("<!doctype") || s.contains("<html") ||
+                s.contains("无功能权限") || s.contains("登录")
+        }
+    }
+
     /**
      * Fetch campus buildings and period information.
      */
@@ -24,6 +33,9 @@ class RoomRepository @Inject constructor(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
+                    if (isHtmlResponse(body)) {
+                        return Result.failure(Exception("校区信息请求被教务系统拒绝（返回HTML错误页）"))
+                    }
                     val buildings = mutableListOf<Building>()
                     val lhList = body.getAsJsonArray("lhList")
                     if (lhList != null) {
@@ -76,7 +88,24 @@ class RoomRepository @Inject constructor(
      */
     suspend fun queryEmptyRooms(filter: RoomFilter): Result<List<EmptyRoom>> {
         return try {
-            api.registerMenuClick("N2155")
+            // Step 1: 注册菜单点击
+            val menuResult = api.registerMenuClick("N2155")
+            if (!menuResult.isSuccessful) {
+                return Result.failure(Exception("菜单注册失败: HTTP ${menuResult.code()}"))
+            }
+
+            // Step 2: 加载空教室页面（建立浏览器 context——教务系统门控要求）
+            val pageResult = api.loadRoomPage()
+            if (!pageResult.isSuccessful) {
+                return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
+            }
+            val pageBody = pageResult.body()?.string() ?: ""
+            val isLogin = pageBody.contains("登录") || pageBody.contains("login_slogin")
+            if (isLogin) {
+                return Result.failure(Exception("Session 已失效，页面重定向到登录页"))
+            }
+
+            // Step 3: 查询空教室数据
             // Determine building param
             val lh = filter.building ?: ""
 
@@ -108,6 +137,9 @@ class RoomRepository @Inject constructor(
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
+                    if (isHtmlResponse(body)) {
+                        return Result.failure(Exception("空教室查询被教务系统拒绝（返回HTML错误页）"))
+                    }
                     val items = body.getAsJsonArray("items")
                     val rooms = parseEmptyRooms(items ?: JsonArray())
                     Result.success(rooms)

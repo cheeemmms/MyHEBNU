@@ -70,6 +70,11 @@ interface EASystemApi {
 
     // === 空教室 ===
 
+    @GET("/cdjy/cdjy_cxKxcdlb.html")
+    suspend fun loadRoomPage(
+        @Query("gnmkdm") moduleCode: String = "N2155"
+    ): Response<okhttp3.ResponseBody>
+
     @GET("/cdjy/cdjy_cxXqjc.html")
     suspend fun getCampusBuildingInfo(
         @Query("xqh_id") campusId: String,

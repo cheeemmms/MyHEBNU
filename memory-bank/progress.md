@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-05 | 状态: MVP 代码完成，待编译验证通过
+> 最后更新: 2026-06-05 | 状态: 课表+成绩功能可用，构建通过，真机运行
 
 ---
 
@@ -9,9 +9,11 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
 
-→ 🎉 MVP 核心功能闭环已达成交付！
+→ 课表 + 成绩在真机（小米15 / Android 16）上可实际运行
+→ 空教室 API 端已通，UI 待实现
+→ 考试安排的数据接口已确认，待开发
 ```
 
 ---
@@ -185,6 +187,79 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 ---
 
+## 构建修复 & 版本兼容性
+
+经过 10+ 轮迭代，最终锁定以下兼容版本组合：
+
+| 组件 | 版本 | 备注 |
+|------|------|------|
+| AGP | `8.7.3` | 锚点版本，不动 |
+| Kotlin | `2.2.21` | 最低满足 OkHttp 5.3.2 / Coroutines 1.11.0 的 metadata 2.2.0 要求 |
+| KSP | `2.2.21-2.0.5` | 精确匹配 Kotlin 2.2.21（旧格式 `{kotlin}-{ksp}`） |
+| Hilt | `2.57.2` | 首个内置 kotlin-metadata-jvm 2.2.0 的版本 |
+| Room | `2.7.2` | 修复 `? super Continuation` KSP 代码生成 |
+| Gradle | `9.5.1` | 阿里云镜像 + 代理双通道 |
+
+关键踩坑：
+- Hilt 2.59.2 要求 AGP 9.0.0+，但阿里云镜像无 AGP 9.x 稳定版
+- KSP 版本格式已从 `{kotlin}-1.0.{build}` 变为独立 `X.Y.Z`（2.3.0 起）
+- Room 2.6.x 处理 Kotlin 2.2.x 的 `? super Continuation` 协变签名时崩溃（`unexpected jvm signature V`）
+- 阿里云 `public` 镜像缺 KSP 2.4.x / AGP 9.x 稳定版 → 不能追最新版本
+- `compileSdk = 36` 超出 AGP 8.7.3 测试范围 → 降回 35
+- 小米 15（骁龙 8 Elite / 16KB Page）→ 需 `android.experimental.enable16KbPageAlignment=true`
+
+详见 [[教务系统逆向分析]] §构建兼容性清单。
+
+---
+
+## 教务系统 API 逆向分析成果
+
+通过 mitmproxy 对手机浏览器和 App 进行双向抓包对比，获得了教务系统（ZFSOFT 新方正）的关键行为特征：
+
+### 请求伪装要求
+
+教务系统会拒绝非浏览器发起的 API 请求（返回 HTML "无功能权限"）。必须伪装成浏览器 AJAX：
+
+| 请求头 | 浏览器值 | 说明 |
+|--------|----------|------|
+| `User-Agent` | Chrome Mobile UA | 绝不能暴露 `okhttp/5.3.2` |
+| `Accept` | `*/*` | 不能只用 `application/json` |
+| `Referer` | 对应功能页面 URL | 课表 API 必须 Referer 课表页面，不是菜单页 |
+| `X-Requested-With` | `XMLHttpRequest` | 教务系统用此头判断 AJAX |
+| `Origin` | `http://jwgl.hebtu.edu.cn` | 同域 POST 也需携带 |
+
+### 请求序列（关键发现）
+
+浏览器访问课表的完整序列：
+
+```
+① GET  index_initMenu.html              → 主菜单页
+② POST index_cxBczjsygnmk?gnmkdm=index  → 菜单点击注册 (body: gndm=N2151)
+③ GET  cxXskbcxIndex.html               → 课表页面（建立功能上下文）
+④ POST cxXsgrkb.html                    → 获取课表数据（JSON）✅
+```
+
+每个 API 调用前必须完成三步前置：菜单注册 → 页面加载 → 数据请求。缺一步即返回 HTML 错误页。
+
+### Cookie 与会话
+
+- 教务系统使用 `JSESSIONID` + `jw` 双 cookie
+- `PersistentCookieJar.saveFromResponse()` 必须**合并**而非替换 cookie（修复：302 响应只带 `jw` 会覆盖掉 `JSESSIONID`）
+- `CookieManager.getCookie()` 必须传完整 URL（`http://host/`）而非裸域名，否则取不到所有 cookie
+- 登录后需重启 App 才能正常加载课表——原因待查，疑似 WebView 登录和 OkHttp API 调用之间的 cookie 桥接时序问题
+
+### MITM 抓包数据
+
+| 抓包文件 | 描述 |
+|----------|------|
+| `mitm/浏览器访问` | 手机 Edge 浏览器成功访问课表（JSON 4053B） |
+| `mitm/MyHEBNU` | App 第一次访问（课表 API 返回 HTML 错误） |
+| `mitm/MyHEBNU2` | App 第二次访问（同上，证明非偶然） |
+
+详见 [[教务系统逆向分析]]。
+
+---
+
 ## 工作环境
 
 | 项 | 值 |
@@ -211,6 +286,10 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 | 2026-06-04 | Git init + 配置代理/镜像/Wrapper | 构建工具链 |
 | 2026-06-05 | 修复 30 个编译错误 (Vico→Canvas 替换等) | 首次编译 |
 | **2026-06-05** | **🎉 MVP 核心闭环: 83 文件, ~4800 行, 13 次提交** | **里程碑** |
+| 2026-06-05 | 真机调试：修复 10+ 构建兼容性问题（版本链） | 首次编译 |
+| 2026-06-05 | 真机调试：mitmproxy 双向抓包 + 教务系统行为逆向 | API 调试 |
+| 2026-06-05 | 修复：Cookie 合并 / WebView URL / 请求头伪装 / 16KB Page | Bug 修复 |
+| 2026-06-05 | 课表 + 成绩在小米15真机验证通过 | 功能验证 |
 
 ---
 

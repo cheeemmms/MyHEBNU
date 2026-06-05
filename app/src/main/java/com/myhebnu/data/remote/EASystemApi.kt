@@ -12,7 +12,21 @@ import retrofit2.http.*
  */
 interface EASystemApi {
 
+    // === 权限门控：注册菜单点击 ===
+    @POST("/xtgl/index_cxBczjsygnmk.html")
+    @FormUrlEncoded
+    suspend fun registerMenuClick(
+        @Field("gndm") moduleCode: String,
+        @Query("gnmkdm") gnCode: String = ""
+    ): Response<String>
+
     // === 课表 ===
+
+    @GET("/kbcx/xskbcx_cxXskbcxIndex.html")
+    suspend fun loadSchedulePage(
+        @Query("gnmkdm") moduleCode: String = "N2151",
+        @Query("layout") layout: String = "default"
+    ): Response<okhttp3.ResponseBody>
 
     @POST("/kbcx/xskbcx_cxXsgrkb.html")
     @FormUrlEncoded

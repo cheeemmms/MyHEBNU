@@ -525,4 +525,64 @@ WorkManager (AlarmManager)
 
 ---
 
+## 11. 教务系统反向工程——请求门控机制
+
+> 通过 mitmproxy 对手机浏览器和 App 进行双向抓包对比发现。2026-06-05。
+
+### 11.1 反爬/反程序机制
+
+教务系统（ZFSOFT 新方正 V-9.0）会检查请求头判断是否为浏览器发起的合法 AJAX 请求。不符合以下条件的请求返回 `text/html` 错误页 "无功能权限"（HTTP 200）：
+
+- `X-Requested-With: XMLHttpRequest` — jQuery AJAX 标记
+- `User-Agent` — 不能暴露 `okhttp` 等非浏览器标识
+- `Referer` — 必须指向正确的功能页面 URL
+- `Origin` — 必须发送同域 Origin 头
+- `Accept: */*` — 浏览器 AJAX 行为
+
+### 11.2 请求序列要求
+
+每个功能模块的 API 调用前必须完成三步前置：
+
+```
+① 菜单点击注册  POST index_cxBczjsygnmk?gnmkdm=index  body: gndm={模块代码}
+② 加载功能页面   GET  {模块页面}.html
+③ 获取数据       POST {模块数据API}.html
+```
+
+缺第②步则数据 API 返回 "无功能权限"。菜单点击注册（第①步）的响应不检查返回值即可（总是"操作成功！"），但必须调用。
+
+各模块代码：
+| 模块 | gndm | 页面 URL | 数据 API |
+|------|------|----------|----------|
+| 课表 | N2151 | `/kbcx/xskbcx_cxXskbcxIndex.html` | `/kbcx/xskbcx_cxXsgrkb.html` |
+| 成绩 | N305007 | `/cjcx/cjcx_cxXskbcxIndex.html` | `/cjcx/cjcx_cxXsKcList.html` |
+| 空教室 | N2155 | `/cdjy/cdjy_cxKxcdlb.html` | `/cdjy/cdjy_cxKxcdlb.html` |
+| 考试 | N358105 | `/kwgl/kscx_cxXsksxxIndex.html` | `/kwgl/kscx_cxXsksxxIndex.html` |
+
+### 11.3 Cookie 与会话管理
+
+- 教务系统使用 `JSESSIONID` + `jw` 双 cookie 认证
+- `CookieManager.getCookie()` 必须传入完整 URL（`http://host/`），裸域名可能不返回所有 cookie
+- CookieJar 的 `saveFromResponse()` 必须**合并** cookie 而非替换——302 响应只带 `jw` 不带 `JSESSIONID`，替换会导致 `JSESSIONID` 丢失
+- 登录后建议重启 App 以确保 WebView 和 OkHttp 之间的 cookie 桥接完整
+
+### 11.4 构建兼容性矩阵
+
+通过 10+ 轮迭代验证的版本组合：
+
+```
+AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
+                   ↕
+             Hilt 2.57.2  ←→  Room 2.7.2
+```
+
+关键约束：
+- 阿里云 Maven 镜像缺少 KSP 2.4.x 和 AGP 9.x 稳定版 → 不能追最新
+- Kotlin ≥ 2.2.0 才能读取 OkHttp/Coroutines 的 metadata 2.2.0
+- Hilt ≥ 2.57 才内置 kotlin-metadata-jvm 2.2.0
+- Room ≥ 2.7.0 才正确生成 Kotlin 2.2.x 的 `? super Continuation` 签名
+- 小米 15（16KB Page）需要 `android.experimental.enable16KbPageAlignment=true`
+
+---
+
 > **关联文档**: [[design-document]] | [[implementation-plan]] | [[progress]]

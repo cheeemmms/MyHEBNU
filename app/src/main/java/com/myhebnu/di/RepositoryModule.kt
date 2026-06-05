@@ -37,8 +37,9 @@ object RepositoryModule {
         cookieJar: PersistentCookieJar,
         sessionManager: SessionManager,
         preferences: UserPreferences,
-        authInterceptor: AuthInterceptor
-    ): AuthRepository = AuthRepository(cookieJar, sessionManager, preferences, authInterceptor)
+        authInterceptor: AuthInterceptor,
+        okHttpClient: okhttp3.OkHttpClient
+    ): AuthRepository = AuthRepository(cookieJar, sessionManager, preferences, authInterceptor, okHttpClient)
 
     @Provides
     @Singleton

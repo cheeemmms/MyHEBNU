@@ -18,6 +18,7 @@ class GradeRepository @Inject constructor(
      */
     suspend fun getGrades(year: String, term: String): Result<List<Grade>> {
         return try {
+            api.registerMenuClick("N305007")
             val response = api.getGradeList(year = year, semester = term)
             if (response.isSuccessful) {
                 val body = response.body()

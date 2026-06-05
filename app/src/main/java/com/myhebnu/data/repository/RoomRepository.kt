@@ -76,6 +76,7 @@ class RoomRepository @Inject constructor(
      */
     suspend fun queryEmptyRooms(filter: RoomFilter): Result<List<EmptyRoom>> {
         return try {
+            api.registerMenuClick("N2155")
             // Determine building param
             val lh = filter.building ?: ""
 

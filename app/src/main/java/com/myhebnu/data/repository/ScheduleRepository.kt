@@ -43,16 +43,36 @@ class ScheduleRepository @Inject constructor(
      */
     suspend fun refreshSchedule(year: String, term: String): Result<Unit> {
         return try {
-            val response = api.getSchedule(
-                year = year,
-                semester = term,
-                type = "ck"
-            )
+            // Step 1: 注册菜单点击
+            val menuResult = api.registerMenuClick("N2151")
+            if (!menuResult.isSuccessful) {
+                return Result.failure(Exception("菜单注册失败: HTTP ${menuResult.code()}"))
+            }
+            android.util.Log.w("MyHEBNU", "registerMenuClick -> ${menuResult.code()}")
+
+            // Step 2: 加载课表页面（建立浏览器 context）
+            val pageResult = api.loadSchedulePage()
+            if (!pageResult.isSuccessful) {
+                return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
+            }
+            val pageBody = pageResult.body()?.string() ?: ""
+            val isLogin = pageBody.contains("登录") || pageBody.contains("login_slogin")
+            android.util.Log.w("MyHEBNU", "loadSchedulePage -> ${pageResult.code()}, isLoginPage=$isLogin, size=${pageBody.length}")
+            if (isLogin) {
+                return Result.failure(Exception("Session 已失效，页面重定向到登录页"))
+            }
+
+            // Step 3: 获取课表数据
+            val response = api.getSchedule(year = year, semester = term, type = "ck")
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body != null) {
+                    val raw = body.toString()
+                    android.util.Log.w("MyHEBNU", "getSchedule -> ${response.code()}, size=${raw.length}")
+                    if (raw.contains("<!doctype") || raw.contains("<html")) {
+                        return Result.failure(Exception("服务器返回 HTML 而非 JSON，权限验证失败"))
+                    }
                     val courses = parseScheduleResponse(body, year, term)
-                    // Replace cached courses for this semester atomically
                     dao.deleteBySemester(year, term)
                     dao.upsertAll(courses)
                     Result.success(Unit)
@@ -63,6 +83,7 @@ class ScheduleRepository @Inject constructor(
                 Result.failure(Exception("HTTP ${response.code()}: ${response.message()}"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "refreshSchedule 异常: ${e.message}", e)
             Result.failure(e)
         }
     }

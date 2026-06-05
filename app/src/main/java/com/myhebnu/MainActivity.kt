@@ -58,10 +58,11 @@ fun MyHEBNUApp(
 
     // Check auth state on launch
     LaunchedEffect(Unit) {
-        android.util.Log.w("MyHEBNU", "hasValidSession starting...")
+        android.util.Log.w("MyHEBNU", "=== 开始检查登录状态 ===")
         val result = authRepository.hasValidSession()
         android.util.Log.w("MyHEBNU", "hasValidSession = $result")
         isLoggedIn = result
+        android.util.Log.w("MyHEBNU", "=== 检查登录状态完成 ===")
     }
 
     // Listen for login success from LoginViewModel
@@ -101,9 +102,7 @@ fun MyHEBNUApp(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppContent() {
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    var currentRoute by remember { mutableStateOf(TopLevelRoute.Schedule.route) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -114,13 +113,7 @@ fun MainAppContent() {
                 currentRoute = currentRoute,
                 onRouteSelected = { route ->
                     scope.launch { drawerState.close() }
-                    navController.navigate(route.route) {
-                        popUpTo(TopLevelRoute.Schedule.route) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    currentRoute = route.route
                 }
             )
         }

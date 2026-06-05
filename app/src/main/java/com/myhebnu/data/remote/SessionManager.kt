@@ -42,8 +42,11 @@ class SessionManager @Inject constructor(
     fun hasValidSession(): Boolean {
         val lastSaved = prefs.getLong(KEY_LAST_SAVED, 0)
         val cookieNames = prefs.getStringSet(KEY_COOKIE_NAMES, emptySet())
-        return !cookieNames.isNullOrEmpty() &&
-            System.currentTimeMillis() - lastSaved < SESSION_MAX_AGE_MS
+        val age = System.currentTimeMillis() - lastSaved
+        val hasCookies = !cookieNames.isNullOrEmpty()
+        val notExpired = age < SESSION_MAX_AGE_MS
+        android.util.Log.w("MyHEBNU", "SessionManager.hasValidSession: hasCookies=$hasCookies, age=$age ms, notExpired=$notExpired, cookieNames=$cookieNames")
+        return hasCookies && notExpired
     }
 
     fun clearSession() {

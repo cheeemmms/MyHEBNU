@@ -25,7 +25,13 @@ class PersistentCookieJar @Inject constructor(
     }
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-        cookieStore[url.host] = cookies.toMutableList()
+        android.util.Log.w("MyHEBNU", "saveFromResponse: url=$url, cookies=${cookies.map { "${it.name}=${it.value}" }}")
+        // Merge cookies instead of replacing — keeps JSESSIONID etc. across redirects
+        val existing = cookieStore.getOrPut(url.host) { mutableListOf() }
+        for (newCookie in cookies) {
+            existing.removeAll { it.name == newCookie.name }
+            existing.add(newCookie)
+        }
 
         // Persist important cookies to encrypted storage
         val cookieMap = mutableMapOf<String, String>()
@@ -40,7 +46,9 @@ class PersistentCookieJar @Inject constructor(
     }
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
-        return cookieStore[url.host] ?: emptyList()
+        val cookies = cookieStore[url.host] ?: emptyList()
+        android.util.Log.w("MyHEBNU", "loadForRequest: url=$url, cookies=${cookies.map { "${it.name}=${it.value}" }}")
+        return cookies
     }
 
     /**
@@ -60,6 +68,8 @@ class PersistentCookieJar @Inject constructor(
 
     private fun restoreFromStorage() {
         val storedCookies = sessionManager.loadCookies()
+        android.util.Log.w("MyHEBNU", "restoreFromStorage: 从SessionManager加载了 ${storedCookies.size} 个cookie")
+        android.util.Log.w("MyHEBNU", "  内容: $storedCookies")
         for ((key, value) in storedCookies) {
             val parts = key.split("_", limit = 2)
             if (parts.size == 2) {
@@ -74,5 +84,6 @@ class PersistentCookieJar @Inject constructor(
                 cookieStore.getOrPut(host) { mutableListOf() }.add(cookie)
             }
         }
+        android.util.Log.w("MyHEBNU", "restoreFromStorage: cookieStore现在有 ${cookieStore.keys.size} 个host的cookies")
     }
 }

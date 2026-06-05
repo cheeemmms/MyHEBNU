@@ -17,8 +17,8 @@ interface EASystemApi {
     @FormUrlEncoded
     suspend fun registerMenuClick(
         @Field("gndm") moduleCode: String,
-        @Query("gnmkdm") gnCode: String = ""
-    ): Response<String>
+        @Query("gnmkdm") gnCode: String = "index"
+    ): Response<okhttp3.ResponseBody>
 
     // === 课表 ===
 

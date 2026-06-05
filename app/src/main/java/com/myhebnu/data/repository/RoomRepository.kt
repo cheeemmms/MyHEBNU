@@ -43,6 +43,7 @@ class RoomRepository @Inject constructor(
 
     /**
      * Fetch campus buildings and period information.
+     * Includes the 3-step 门控 sequence (menu click → page load → data fetch).
      */
     suspend fun getCampusInfo(
         campusId: String,
@@ -51,6 +52,22 @@ class RoomRepository @Inject constructor(
     ): Result<CampusInfo> {
         return try {
             android.util.Log.w("MyHEBNU", "getCampusInfo: campus=$campusId year=$year term=$term")
+
+            // Step 1: 注册菜单点击
+            val menuResult = api.registerMenuClick("N2155")
+            android.util.Log.w("MyHEBNU", "getCampusInfo menu: HTTP ${menuResult.code()}")
+            if (!menuResult.isSuccessful) {
+                return Result.failure(Exception("菜单注册失败: HTTP ${menuResult.code()}"))
+            }
+
+            // Step 2: 加载空教室页面（建立浏览器 context）
+            val pageResult = api.loadRoomPage()
+            android.util.Log.w("MyHEBNU", "getCampusInfo page: HTTP ${pageResult.code()}")
+            if (!pageResult.isSuccessful) {
+                return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
+            }
+
+            // Step 3: 获取校区楼栋数据
             val response = api.getCampusBuildingInfo(campusId, year, term)
             android.util.Log.w("MyHEBNU", "getCampusInfo HTTP ${response.code()}")
 

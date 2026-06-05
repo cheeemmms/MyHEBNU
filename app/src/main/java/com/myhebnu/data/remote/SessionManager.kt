@@ -2,33 +2,20 @@ package com.myhebnu.data.remote
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Persists CAS SSO session cookies using EncryptedSharedPreferences.
- *
- * Cookies are stored in encrypted form to protect the session from
- * extraction on rooted devices or by malicious apps.
+ * Persists CAS SSO session cookies.
+ * Note: Uses plain SharedPreferences for MVP. EncryptedSharedPreferences (Phase 8).
  */
 @Singleton
 class SessionManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-
-    private val prefs: SharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun saveCookies(cookies: Map<String, String>) {
         prefs.edit().apply {
@@ -55,7 +42,6 @@ class SessionManager @Inject constructor(
     fun hasValidSession(): Boolean {
         val lastSaved = prefs.getLong(KEY_LAST_SAVED, 0)
         val cookieNames = prefs.getStringSet(KEY_COOKIE_NAMES, emptySet())
-        // Session considered valid if cookies exist and were saved within 7 days
         return !cookieNames.isNullOrEmpty() &&
             System.currentTimeMillis() - lastSaved < SESSION_MAX_AGE_MS
     }
@@ -72,10 +58,10 @@ class SessionManager @Inject constructor(
     }
 
     companion object {
-        private const val PREFS_NAME = "myhebnu_encrypted_session"
+        private const val PREFS_NAME = "myhebnu_session"
         private const val KEY_COOKIE_NAMES = "cookie_names"
         private const val KEY_COOKIE_PREFIX = "cookie_"
         private const val KEY_LAST_SAVED = "last_saved"
-        private const val SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L // 7 days
+        private const val SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000L
     }
 }

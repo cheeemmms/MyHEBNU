@@ -55,6 +55,8 @@ fun GradeTrendChart(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
 
+        val surfaceColor = MaterialTheme.colorScheme.surface
+
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -121,7 +123,7 @@ fun GradeTrendChart(
                     center = point
                 )
                 drawCircle(
-                    color = MaterialTheme.colorScheme.surface,
+                    color = surfaceColor,
                     radius = 3.dp.toPx(),
                     center = point
                 )

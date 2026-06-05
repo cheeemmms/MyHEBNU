@@ -19,6 +19,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
 
 @SuppressLint("SetJavaScriptEnabled")
+@Suppress("DEPRECATION")
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel(),

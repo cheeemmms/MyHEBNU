@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-05 | 状态: 细化打磨阶段 — 已完成核心闭环，开始按优先级修 Bug + 优化体验
+> 最后更新: 2026-06-05 | 状态: Batch 1 完成 — 空教室查询功能可用，真机验证通过
 
 ---
 
@@ -9,12 +9,11 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
 
-→ 课表 + 成绩在真机（小米15 / Android 16）上可实际运行
-→ 空教室 API + UI 代码已完成，但查询闪退（待修复）
+→ 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
+→ Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
 → 考试安排的数据接口已确认，待开发
-→ 进入细化打磨阶段，按 Batch 优先修复 Bug 再做架构变更
 ```
 
 ---
@@ -23,14 +22,10 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 > 评估日期: 2026-06-05 | 基于代码审查 + 用户反馈的优先级排序
 
-### 排序逻辑
-
-综合考虑三个维度：**用户影响**（崩溃/阻塞/体验）> **代码改动量**（低改动优先做）> **依赖关系**（被依赖的优先）
-
 ```
-Batch 1: 修 Bug（P0 — 阻塞使用）
-  ├── #5 空教室闪退 ──→ 缺三步请求序列中的页面加载步骤，教务系统返回 HTML 导致解析崩溃
-  └── #1 登录后需杀应用 ──→ ViewModel 仅在 isCached=true 时订阅 Room Flow，首次登录无缓存时数据静默丢失
+Batch 1: 修 Bug（P0 — 阻塞使用）✅ 已完成
+  ├── #5 空教室闪退 ──→ 根因：Compose 嵌套滚动容器 (LazyColumn in Column+verticalScroll) + 数据层缺三步序列 + gnmkdm 参数错误
+  └── #1 登录后需杀应用 ──→ 根因：ScheduleViewModel Room Flow 仅在 isCached=true 时订阅，首次登录无缓存时数据静默丢失
 
 Batch 2: 数据正确性（P1 — 核心体验缺陷）
   ├── #4c 按周过滤课程 ──→ WeekViewGrid 未按 displayWeek 过滤 startWeek..endWeek
@@ -49,26 +44,17 @@ Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
   └── #4d UI/UX Pro Max ──→ 调用 ui-ux-pro-max skill 重新设计课表页（后于 #7，避免风格冲突）
 ```
 
+### Batch 1 完成详情
+
+| # | 问题 | 实际根因（多层） | 修改文件 | 提交数 |
+|---|------|-----------------|----------|--------|
+| #5 | 空教室闪退 | ① Compose: `LazyColumn` 嵌套在 `Column(verticalScroll)` 中 (RoomScreen + RoomList) ② 数据层: 缺三步序列中的页面加载 ③ API: `gnmkdm` 参数默认为空串 (应为 "index") ④ API: `Response<String>` 导致 Gson 解析"操作成功！"失败 | `RoomScreen`, `RoomList`, `EASystemApi`, `RoomRepository`, `RoomViewModel`, `FilterPanel` | 8 |
+| #1 | 登录不显示 | `collect` 阻塞协程 + Flow 仅在缓存命中时订阅 | `ScheduleViewModel` | 1 |
+
 ### 关键依赖
 
 - **#7 ← #6**: 单首页需展示 "下一场考试" 卡片 → 考试数据必须可用
 - **#4d ← #7**: 首页架构定了，课表页设计才有方向
-- **Batch 1~2 各项相互独立**，可安全并行
-
-### 各项代码影响评估
-
-| # | 问题 | 影响文件数 | 改动范围 |
-|---|------|-----------|----------|
-| #5 | 空教室闪退 | ~2 | `RoomRepository` 补页面加载请求；`EASystemApi` 补页面加载接口 |
-| #1 | 登录不显示 | ~1 | `ScheduleViewModel.loadInitialData()` — 修复 Flow 订阅时机 |
-| #4c | 按周过滤 | ~1 | `WeekViewGrid` / `ScheduleViewModel` — 增加过滤条件 |
-| #2 | 默认周数 | ~1 | `UserPreferences` 默认值 或 `ScheduleViewModel` init |
-| #4a | 填满屏宽 | ~1 | `WeekViewGrid` — 移除 `horizontalScroll`，计算动态宽度 |
-| #4b | 卡片排版 | ~1 | `CourseCard` — 调整 TextStyle |
-| #3 | 课程详情 | ~3 | `CourseCard` + `ScheduleViewModel` + 新 `CourseDetailSheet` |
-| #6 | 考试页面 | ~5 | `ExamRepository` + `ExamViewModel` + `ExamScreen` + DTO + 导航接线 |
-| #7 | 单首页 | ~6+ | `MainActivity` + `AppNavigation` + 新 `HomeScreen` + 各模块入口重构 |
-| #4d | UI/UX 重设计 | ~4 | `ScheduleScreen` + `WeekViewGrid` + `CourseCard` + `Theme` |
 
 ---
 
@@ -232,8 +218,8 @@ Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
 
 | # | 问题 | 状态 | 备注 |
 |----|------|------|------|
-| 1 | **登录后需杀应用才能看到课表** | 🔴 P0 待修复 | `ScheduleViewModel` 仅在缓存命中时订阅 Room Flow，首次登录无缓存导致数据静默丢失 |
-| 2 | **空教室点击查询即闪退** | 🔴 P0 待修复 | 缺三步请求序列中的页面加载步骤，教务系统门控返回 HTML 而非 JSON |
+| 1 | **登录后需杀应用才能看到课表** | 🟢 已修复 | `ScheduleViewModel` Flow 订阅移至独立协程 |
+| 2 | **空教室点击查询即闪退** | 🟢 已修复 | 实际是 Compose 嵌套滚动容器 + 数据层三步序列 + gnmkdm 参数三层问题 |
 | 3 | 课表未按周过滤（非本周课程也显示） | 🟡 P1 待修复 | `WeekViewGrid` 不按 `displayWeek` 过滤 `startWeek..endWeek` |
 | 4 | 默认周数为第1周而非真实当前周 | 🟡 P1 待修复 | `currentWeek` 硬编码为 1，需从学期起始日期计算 |
 | 5 | 课表需横向滑动才能看完整 | 🟢 P2 待优化 | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
@@ -242,6 +228,48 @@ Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
 | 8 | 会话过期响应未捕获 | 🟡 开发中处理 | 通用 401/403 拦截方案 |
 | 9 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
 | 10 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
+
+---
+
+## 空教室闪退诊断：教训与沉淀
+
+> 这是整个项目迄今为止最顽固的 Bug。8 次提交、4 轮 logcat 分析、从数据层猜到 Compose 布局才最终定位。以下教训值得记录。
+
+### 为什么花了这么长时间？
+
+| 失误 | 表现 | 正确做法 |
+|------|------|----------|
+| **隧道视野** | 看到"点击查询→闪退"，始终认定崩溃在数据层（网络/JSON/门控），反复修改 `RoomRepository`。实际崩溃在 Compose 渲染层。 | 先看 crash 堆栈，再猜测原因。堆栈中 `LazyColumn` 相关的错误不可能是 JSON 解析导致的。 |
+| **logcat 过滤过严** | 第一轮 logcat 只过滤 `tag:MyHEBNU`，FATAL EXCEPTION（tag:AndroidRuntime）被排除。零 crash 堆栈导致盲猜 3 轮。 | crash 诊断 logcat 应**不加 tag 过滤**。或至少同时包含 `AndroidRuntime` + `MyHEBNU`。 |
+| **修复不彻底** | 发现 `RoomScreen` 的 `LazyColumn` 问题并修了，但未检查子组件 `RoomList` 中的另一个 `LazyColumn`——同一个 bug 藏了两处。 | 修复嵌套滚动 bug 时，`grep LazyColumn` 全局搜索所有同名模式。 |
+| **"闪退"的歧义** | "点击按钮后崩溃" 让人以为崩溃在按钮的 onClick 逻辑中。实际是在点击触发的状态变更后的 **Compose 重组/渲染** 阶段崩溃。 | Compose 中，"操作后闪退" 往往 ≠ "操作逻辑崩溃"，= 重组崩溃。先检查 stack trace 的函数栈（是 `measure` 还是 `onClick`）。 |
+| **空数据误导** | 26-27 学年返回空数据不崩溃（`rooms.isEmpty → LazyColumn 不渲染`），制造了"数据层面没问题"的假象。 | 有数据才触发的崩溃 ≠ 数据格式问题。区分"有数据崩/空数据不崩" — 这是经典的渲染层条件触达 bug。 |
+
+### 实际根因（三层）
+
+1. **Compose 布局层**（主因）：`RoomScreen: Column(verticalScroll)` 内部放 `RoomList: LazyColumn`——嵌套垂直滚动容器，Compose 给 LazyColumn 传了 `infinity max-height`，测量阶段直接 `IllegalStateException`。
+2. **数据层**（次因）：`getCampusInfo()` 缺少页面加载步骤，教务系统 302 拒绝，楼栋列表为空。
+3. **API 层**（次因）：`registerMenuClick` 的 `gnmkdm` 参数默认空串，应为 `"index"`；返回类型 `Response<String>` 让 Gson 解析文本"操作成功！"失败。
+
+### 修复文件汇总
+
+| 层 | 文件 | 改动 |
+|----|------|------|
+| Compose | `RoomScreen.kt` | `LazyColumn` → `Column(verticalScroll)` |
+| Compose | `RoomList.kt` | `LazyColumn` → `Column + forEach` |
+| API | `EASystemApi.kt` | 新增 `loadRoomPage()`；`registerMenuClick` gnCode 默认值 `""→"index"`，返回类型 `String→ResponseBody`；`getCampusBuildingInfo`/`getEmptyRooms` 返回类型 `JsonObject→ResponseBody` |
+| 数据 | `RoomRepository.kt` | `readJsonBody()` Helper 绕过 Gson；`getCampusInfo()` 加三步序列；`queryEmptyRooms()` 加三步序列 + HTML 守卫 + 全链路日志 |
+| UI | `RoomViewModel.kt` | 校区标签"校区2"→"红旗校区"；必填字段客户端校验（星期/节次空时拒绝请求）；新增学年/学期 setter |
+| UI | `FilterPanel.kt` | 新增学年/学期下拉；所有下拉选中后自动关闭(`closeMenu` 回调) |
+
+### 可复用的检查清单
+
+以后遇到 Compose 应用"操作后闪退"问题：
+1. **先看 stack trace**，不是先猜原因
+2. logcat **不加 tag 过滤**
+3. 在 stack trace 中搜索 `LazyColumn`、`LazyRow`、`scroll`、`measure`——如果在 measure 阶段崩溃，是布局问题
+4. `grep LazyColumn` 全局排查嵌套滚动
+5. 区分"空数据不崩/有数据崩"——这是条件渲染触发的布局崩溃的特征信号
 
 ---
 
@@ -348,6 +376,8 @@ Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
 | 2026-06-05 | 真机调试：mitmproxy 双向抓包 + 教务系统行为逆向 | API 调试 |
 | 2026-06-05 | 修复：Cookie 合并 / WebView URL / 请求头伪装 / 16KB Page | Bug 修复 |
 | 2026-06-05 | 课表 + 成绩在小米15真机验证通过 | 功能验证 |
+| 2026-06-05 | Batch 1 完成：空教室闪退（8次提交）+ 登录数据丢失（1次提交） | Bug 修复 |
+| 2026-06-05 | 编译警告清零（6 个 deprecation 警告） | 代码质量 |
 
 ---
 

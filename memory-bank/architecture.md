@@ -585,4 +585,37 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 
 ---
 
+## 12. Compose 嵌套滚动容器规则
+
+> 通过 Batch 1 空教室闪退诊断沉淀。2026-06-05。
+
+### 规则
+
+**Compose 不允许在任何垂直滚动容器（`Column.verticalScroll`, `LazyColumn`）内部嵌套另一个垂直滚动容器（`LazyColumn`, `LazyVerticalGrid` 等）。**
+
+违反此规则时，Compose 在 measure 阶段抛出：
+```
+java.lang.IllegalStateException: Vertically scrollable component was measured
+with an infinity maximum height constraints, which is disallowed.
+```
+
+### 本项目注意点
+
+| 场景 | 正确做法 | 错误做法 |
+|------|----------|----------|
+| Screen 根布局 | `Column(Modifier.verticalScroll())` 或 `LazyColumn`，选一个 | ❌ `Column(verticalScroll)` 里嵌套 `LazyColumn` |
+| Screen 中嵌入列表组件 | 如果 Screen 已是垂直滚动的，子组件必须用 `Column + forEach`，不用 `LazyColumn` | ❌ 子组件内用 `LazyColumn` |
+| `horizontalScroll` 在垂直滚动里 | ✅ 安全——水平和垂直滚动不冲突 | — |
+| Scaffold 中 | ✅ `LazyColumn(Modifier.fillMaxSize())` 安全——Scaffold 提供有限约束 | ❌ `AnimatedContent` 子级用 LazyColumn——AnimatedContent 不提供有限约束 |
+
+### 全局检查
+
+```bash
+# 添加新的滚动容器后，检查嵌套
+grep -rn "LazyColumn\|LazyRow\|verticalScroll\|horizontalScroll" app/src/ --include="*.kt"
+```
+
+---
+
+
 > **关联文档**: [[design-document]] | [[implementation-plan]] | [[progress]]

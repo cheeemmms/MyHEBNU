@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-05 | 状态: 课表+成绩功能可用，构建通过，真机运行
+> 最后更新: 2026-06-05 | 状态: 细化打磨阶段 — 已完成核心闭环，开始按优先级修 Bug + 优化体验
 
 ---
 
@@ -9,12 +9,66 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
 
 → 课表 + 成绩在真机（小米15 / Android 16）上可实际运行
-→ 空教室 API 端已通，UI 待实现
+→ 空教室 API + UI 代码已完成，但查询闪退（待修复）
 → 考试安排的数据接口已确认，待开发
+→ 进入细化打磨阶段，按 Batch 优先修复 Bug 再做架构变更
 ```
+
+---
+
+## 打磨阶段计划（按优先级排序）
+
+> 评估日期: 2026-06-05 | 基于代码审查 + 用户反馈的优先级排序
+
+### 排序逻辑
+
+综合考虑三个维度：**用户影响**（崩溃/阻塞/体验）> **代码改动量**（低改动优先做）> **依赖关系**（被依赖的优先）
+
+```
+Batch 1: 修 Bug（P0 — 阻塞使用）
+  ├── #5 空教室闪退 ──→ 缺三步请求序列中的页面加载步骤，教务系统返回 HTML 导致解析崩溃
+  └── #1 登录后需杀应用 ──→ ViewModel 仅在 isCached=true 时订阅 Room Flow，首次登录无缓存时数据静默丢失
+
+Batch 2: 数据正确性（P1 — 核心体验缺陷）
+  ├── #4c 按周过滤课程 ──→ WeekViewGrid 未按 displayWeek 过滤 startWeek..endWeek
+  └── #2 默认周数为真实当前周 ──→ currentWeek 硬编码为 1，应从学期起始日期计算
+
+Batch 3: UI 打磨（P2 — 课表卡片优化）
+  ├── #4a 周一~周五填满屏宽 ──→ 移除 horizontalScroll，改用动态列宽
+  ├── #4b 课程名/教师/教室排版 ──→ 调整 CourseCard 字号和顺序
+  └── #3 课程详情展开 ──→ 点击 CourseCard → BottomSheet 显示完整信息
+
+Batch 4: 新功能（P3 — 考试安排）
+  └── #6 考试安排页面 ──→ 全新三层开发（Repository + ViewModel + Screen），架构模式已成熟可复用
+
+Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
+  ├── #7 单首页设计 ──→ 卡片式入口：下一节课 / 空教室 / 下一场考试 / 成绩
+  └── #4d UI/UX Pro Max ──→ 调用 ui-ux-pro-max skill 重新设计课表页（后于 #7，避免风格冲突）
+```
+
+### 关键依赖
+
+- **#7 ← #6**: 单首页需展示 "下一场考试" 卡片 → 考试数据必须可用
+- **#4d ← #7**: 首页架构定了，课表页设计才有方向
+- **Batch 1~2 各项相互独立**，可安全并行
+
+### 各项代码影响评估
+
+| # | 问题 | 影响文件数 | 改动范围 |
+|---|------|-----------|----------|
+| #5 | 空教室闪退 | ~2 | `RoomRepository` 补页面加载请求；`EASystemApi` 补页面加载接口 |
+| #1 | 登录不显示 | ~1 | `ScheduleViewModel.loadInitialData()` — 修复 Flow 订阅时机 |
+| #4c | 按周过滤 | ~1 | `WeekViewGrid` / `ScheduleViewModel` — 增加过滤条件 |
+| #2 | 默认周数 | ~1 | `UserPreferences` 默认值 或 `ScheduleViewModel` init |
+| #4a | 填满屏宽 | ~1 | `WeekViewGrid` — 移除 `horizontalScroll`，计算动态宽度 |
+| #4b | 卡片排版 | ~1 | `CourseCard` — 调整 TextStyle |
+| #3 | 课程详情 | ~3 | `CourseCard` + `ScheduleViewModel` + 新 `CourseDetailSheet` |
+| #6 | 考试页面 | ~5 | `ExamRepository` + `ExamViewModel` + `ExamScreen` + DTO + 导航接线 |
+| #7 | 单首页 | ~6+ | `MainActivity` + `AppNavigation` + 新 `HomeScreen` + 各模块入口重构 |
+| #4d | UI/UX 重设计 | ~4 | `ScheduleScreen` + `WeekViewGrid` + `CourseCard` + `Theme` |
 
 ---
 
@@ -178,12 +232,16 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 | # | 问题 | 状态 | 备注 |
 |----|------|------|------|
-| 1 | 场地类别下拉 API 返回空 | 🟢 不影响 | 值可从查询结果 `cdlbmc` 字段提取 |
-| 2 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
-| 3 | 会话过期响应未捕获 | 🟡 开发中处理 | 通用 401/403 拦截方案 |
-| 4 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
-| 5 | 首次编译有编译错误 | 🔴 待下次验证 | 30 个 import/API 错误已修复，待重新编译验证 |
-| 6 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
+| 1 | **登录后需杀应用才能看到课表** | 🔴 P0 待修复 | `ScheduleViewModel` 仅在缓存命中时订阅 Room Flow，首次登录无缓存导致数据静默丢失 |
+| 2 | **空教室点击查询即闪退** | 🔴 P0 待修复 | 缺三步请求序列中的页面加载步骤，教务系统门控返回 HTML 而非 JSON |
+| 3 | 课表未按周过滤（非本周课程也显示） | 🟡 P1 待修复 | `WeekViewGrid` 不按 `displayWeek` 过滤 `startWeek..endWeek` |
+| 4 | 默认周数为第1周而非真实当前周 | 🟡 P1 待修复 | `currentWeek` 硬编码为 1，需从学期起始日期计算 |
+| 5 | 课表需横向滑动才能看完整 | 🟢 P2 待优化 | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
+| 6 | 场地类别下拉 API 返回空 | 🟢 不影响 | 值可从查询结果 `cdlbmc` 字段提取 |
+| 7 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
+| 8 | 会话过期响应未捕获 | 🟡 开发中处理 | 通用 401/403 拦截方案 |
+| 9 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
+| 10 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
 
 ---
 

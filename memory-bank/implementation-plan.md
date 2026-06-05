@@ -332,6 +332,67 @@ Chrome/Edge:
 
 ---
 
+## 10-B. 细化打磨阶段 — Batch 执行计划
+
+> 评估日期: 2026-06-05 | Phase 0~5 已完成，进入打磨阶段
+
+原始 Phase 6-8 按顺序执行。但基于代码审查发现的 Bug 和用户反馈，调整为按优先级分 5 个 Batch：
+
+### Batch 1: 修 Bug（P0 — 阻塞使用）
+
+| # | 问题 | 根因 | 修改文件 |
+|---|------|------|----------|
+| 1 | 空教室查询闪退 | 缺三步请求序列的页面加载步骤，教务系统返回 HTML→Gson 解析崩溃 | `RoomRepository`, `EASystemApi` |
+| 2 | 登录后不显示课表 | `ScheduleViewModel.loadInitialData()` 仅在 `isCached=true` 时才订阅 Room Flow；首次登录时 `refreshSchedule()` 写入 Room 但 UI 无监听 | `ScheduleViewModel` |
+
+### Batch 2: 数据正确性（P1 — 核心体验缺陷）
+
+| # | 问题 | 修改文件 |
+|---|------|----------|
+| 3 | 课表不按周过滤（非本周课程也在显示） | `WeekViewGrid` / `ScheduleViewModel` |
+| 4 | 默认周数硬编码为 1，应显示真实当前周 | `UserPreferences` + `ScheduleViewModel` |
+
+### Batch 3: UI 打磨（P2 — 课表卡片优化）
+
+| # | 问题 | 修改文件 |
+|---|------|----------|
+| 5 | 周一~周五填满屏宽（移除横向滑动） | `WeekViewGrid` |
+| 6 | 课程名粗体 + 教师/教室排版顺序 | `CourseCard` |
+| 7 | 点击课程展开详情 BottomSheet | `CourseCard` + `ScheduleViewModel` + 新 `CourseDetailSheet` |
+
+### Batch 4: 考试安排（P3 — 新功能）
+
+| # | 任务 | 修改文件 |
+|---|------|----------|
+| 8 | 完整考试安排页面 | `ExamRepository` + `ExamViewModel` + `ExamScreen` + 导航接线 |
+
+### Batch 5: 架构级变更（P4 — 需等 Batch 4 完成后开始）
+
+| # | 任务 | 修改文件 |
+|---|------|----------|
+| 9 | 单首页设计：卡片式入口（下一节课/空教室/下一场考试/成绩） | `MainActivity` + `AppNavigation` + 新 `HomeScreen` |
+| 10 | 调用 `ui-ux-pro-max` skill 重设计课表页（风格跟随新首页） | `ScheduleScreen` + `WeekViewGrid` + `CourseCard` + `Theme` |
+
+### 依赖关系
+
+```
+Batch 1 ──→ Batch 2 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
+                                           │
+                                     Batch 5 #10 ← #9（首页架构定了，子页设计才有方向）
+```
+
+Batch 1~2 内部各项相互独立，可并行；Batch 3 依赖 2 完成后的正确课表数据；Batch 5 依赖 4 的考试数据。
+
+### 原始 Phase 6-8 之间的映射
+
+| 原始 Phase | 映射到 | 说明 |
+|------------|--------|------|
+| Phase 6 (考试) | Batch 4 | — |
+| Phase 7 (Widget+通知) | 延后 | 待架构稳定后再启动 |
+| Phase 8 (打磨) | Batch 1~5 | 拆分为优先级排序的具体任务 |
+
+---
+
 ## 11. 开源库复用总清单
 
 | 库 | 版本（最新稳定） | 用途 | 许可证 |

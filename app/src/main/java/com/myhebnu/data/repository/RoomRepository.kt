@@ -22,22 +22,22 @@ class RoomRepository @Inject constructor(
     }
 
     /**
-     * Read raw response body as string, validate it's not HTML, then parse as JSON.
-     * This avoids Gson converter crash on HTML responses.
+     * Read raw response body as string, validate it's not HTML/error, then parse as JSON.
+     * Throws on failure — let the caller's try/catch handle it naturally.
      */
-    private fun parseJsonBody(rawBody: okhttp3.ResponseBody?, tag: String): Result<JsonObject> {
+    private fun readJsonBody(rawBody: okhttp3.ResponseBody?, tag: String): JsonObject {
         val text = rawBody?.string()
-            ?: return Result.failure(Exception("$tag: response body is null"))
+            ?: throw Exception("$tag: response body is null")
         android.util.Log.w("MyHEBNU", "$tag raw=${text.take(200)}")
         if (isHtmlResponse(text)) {
             android.util.Log.e("MyHEBNU", "$tag: HTML/error response detected")
-            return Result.failure(Exception("教务系统拒绝请求（返回HTML或错误页）"))
+            throw Exception("教务系统拒绝请求（返回HTML或错误页）")
         }
         return try {
-            Result.success(JsonParser.parseString(text).asJsonObject)
+            JsonParser.parseString(text).asJsonObject
         } catch (e: Exception) {
             android.util.Log.e("MyHEBNU", "$tag: JSON parse failed: ${e.message}")
-            Result.failure(Exception("JSON解析失败: ${e.message}"))
+            throw Exception("JSON解析失败: ${e.message}")
         }
     }
 
@@ -58,11 +58,7 @@ class RoomRepository @Inject constructor(
                 return Result.failure(Exception("HTTP ${response.code()}"))
             }
 
-            val bodyResult = parseJsonBody(response.body(), "getCampusInfo")
-            if (bodyResult.isFailure) {
-                return Result.failure(bodyResult.exceptionOrNull()!!)
-            }
-            val body = bodyResult.getOrThrow()
+            val body = readJsonBody(response.body(), "getCampusInfo")
                     val buildings = mutableListOf<Building>()
                     val lhList = body.getAsJsonArray("lhList")
                     if (lhList != null) {
@@ -169,11 +165,7 @@ class RoomRepository @Inject constructor(
                 return Result.failure(Exception("HTTP ${response.code()}"))
             }
 
-            val bodyResult = parseJsonBody(response.body(), "queryEmptyRooms")
-            if (bodyResult.isFailure) {
-                return Result.failure(bodyResult.exceptionOrNull()!!)
-            }
-            val body = bodyResult.getOrThrow()
+            val body = readJsonBody(response.body(), "queryEmptyRooms")
 
             val items = body.getAsJsonArray("items")
             val rooms = parseEmptyRooms(items ?: JsonArray())

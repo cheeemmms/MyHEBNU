@@ -81,7 +81,7 @@ interface EASystemApi {
         @Query("xnm") year: String,
         @Query("xqm") semester: String,
         @Query("gnmkdm") moduleCode: String = "N2155"
-    ): Response<JsonObject>
+    ): Response<okhttp3.ResponseBody>
 
     @POST("/cdjy/cdjy_cxKxcdlb.html")
     @FormUrlEncoded
@@ -103,7 +103,7 @@ interface EASystemApi {
         @Field("sfbhkc") includeExam: String = "",
         @Query("doType") doType: String = "query",
         @Query("gnmkdm") moduleCode: String = "N2155"
-    ): Response<JsonObject>
+    ): Response<okhttp3.ResponseBody>
 
     @POST("/pkglcommon/common_cxZcdesc.html")
     @FormUrlEncoded

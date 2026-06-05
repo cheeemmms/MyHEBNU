@@ -2,6 +2,7 @@ package com.myhebnu.data.repository
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.myhebnu.data.remote.EASystemApi
 import com.myhebnu.domain.*
 import javax.inject.Inject
@@ -12,12 +13,31 @@ class RoomRepository @Inject constructor(
     private val api: EASystemApi
 ) {
     companion object {
-        /** Quick check: response body is not raw HTML or error text (教务系统门控 reject) */
-        fun isHtmlResponse(body: Any?): Boolean {
-            val s = body?.toString() ?: return false
-            return s.contains("<!doctype") || s.contains("<html") ||
-                s.contains("无功能权限") || s.contains("登录") ||
-                s.contains("必选字段")
+        /** Quick check: response body is not raw HTML or error text */
+        fun isHtmlResponse(text: String): Boolean {
+            return text.contains("<!doctype") || text.contains("<html") ||
+                text.contains("无功能权限") || text.contains("登录") ||
+                text.contains("必选字段")
+        }
+    }
+
+    /**
+     * Read raw response body as string, validate it's not HTML, then parse as JSON.
+     * This avoids Gson converter crash on HTML responses.
+     */
+    private fun parseJsonBody(rawBody: okhttp3.ResponseBody?, tag: String): Result<JsonObject> {
+        val text = rawBody?.string()
+            ?: return Result.failure(Exception("$tag: response body is null"))
+        android.util.Log.w("MyHEBNU", "$tag raw=${text.take(200)}")
+        if (isHtmlResponse(text)) {
+            android.util.Log.e("MyHEBNU", "$tag: HTML/error response detected")
+            return Result.failure(Exception("教务系统拒绝请求（返回HTML或错误页）"))
+        }
+        return try {
+            Result.success(JsonParser.parseString(text).asJsonObject)
+        } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "$tag: JSON parse failed: ${e.message}")
+            Result.failure(Exception("JSON解析失败: ${e.message}"))
         }
     }
 
@@ -30,13 +50,19 @@ class RoomRepository @Inject constructor(
         term: String
     ): Result<CampusInfo> {
         return try {
+            android.util.Log.w("MyHEBNU", "getCampusInfo: campus=$campusId year=$year term=$term")
             val response = api.getCampusBuildingInfo(campusId, year, term)
-            if (response.isSuccessful) {
-                val body = response.body()
-                if (body != null) {
-                    if (isHtmlResponse(body)) {
-                        return Result.failure(Exception("校区信息请求被教务系统拒绝（返回HTML错误页）"))
-                    }
+            android.util.Log.w("MyHEBNU", "getCampusInfo HTTP ${response.code()}")
+
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("HTTP ${response.code()}"))
+            }
+
+            val bodyResult = parseJsonBody(response.body(), "getCampusInfo")
+            if (bodyResult.isFailure) {
+                return Result.failure(bodyResult.exceptionOrNull()!!)
+            }
+            val body = bodyResult.getOrThrow()
                     val buildings = mutableListOf<Building>()
                     val lhList = body.getAsJsonArray("lhList")
                     if (lhList != null) {
@@ -73,13 +99,9 @@ class RoomRepository @Inject constructor(
                             periods = periods
                         )
                     )
-                } else {
-                    Result.failure(Exception("Empty response"))
-                }
-            } else {
-                Result.failure(Exception("HTTP ${response.code()}"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "getCampusInfo exception: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -90,23 +112,29 @@ class RoomRepository @Inject constructor(
     suspend fun queryEmptyRooms(filter: RoomFilter): Result<List<EmptyRoom>> {
         return try {
             // Step 1: 注册菜单点击
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms step1: registerMenuClick")
             val menuResult = api.registerMenuClick("N2155")
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms step1: HTTP ${menuResult.code()}")
             if (!menuResult.isSuccessful) {
                 return Result.failure(Exception("菜单注册失败: HTTP ${menuResult.code()}"))
             }
 
             // Step 2: 加载空教室页面（建立浏览器 context——教务系统门控要求）
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms step2: loadRoomPage")
             val pageResult = api.loadRoomPage()
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms step2: HTTP ${pageResult.code()}")
             if (!pageResult.isSuccessful) {
                 return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
             }
             val pageBody = pageResult.body()?.string() ?: ""
             val isLogin = pageBody.contains("登录") || pageBody.contains("login_slogin")
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms step2: body size=${pageBody.length}, isLogin=$isLogin")
             if (isLogin) {
                 return Result.failure(Exception("Session 已失效，页面重定向到登录页"))
             }
 
             // Step 3: 查询空教室数据
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms step3: executing...")
             // Determine building param
             val lh = filter.building ?: ""
 
@@ -135,22 +163,24 @@ class RoomRepository @Inject constructor(
                 roomName = filter.roomName ?: ""
             )
 
-            if (response.isSuccessful) {
-                val body = response.body()
-                if (body != null) {
-                    if (isHtmlResponse(body)) {
-                        return Result.failure(Exception("空教室查询被教务系统拒绝（返回HTML错误页）"))
-                    }
-                    val items = body.getAsJsonArray("items")
-                    val rooms = parseEmptyRooms(items ?: JsonArray())
-                    Result.success(rooms)
-                } else {
-                    Result.success(emptyList())
-                }
-            } else {
-                Result.failure(Exception("HTTP ${response.code()}"))
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms HTTP ${response.code()}")
+
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("HTTP ${response.code()}"))
             }
+
+            val bodyResult = parseJsonBody(response.body(), "queryEmptyRooms")
+            if (bodyResult.isFailure) {
+                return Result.failure(bodyResult.exceptionOrNull()!!)
+            }
+            val body = bodyResult.getOrThrow()
+
+            val items = body.getAsJsonArray("items")
+            val rooms = parseEmptyRooms(items ?: JsonArray())
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms success: ${rooms.size} rooms")
+            Result.success(rooms)
         } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "queryEmptyRooms exception: ${e.message}", e)
             Result.failure(e)
         }
     }

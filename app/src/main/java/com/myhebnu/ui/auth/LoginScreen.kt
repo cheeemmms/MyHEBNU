@@ -44,27 +44,44 @@ fun LoginScreen(
                 AndroidView(
                         factory = { context ->
                             WebView(context).apply {
-                                // Enable JavaScript (CAS login page is JS-rendered)
+                                // JavaScript (CAS login is JS-rendered)
                                 settings.javaScriptEnabled = true
                                 settings.domStorageEnabled = true
+                                settings.databaseEnabled = true
                                 settings.allowContentAccess = true
-                                settings.allowFileAccess = false
+                                settings.allowFileAccess = true
 
-                                // Critical: allow mixed content (HTTP resources on HTTP page)
+                                // Critical: let JS load from any origin
+                                settings.allowUniversalAccessFromFileURLs = true
+                                settings.allowFileAccessFromFileURLs = true
+
+                                // Mixed content: HTTP resources on HTTP pages
                                 settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
 
-                                // Don't block any loads
+                                // Do not block any resource loads
                                 settings.blockNetworkLoads = false
                                 settings.blockNetworkImage = false
 
-                                // Viewport & zoom
+                                // Disable safe browsing (can interfere)
+                                @Suppress("DEPRECATION")
+                                settings.safeBrowsingEnabled = false
+
+                                // Cache mode: use cache if available
+                                settings.cacheMode = WebSettings.LOAD_DEFAULT
+
+                                // Geolocation + media playback
+                                settings.setGeolocationEnabled(false)
+                                settings.mediaPlaybackRequiresUserGesture = false
+
+                                // Viewport & rendering
                                 settings.setSupportZoom(true)
                                 settings.builtInZoomControls = true
                                 settings.displayZoomControls = false
                                 settings.loadWithOverviewMode = true
                                 settings.useWideViewPort = true
+                                settings.textZoom = 100
 
-                                // Modern mobile UA for proper page rendering
+                                // Modern mobile UA
                                 settings.userAgentString =
                                     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
                                     "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"

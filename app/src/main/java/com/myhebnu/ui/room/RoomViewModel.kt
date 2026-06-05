@@ -13,7 +13,7 @@ import javax.inject.Inject
 data class RoomUiState(
     // Filter options (loaded from API)
     val campuses: List<Building> = listOf(
-        Building("2", "校区2"),
+        Building("2", "红旗校区"),
         Building("4", "裕华校区")
     ),
     val buildings: List<Building> = emptyList(),
@@ -140,9 +140,20 @@ class RoomViewModel @Inject constructor(
     }
 
     fun query() {
-        viewModelScope.launch {
-            val state = _uiState.value
+        val state = _uiState.value
 
+        // Validate required fields before making the request.
+        // The 教务 system returns "必选字段！" (non-JSON) if any are empty → Gson crash.
+        if (state.selectedDays.isEmpty()) {
+            _uiState.update { it.copy(queryError = "请至少选择一天（星期）") }
+            return
+        }
+        if (state.selectedPeriods.isEmpty()) {
+            _uiState.update { it.copy(queryError = "请至少选择一个节次") }
+            return
+        }
+
+        viewModelScope.launch {
             // Build filter
             val filter = RoomFilter(
                 campusId = state.selectedCampusId,

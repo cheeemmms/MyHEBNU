@@ -59,11 +59,14 @@ fun FilterPanel(
                     value = campuses.find { it.code == selectedCampusId }?.name ?: "",
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading
-                ) {
+                ) { closeMenu ->
                     campuses.forEach { campus ->
                         DropdownMenuItem(
                             text = { Text(campus.name) },
-                            onClick = { onCampusChange(campus.code) }
+                            onClick = {
+                                onCampusChange(campus.code)
+                                closeMenu()
+                            }
                         )
                     }
                 }
@@ -74,15 +77,21 @@ fun FilterPanel(
                     value = selectedBuilding?.name ?: "全部",
                     modifier = Modifier.weight(1f),
                     enabled = !isLoading
-                ) {
+                ) { closeMenu ->
                     DropdownMenuItem(
                         text = { Text("全部") },
-                        onClick = { onBuildingChange(null) }
+                        onClick = {
+                            onBuildingChange(null)
+                            closeMenu()
+                        }
                     )
                     buildings.forEach { building ->
                         DropdownMenuItem(
                             text = { Text(building.name) },
-                            onClick = { onBuildingChange(building) }
+                            onClick = {
+                                onBuildingChange(building)
+                                closeMenu()
+                            }
                         )
                     }
                 }
@@ -143,7 +152,7 @@ private fun FilterDropdown(
     value: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.(closeMenu: () -> Unit) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -169,7 +178,7 @@ private fun FilterDropdown(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                content()
+                content(closeMenu = { expanded = false })
             }
         }
     }
@@ -215,7 +224,7 @@ private fun WeekChipSelector(
                     },
                     onClick = {
                         onSelect(week)
-                        expanded = false
+                        expanded = false  // close dropdown after selection
                     }
                 )
             }

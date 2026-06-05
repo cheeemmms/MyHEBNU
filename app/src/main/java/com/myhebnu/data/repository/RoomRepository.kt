@@ -12,11 +12,12 @@ class RoomRepository @Inject constructor(
     private val api: EASystemApi
 ) {
     companion object {
-        /** Quick check: response body is not raw HTML (教务系统门控 reject) */
+        /** Quick check: response body is not raw HTML or error text (教务系统门控 reject) */
         fun isHtmlResponse(body: Any?): Boolean {
             val s = body?.toString() ?: return false
             return s.contains("<!doctype") || s.contains("<html") ||
-                s.contains("无功能权限") || s.contains("登录")
+                s.contains("无功能权限") || s.contains("登录") ||
+                s.contains("必选字段")
         }
     }
 

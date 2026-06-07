@@ -106,41 +106,6 @@ fun ExamCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                // Department and teacher
-                val metaParts = buildList {
-                    if (exam.department.isNotEmpty()) add(exam.department)
-                    if (exam.teacherInfo.isNotEmpty()) {
-                        val teacherName = exam.teacherInfo.split("/").lastOrNull() ?: exam.teacherInfo
-                        add(teacherName)
-                    }
-                }
-                if (metaParts.isNotEmpty()) {
-                    Text(
-                        text = metaParts.joinToString(" · "),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // Exam type chip
-                if (exam.examType.isNotEmpty()) {
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                text = exam.examType,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium
-                            )
-                        },
-                        shape = RoundedCornerShape(6.dp),
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    )
-                }
             }
 
             Spacer(Modifier.width(12.dp))

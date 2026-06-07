@@ -99,6 +99,18 @@ fun ExamScreen(
                         contentPadding = PaddingValues(16.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
+                        // Semester exam type header (shown once for the whole semester)
+                        val examTypeLabel = state.exams.firstOrNull()?.examType ?: ""
+                        if (examTypeLabel.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = examTypeLabel,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
                         items(state.exams, key = { it.courseName + it.examDate.toString() }) { exam ->
                             ExamCard(exam = exam)
                         }

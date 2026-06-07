@@ -246,7 +246,8 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | 10 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
 | 11 | 节次栏占宽过大, 格式冗余 | 🟡 P2 → Batch 3 #4c | 改为三行紧凑格式: 节次号/开始时间/结束时间 |
 | 12 | 教室名过长时被截断 | 🟡 P2 → Batch 3 #4b | CourseCard 教室行改为可换行, 不截断 |
-| 13 | 课表页纵向空间利用不足 | 🟡 P2 → Batch 3 #4d | 课程卡片过小, 需填满屏幕可用高度 |
+| 13 | 课表页纵向空间利用不足 | 🟡 P2 → Batch 4 | 课程卡片过小, 需填满屏幕可用高度 |
+| 14 | **登录后一段时间访问考试/成绩报 HTTP 302，重试无效** | 🔴 P0 → 待修复 | `AuthInterceptor._sessionExpired` StateFlow 从未被观察，session 过期后静默失败，CAS cookie 失效导致重试永远失败 |
 
 ---
 

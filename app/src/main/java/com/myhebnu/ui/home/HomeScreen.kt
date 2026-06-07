@@ -2,7 +2,7 @@ package com.myhebnu.ui.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +20,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
     onNavigate: (String) -> Unit = {},
-    onOpenDrawer: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -29,8 +29,8 @@ fun HomeScreen(
             TopAppBar(
                 title = { },
                 navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(Icons.Filled.Menu, stringResource(R.string.menu))
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Filled.Settings, stringResource(R.string.settings))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

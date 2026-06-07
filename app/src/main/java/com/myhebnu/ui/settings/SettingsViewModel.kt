@@ -9,8 +9,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val isDarkMode: Boolean = false,
-    val isDynamicColor: Boolean = true,
+    val themeMode: String = "system",
     val currentWeek: Int = 1,
     val semesterYear: String = "2025",
     val semesterTerm: String = "12",
@@ -29,14 +28,14 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             combine(
-                preferences.isDarkMode,
+                preferences.themeMode,
                 preferences.currentWeek,
                 preferences.currentSemesterYear,
                 preferences.currentSemesterTerm,
                 preferences.advancedEnabled
-            ) { dark, week, year, term, advanced ->
+            ) { theme, week, year, term, advanced ->
                 SettingsUiState(
-                    isDarkMode = dark,
+                    themeMode = theme,
                     currentWeek = week,
                     semesterYear = year,
                     semesterTerm = term,
@@ -49,8 +48,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setDarkMode(enabled: Boolean) {
-        viewModelScope.launch { preferences.setDarkMode(enabled) }
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { preferences.setThemeMode(mode) }
     }
 
     fun setCurrentWeek(week: Int) {

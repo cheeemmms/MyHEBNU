@@ -7,6 +7,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,7 +23,8 @@ import com.myhebnu.ui.exam.components.ExamCard
 @Composable
 fun ExamScreen(
     modifier: Modifier = Modifier,
-    viewModel: ExamViewModel = hiltViewModel()
+    viewModel: ExamViewModel = hiltViewModel(),
+    onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -31,6 +34,16 @@ fun ExamScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.nav_exam)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    }
+                }
+            )
+        },
         modifier = modifier
     ) {
         AnimatedContent(

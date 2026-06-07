@@ -24,6 +24,14 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    var themeDropdownExpanded by remember { mutableStateOf(false) }
+    val themeOptions = listOf(
+        "system" to "跟随系统",
+        "light" to "浅色模式",
+        "dark" to "深色模式"
+    )
+    val currentLabel = themeOptions.find { it.first == uiState.themeMode }?.second ?: "跟随系统"
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -44,11 +52,48 @@ fun SettingsScreen(
         ) {
             // Appearance section
             SettingsSectionHeader(title = stringResource(R.string.settings_appearance))
-            SettingsSwitchItem(
-                title = stringResource(R.string.dark_mode),
-                checked = uiState.isDarkMode,
-                onCheckedChange = viewModel::setDarkMode
-            )
+
+            // Theme mode dropdown
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                ExposedDropdownMenuBox(
+                    expanded = themeDropdownExpanded,
+                    onExpandedChange = { themeDropdownExpanded = it }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                            .clickable { themeDropdownExpanded = true },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "主题模式",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = currentLabel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    ExposedDropdownMenu(
+                        expanded = themeDropdownExpanded,
+                        onDismissRequest = { themeDropdownExpanded = false }
+                    ) {
+                        themeOptions.forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    viewModel.setThemeMode(value)
+                                    themeDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
@@ -76,10 +121,7 @@ fun SettingsScreen(
 
             // About
             SettingsSectionHeader(title = stringResource(R.string.settings_about))
-            SettingsInfoItem(
-                title = stringResource(R.string.settings_version, "1.0.0"),
-                value = ""
-            )
+            SettingsInfoItem(title = "版本 1.0.0", value = "")
 
             Spacer(Modifier.weight(1f))
         }
@@ -97,47 +139,15 @@ private fun SettingsSectionHeader(title: String) {
 }
 
 @Composable
-private fun SettingsSwitchItem(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
 private fun SettingsInfoItem(title: String, value: String) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
+        Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         if (value.isNotEmpty()) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -145,22 +155,11 @@ private fun SettingsInfoItem(title: String, value: String) {
 @Composable
 private fun SettingsNavigateItem(title: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

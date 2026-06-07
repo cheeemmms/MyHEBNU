@@ -68,11 +68,4 @@ sealed class TopLevelRoute(
     )
 }
 
-/** Routes shown in the navigation drawer (Home + 4 feature pages). */
-val topLevelRoutes = listOf(
-    TopLevelRoute.Home,
-    TopLevelRoute.Schedule,
-    TopLevelRoute.Grade,
-    TopLevelRoute.EmptyRoom,
-    TopLevelRoute.Exam
-)
+// Navigation is now driven by HomeScreen cards — drawer only shows Settings.

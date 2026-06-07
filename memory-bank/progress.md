@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-07 | 状态: Batch 3 完成 — 考试安排模块，编译验证通过
+> 最后更新: 2026-06-07 | 状态: Batch 3 完成+真机验证 — 考试安排模块，3 轮 UI 精修
 
 ---
 
@@ -15,8 +15,8 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
 → Batch 2 (P1) 完成：课表按周过滤 + 自动学期探测 + 自动当前周定位
 → Batch 2.5 (P0) 完成：成绩数据消失修复 — getAllGrades() 错误传播 + ViewModel 内存缓存 + 页面进入主动刷新
-→ Batch 3 (P1) 完成：考试安排模块 — 5文件 (ExamModels + Repository + ViewModel + Screen + ExamCard)
-→ 待真机验证：成绩修复 + 考试安排实际效果
+→ Batch 3 (P1) 完成+验证：考试安排模块 — 5文件 + 3 轮 UI 精修（双层顶栏移除、卡片精简、MD3 字号对齐）
+→ 真机验证通过：考试安排数据正确加载，倒计时准确，UI 符合 MD3 层级规范
 ```
 
 ---
@@ -407,6 +407,10 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | → | `ExamViewModel`: ExamUiState + loadExams() + fold 错误处理 | 状态管理 |
 | → | `ExamScreen`: CenterAlignedTopAppBar + AnimatedContent 四态 + LazyColumn | 屏幕 UI |
 | → | `ExamCard`: MD3 ElevatedCard + Row(左信息列/右倒计时Badge) + AssistChip + 无障碍 | 卡片组件 |
+| **2026-06-07** | **Batch 3 UI 精修 (3 轮)** | **真机反馈** |
+| → ① | 移除 ExamScreen 内重复 CenterAlignedTopAppBar（MainActivity 已有全局 TopAppBar） | 双层顶栏 |
+| → ② | ExamCard 移除学院/教师行 + AssistChip；考试类型改为列表顶部统一 labelLarge 标记 | 信息精简 |
+| → ③ | 日期时间行 bodyLarge(16sp) → bodyMedium(14sp)，与教室行保持 MD3 同层级 Token 一致 | 字号对齐 |
 
 ---
 

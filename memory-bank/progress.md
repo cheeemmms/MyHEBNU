@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-07 | 状态: Batch 2.5 真机测试中 — 成绩数据加载修复
+> 最后更新: 2026-06-07 | 状态: Batch 3 完成 — 考试安排模块，编译验证通过
 
 ---
 
@@ -9,13 +9,14 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [⏳ 待开始]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]
 
 → 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
 → Batch 2 (P1) 完成：课表按周过滤 + 自动学期探测 + 自动当前周定位
 → Batch 2.5 (P0) 完成：成绩数据消失修复 — getAllGrades() 错误传播 + ViewModel 内存缓存 + 页面进入主动刷新
-→ 待真机验证：N2154 Referer 修复后当前周是否自动定位 + 成绩修复实际效果
+→ Batch 3 (P1) 完成：考试安排模块 — 5文件 (ExamModels + Repository + ViewModel + Screen + ExamCard)
+→ 待真机验证：成绩修复 + 考试安排实际效果
 ```
 
 ---
@@ -38,10 +39,11 @@ Batch 2: 数据正确性（P1）✅ 已完成
 Batch 2.5: 成绩数据加载修复（P0 — 数据消失）✅ 已完成
   └── #8 成绩打开过一会就显示无成绩 ──→ getAllGrades() fold 收集失败 + ViewModel in-memory cache + GradeScreen LaunchedEffect 主动刷新
 
-Batch 3: 考试安排（P1 — Batch 5 前置依赖）← 下一步
-  └── #6 考试安排页面 ──→ Repository + ViewModel + Screen
+Batch 3: 考试安排（P1 — Batch 4 前置依赖）✅ 已完成
+  ├── #6 考试安排页面 ──→ ExamRepository(registerMenuClick+API+JSON解析) + ViewModel(StateFlow) + Screen(AnimatedContent+TopAppBar+LazyColumn) + ExamCard(MD3 ElevatedCard+倒计时Badge)
+  └── 新建 4 文件: domain/ExamModels.kt + ui/exam/ExamViewModel.kt + ui/exam/ExamScreen.kt + ui/exam/components/ExamCard.kt
 
-Batch 4: 架构级变更（P2 — 需等 Batch 3 完成后开始）
+Batch 4: 架构级变更（P2 — 需等 Batch 3 完成后开始）← 下一步
   ├── #7 单首页设计 ──→ 卡片式入口：下一节课 / 空教室 / 下一场考试 / 成绩
   └── #4e UI/UX Pro Max ──→ 调用 ui-ux-pro-max skill 全量重设计课表页
        │                    输入需求 (从旧 Batch 3 降级):
@@ -196,13 +198,13 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 
 ---
 
-## Phase 6: 考试安排
+## Phase 6: 考试安排 ✅ 已完成
 
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
-| 6.1 | 数据层 (Repository) | ⏳ 待开始 | — |
-| 6.2 | 考试列表 UI | ⏳ 待开始 | — |
-| 6.3 | 倒计时计算 | ⏳ 待开始 | — |
+| 6.1 | 数据层 (Repository) | ✅ | registerMenuClick("N358105") + getExams + JSON items[] 解析 |
+| 6.2 | 考试列表 UI | ✅ | MD3 CenterAlignedTopAppBar + AnimatedContent 四态 + LazyColumn |
+| 6.3 | 倒计时计算 | ✅ | LocalDate 比对 + 色彩规则(≤3d error / ≤7d tertiary / ≤14d onSurfaceVariant) + ExamCard MiniBadge |
 
 ---
 
@@ -237,7 +239,7 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | 3 | 课表未按周过滤（非本周课程也显示） | 🟢 已修复 | combine(Room Flow, displayWeek) + filterCoursesByWeek |
 | 4 | 默认周数为第1周而非真实当前周 | 🟢 已修复 | N2154 getWeeksBySemester + 手机日期比对自动计算, AuthInterceptor Referer 修复 |
 | 5 | 课表需横向滑动才能看完整 | 🟡 P2 → Batch 3 #4a | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
-| 6 | 场地类别下拉 API 返回空 | 🟢 不影响 | 值可从查询结果 `cdlbmc` 字段提取 |
+| 6 | 考试安排页面 | 🟢 已实现 | Batch 3 完成: ExamRepository + ViewModel + Screen(AnimatedContent+TopAppBar+LazyColumn) + MD3 ExamCard + 倒计时Badge |
 | 7 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
 | 8 | **成绩页数据显示后过一段时间消失** | 🟢 已修复 | getAllGrades() 用 fold 替代 onSuccess 收集失败 → 全失败时返回 failure；ViewModel 内存缓存防止数据丢失；GradeScreen LaunchedEffect 主动刷新 |
 | 9 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
@@ -399,6 +401,12 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | → | `GradeRepository.getAllGrades()`: `onSuccess{}` → `fold()` + errors 列表, 全失败时返回 failure | 错误传播 |
 | → | `GradeViewModel`: 新增 in-memory `cachedSemesters`, 失败时查缓存决定 error/warning | 数据持久化 |
 | → | `GradeScreen`: 新增 `LaunchedEffect(Unit)` 自动刷新 + Snackbar 警告, 删除 `init{}` 避免双次触发 | UI 行为 |
+| **2026-06-07** | **Batch 3: 考试安排模块** | **P1 新功能** |
+| → | `ExamModels.kt`: Exam 数据类 + `kssj` 正则解析 + `daysRemaining` + 日期格式化工具 | 领域模型 |
+| → | `ExamRepository`: registerMenuClick("N358105") + getExams + JSON items[] 解析 + HTML 守卫 | 数据层 |
+| → | `ExamViewModel`: ExamUiState + loadExams() + fold 错误处理 | 状态管理 |
+| → | `ExamScreen`: CenterAlignedTopAppBar + AnimatedContent 四态 + LazyColumn | 屏幕 UI |
+| → | `ExamCard`: MD3 ElevatedCard + Row(左信息列/右倒计时Badge) + AssistChip + 无障碍 | 卡片组件 |
 
 ---
 

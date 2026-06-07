@@ -48,6 +48,8 @@ fun WeekViewGrid(
         val cellWidth = (maxWidth - timeColumnWidth) / columns
         val rowHeight = (maxHeight - headerHeight) / totalPeriods
 
+        android.util.Log.d("MyHEBNU", "[Grid] maxH=$maxHeight totalP=$totalPeriods rowH=$rowHeight courses=${courses.size}")
+
         Column(modifier = Modifier.fillMaxSize()) {
             // --- Header row ---
             Row(
@@ -149,6 +151,8 @@ fun WeekViewGrid(
                                 val course = cellCourses.first()
                                 val spanCount = (course.endPeriod - course.startPeriod + 1)
                                     .coerceAtMost(totalPeriods - periodIdx)
+                                val cardHeight = rowHeight * spanCount
+                                android.util.Log.d("MyHEBNU", "[Grid] p=$period day=${dayIdx+1} course=${course.courseName} sp=${course.startPeriod} ep=${course.endPeriod} span=$spanCount cardH=$cardHeight cellW=$cellWidth")
                                 val palette = coursePalettes[course.courseName]
                                     ?: coursePaletteForHue(course.color.toFloat(), false)
 

@@ -25,6 +25,8 @@ class UserPreferences @Inject constructor(
         val SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
         val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
         val CAMPUS_ID = stringPreferencesKey("campus_id")
+        val STUDENT_NAME = stringPreferencesKey("student_name")
+        val ADVANCED_ENABLED = booleanPreferencesKey("advanced_enabled")
     }
 
     val currentSemesterYear: Flow<String> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_YEAR] ?: "2025" }
@@ -34,6 +36,8 @@ class UserPreferences @Inject constructor(
     val selectedLanguage: Flow<String> = context.dataStore.data.map { it[Keys.SELECTED_LANGUAGE] ?: "zh" }
     val isDarkMode: Flow<Boolean> = context.dataStore.data.map { it[Keys.IS_DARK_MODE] ?: false }
     val campusId: Flow<String> = context.dataStore.data.map { it[Keys.CAMPUS_ID] ?: "4" }
+    val studentName: Flow<String> = context.dataStore.data.map { it[Keys.STUDENT_NAME] ?: "" }
+    val advancedEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.ADVANCED_ENABLED] ?: false }
 
     suspend fun setCurrentSemester(year: String, term: String) {
         context.dataStore.edit {
@@ -60,5 +64,13 @@ class UserPreferences @Inject constructor(
 
     suspend fun setCampusId(id: String) {
         context.dataStore.edit { it[Keys.CAMPUS_ID] = id }
+    }
+
+    suspend fun setStudentName(name: String) {
+        context.dataStore.edit { it[Keys.STUDENT_NAME] = name }
+    }
+
+    suspend fun setAdvancedEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.ADVANCED_ENABLED] = enabled }
     }
 }

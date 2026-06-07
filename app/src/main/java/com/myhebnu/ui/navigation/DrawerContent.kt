@@ -12,6 +12,7 @@ import com.myhebnu.R
 fun DrawerContent(
     currentRoute: String?,
     onRouteSelected: (TopLevelRoute) -> Unit,
+    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     ModalDrawerSheet(modifier = modifier) {
@@ -42,5 +43,22 @@ fun DrawerContent(
                 modifier = Modifier.padding(horizontal = 12.dp)
             )
         }
+
+        Spacer(Modifier.weight(1f))
+
+        // Settings entry at bottom
+        HorizontalDivider(modifier = Modifier.padding(horizontal = 28.dp))
+        NavigationDrawerItem(
+            icon = {
+                Icon(
+                    imageVector = TopLevelRoute.SettingsRoute.selectedIcon,
+                    contentDescription = stringResource(R.string.settings)
+                )
+            },
+            label = { Text(stringResource(R.string.settings)) },
+            selected = currentRoute == TopLevelRoute.SettingsRoute.route,
+            onClick = onSettingsClick,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
     }
 }

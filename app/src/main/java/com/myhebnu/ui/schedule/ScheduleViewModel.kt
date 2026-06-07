@@ -29,18 +29,22 @@ data class ScheduleUiState(
     // Current active course (highlighted)
     val activeCourseId: String? = null,
     // Day labels
-    val dayLabels: List<String> = listOf("一", "二", "三", "四", "五", "六", "日"),
+    val dayLabels: List<String> = listOf("一", "二", "三", "四", "五"),
     // Period labels and time ranges
     val periodLabels: List<PeriodInfo> = emptyList(),
     // Total number of periods shown
-    val maxPeriods: Int = 13
+    val maxPeriods: Int = 6,
+    // Course detail BottomSheet
+    val selectedCourse: CourseEntity? = null
 )
 
 data class PeriodInfo(
-    val label: String,       // "1-2", "3-4", etc.
-    val startPeriod: Int,    // 1
-    val endPeriod: Int,      // 2
-    val timeRange: String    // "08:00-09:40"
+    val label: String,         // "1-2", "3-4", etc.
+    val startPeriod: Int,      // 1
+    val endPeriod: Int,        // 2
+    val startTime: String,     // "08:00"
+    val endTime: String,       // "09:40"
+    val timeRange: String      // "08:00-09:40" (kept for backward compat)
 )
 
 @HiltViewModel
@@ -305,12 +309,16 @@ class ScheduleViewModel @Inject constructor(
      */
     private fun buildDefaultPeriodLabels(): List<PeriodInfo> {
         return listOf(
-            PeriodInfo("1-2", 1, 2, "08:00-09:40"),
-            PeriodInfo("3-4", 3, 4, "10:00-11:40"),
-            PeriodInfo("5-6", 5, 6, "14:00-15:40"),
-            PeriodInfo("7-8", 7, 8, "16:00-17:40"),
-            PeriodInfo("9-10", 9, 10, "19:00-20:40"),
-            PeriodInfo("11-13", 11, 13, "20:50-23:00")
+            PeriodInfo("1-2", 1, 2, "08:00", "09:40", "08:00-09:40"),
+            PeriodInfo("3-4", 3, 4, "10:00", "11:40", "10:00-11:40"),
+            PeriodInfo("5-6", 5, 6, "14:00", "15:40", "14:00-15:40"),
+            PeriodInfo("7-8", 7, 8, "16:00", "17:40", "16:00-17:40"),
+            PeriodInfo("9-10", 9, 10, "19:00", "20:40", "19:00-20:40"),
+            PeriodInfo("11-13", 11, 13, "20:50", "23:00", "20:50-23:00")
         )
+    }
+
+    fun selectCourse(course: CourseEntity?) {
+        _uiState.update { it.copy(selectedCourse = course) }
     }
 }

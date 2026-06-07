@@ -75,6 +75,14 @@ class ScheduleRepository @Inject constructor(
                     val courses = parseScheduleResponse(body, year, term)
                     dao.deleteBySemester(year, term)
                     dao.upsertAll(courses)
+
+                    // Extract student name from xsxx and cache for home page greeting
+                    val xsxx = body.getAsJsonObject("xsxx")
+                    val studentName = xsxx?.get("XM")?.asString
+                    if (!studentName.isNullOrBlank()) {
+                        preferences.setStudentName(studentName)
+                    }
+
                     Result.success(Unit)
                 } else {
                     Result.failure(Exception("Empty response body"))

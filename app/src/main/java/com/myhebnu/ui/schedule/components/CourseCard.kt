@@ -84,14 +84,13 @@ fun CourseCard(
                 )
             }
 
-            // Classroom
+            // Classroom — allow wrapping, no truncation
             if (course.classroom.isNotBlank()) {
                 Text(
                     text = course.classroom,
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                     color = baseColor.copy(alpha = 0.6f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    maxLines = 2
                 )
             }
         }

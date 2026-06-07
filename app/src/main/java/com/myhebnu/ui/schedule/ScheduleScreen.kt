@@ -11,6 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
+import com.myhebnu.ui.schedule.components.CourseDetailSheet
 import com.myhebnu.ui.schedule.components.WeekSelector
 import com.myhebnu.ui.schedule.components.WeekViewGrid
 import java.time.LocalDate
@@ -112,10 +113,20 @@ fun ScheduleScreen(
                         currentWeek = uiState.currentWeek,
                         todayDayOfWeek = todayDayOfWeek,
                         activeCourseId = uiState.activeCourseId,
+                        onCourseClick = { course -> viewModel.selectCourse(course) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
         }
+    }
+
+    // Course detail BottomSheet
+    val selectedCourse = uiState.selectedCourse
+    if (selectedCourse != null) {
+        CourseDetailSheet(
+            course = selectedCourse,
+            onDismiss = { viewModel.selectCourse(null) }
+        )
     }
 }

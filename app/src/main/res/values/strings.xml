@@ -3,6 +3,7 @@
     <string name="app_name">MyHEBNU</string>
 
     <!-- Navigation -->
+    <string name="nav_home">首页</string>
     <string name="nav_schedule">课表</string>
     <string name="nav_grade">成绩</string>
     <string name="nav_empty_room">空教室</string>
@@ -60,6 +61,29 @@
     <string name="exam_days_left">距今天数</string>
     <string name="exam_seat">座位号</string>
     <string name="exam_no_data">暂无考试安排</string>
+
+    <!-- Home -->
+    <string name="home_next_class">下一节课</string>
+    <string name="home_empty_room">空教室查询</string>
+    <string name="home_next_exam">下一场考试</string>
+    <string name="home_grade">成绩查询</string>
+    <string name="home_class_done">今日课程已结束</string>
+    <string name="home_weekend">今天周末，好好休息吧~</string>
+    <string name="home_holiday">放假中~</string>
+    <string name="home_empty_room_hint">快速查找空闲教室</string>
+    <string name="home_no_exam">暂无考试安排</string>
+    <string name="home_no_grade">暂无成绩数据</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance">外观</string>
+    <string name="settings_dynamic_color">动态色彩</string>
+    <string name="settings_academics">教务</string>
+    <string name="settings_advanced">高级功能</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_version">版本 %s</string>
+    <string name="advanced_title">高级功能</string>
+    <string name="advanced_switch_label">我已诚信捐赠，启用高级功能</string>
+    <string name="advanced_unlock_hint">开启后解锁：\n · 自定义背景\n · 自由主题色彩\n · 更多功能开发中…</string>
 
     <!-- Login -->
     <string name="login_title">统一身份认证</string>

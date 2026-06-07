@@ -136,10 +136,10 @@ fun WeekViewGrid(
                     palette = palette,
                     onClick = { onCourseClick(course) },
                     modifier = Modifier
-                        .offset(x = timeColumnWidth + cellWidth * dayIdx,
-                            y = headerHeight + rowHeight * periodIdx)
-                        .width(cellWidth)
-                        .height(rowHeight * spanCount)
+                        .offset(x = timeColumnWidth + cellWidth * dayIdx + 2.dp,
+                            y = headerHeight + rowHeight * periodIdx + 2.dp)
+                        .width(cellWidth - 4.dp)
+                        .height(rowHeight * spanCount - 4.dp)
                         .zIndex(course.startPeriod.toFloat())
                 )
             }

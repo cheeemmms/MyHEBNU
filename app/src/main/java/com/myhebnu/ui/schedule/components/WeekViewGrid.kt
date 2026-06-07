@@ -44,7 +44,7 @@ fun WeekViewGrid(
     val totalPeriods = periodLabels.size
     val headerHeight = 32.dp
 
-    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val cellWidth = (maxWidth - timeColumnWidth) / columns
         val rowHeight = (maxHeight - headerHeight) / totalPeriods
 

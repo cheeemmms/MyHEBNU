@@ -55,17 +55,9 @@ fun ScheduleScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Week selector bar
-            WeekSelector(
-                displayWeek = uiState.displayWeek,
-                currentWeek = uiState.currentWeek,
-                onPreviousWeek = viewModel::goToPreviousWeek,
-                onNextWeek = viewModel::goToNextWeek,
-                onGoToCurrentWeek = viewModel::goToCurrentWeek
-            )
-
-            // Content area
-            when {
+            // Content area (fills available space)
+            Box(modifier = Modifier.weight(1f)) {
+                when {
                 uiState.isLoading && !uiState.isCached -> {
                     // First load — show loading skeleton
                     Box(
@@ -125,11 +117,22 @@ fun ScheduleScreen(
                         currentWeek = uiState.currentWeek,
                         todayDayOfWeek = todayDayOfWeek,
                         activeCourseId = uiState.activeCourseId,
+                        coursePalettes = uiState.coursePalettes,
                         onCourseClick = { course -> viewModel.selectCourse(course) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
+            } // End Box(modifier.weight(1f))
+
+            // Week selector at bottom
+            WeekSelector(
+                displayWeek = uiState.displayWeek,
+                currentWeek = uiState.currentWeek,
+                onPreviousWeek = viewModel::goToPreviousWeek,
+                onNextWeek = viewModel::goToNextWeek,
+                onGoToCurrentWeek = viewModel::goToCurrentWeek
+            )
         }
     }
 

@@ -46,7 +46,7 @@ fun HomeScreen(
                 .padding(paddingValues)
         ) {
             Spacer(Modifier.weight(0.20f))
-            GreetingSection(name = uiState.studentName)
+            GreetingSection(fullGreeting = uiState.greeting)
             Spacer(Modifier.weight(0.35f))
 
             HomeCardPanel(uiState = uiState, onNavigate = onNavigate)
@@ -56,13 +56,14 @@ fun HomeScreen(
 }
 
 @Composable
-private fun GreetingSection(name: String) {
+private fun GreetingSection(fullGreeting: String) {
+    val (greetingWord, name) = splitGreeting(fullGreeting)
+
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.Start
     ) {
-        val greetingWord = extractGreeting(name)
-        if (name.isNotEmpty() && greetingWord.isNotEmpty()) {
+        if (name.isNotEmpty()) {
             Text(
                 text = "$greetingWord，",
                 style = MaterialTheme.typography.displaySmall,
@@ -84,10 +85,10 @@ private fun GreetingSection(name: String) {
     }
 }
 
-private fun extractGreeting(full: String): String {
+private fun splitGreeting(full: String): Pair<String, String> {
     for (sep in listOf("，", ",")) {
         val idx = full.indexOf(sep)
-        if (idx > 0) return full.substring(0, idx)
+        if (idx > 0) return full.substring(0, idx) to full.substring(idx + 1)
     }
-    return full
+    return full to ""
 }

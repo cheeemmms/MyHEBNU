@@ -7,7 +7,6 @@ import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.remote.EASystemApi
-import com.myhebnu.ui.theme.CourseColors
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -150,9 +149,8 @@ class ScheduleRepository @Inject constructor(
             // Generate a stable ID
             val id = "$year-$term-$courseName-$dayOfWeek-$periodRange-$weekText"
 
-            // Assign a stable color based on course name hash
-            val colorIndex = kotlin.math.abs(courseName.hashCode()) % CourseColors.size
-            val color = CourseColors[colorIndex].toArgb()
+            // Assign a stable hue (0-359) based on course name hash — palette built in ViewModel
+            val hue = kotlin.math.abs(courseName.hashCode()) % 360
 
             courses.add(
                 CourseEntity(
@@ -168,7 +166,7 @@ class ScheduleRepository @Inject constructor(
                     oddEven = oddEven,
                     weekText = weekText,
                     category = category,
-                    color = color,
+                    color = hue,
                     semesterYear = year,
                     semesterTerm = term,
                     semesterName = semesterName

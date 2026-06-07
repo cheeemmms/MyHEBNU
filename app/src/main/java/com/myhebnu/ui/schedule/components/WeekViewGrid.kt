@@ -12,14 +12,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.ui.schedule.PeriodInfo
+import com.myhebnu.ui.theme.CourseTonalPalette
+import com.myhebnu.ui.theme.coursePaletteForHue
 
 /**
- * 5-column (Mon-Fri) week-view grid with dynamic column widths.
- * No horizontal scroll — fills screen width. Rows fill available height equally.
+ * Per-period grid: each period (1,2,3...) is one row.
+ * Courses only fill the periods they actually occupy.
+ * Week selector moved to parent's bottom area.
  */
 @Composable
 fun WeekViewGrid(
@@ -30,49 +34,47 @@ fun WeekViewGrid(
     currentWeek: Int,
     todayDayOfWeek: Int,
     activeCourseId: String?,
+    coursePalettes: Map<String, CourseTonalPalette>,
     onCourseClick: (CourseEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val columns = dayLabels.size // 5 (Mon-Fri)
-    val timeColumnWidth = 48.dp
+    val columns = dayLabels.size
+    val timeColumnWidth = 40.dp
+    val gridLineAlpha = 0.2f
+    val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = gridLineAlpha)
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val availableWidth = maxWidth - timeColumnWidth
-        val columnWidth = availableWidth / columns
-
-        val courseGrid = buildCourseGrid(courses, periodLabels, columns)
-        val gridRows = periodLabels.size
+        val cellWidth = (maxWidth - timeColumnWidth) / columns
+        val totalPeriods = periodLabels.size
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header row: time corner + day labels
+            // --- Header row ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(vertical = 4.dp)
             ) {
+                // Time column header
                 Box(
                     modifier = Modifier.width(timeColumnWidth),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "节次",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("节", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                // Day headers
                 dayLabels.forEachIndexed { index, label ->
                     val isToday = (displayWeek == currentWeek) && (index + 1 == todayDayOfWeek)
                     Box(
                         modifier = Modifier
-                            .width(columnWidth)
+                            .width(cellWidth)
                             .then(
                                 if (isToday) Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                 else Modifier
                             )
-                            .padding(vertical = 6.dp),
+                            .padding(vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -86,52 +88,80 @@ fun WeekViewGrid(
                 }
             }
 
-            // Period rows — equal height, fill remaining space
-            periodLabels.forEachIndexed { periodIndex, periodInfo ->
+            // --- Period rows ---
+            // Build a map: (periodIndex, dayIndex) -> course(s)
+            val startPeriods = periodLabels.map { it.startPeriod }
+
+            for (periodIdx in 0 until totalPeriods) {
+                val period = startPeriods[periodIdx]
+                val pi = periodLabels[periodIdx]
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)  // Equal share of remaining height
+                        .weight(1f)
                 ) {
-                    // Compact 3-line period label
-                    PeriodLabel(
-                        periodInfo = periodInfo,
-                        modifier = Modifier.width(timeColumnWidth)
-                    )
+                    // Period label — show period number + start time
+                    Box(
+                        modifier = Modifier
+                            .width(timeColumnWidth)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .border(0.5.dp, gridLineColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = period.toString(),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 11.sp
+                            )
+                            Text(
+                                text = pi.startTime,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
 
                     // Day cells
-                    for (dayIndex in 0 until columns) {
-                        val cellCourses = courseGrid[periodIndex][dayIndex]
-                        val isToday = (displayWeek == currentWeek) && (dayIndex + 1 == todayDayOfWeek)
+                    for (dayIdx in 0 until columns) {
+                        val isToday = (displayWeek == currentWeek) && (dayIdx + 1 == todayDayOfWeek)
+                        val cellCourses = courses.filter { c ->
+                            c.dayOfWeek == dayIdx + 1 &&
+                            c.startPeriod == period
+                        }
 
                         Box(
                             modifier = Modifier
-                                .width(columnWidth)
+                                .width(cellWidth)
                                 .fillMaxHeight()
-                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+                                .border(0.5.dp, gridLineColor)
                                 .then(
                                     if (isToday) Modifier.background(
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f)
+                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.04f)
                                     ) else Modifier
                                 ),
                             contentAlignment = Alignment.TopCenter
                         ) {
                             if (cellCourses.isNotEmpty()) {
-                                Column(
+                                val course = cellCourses.first()
+                                val spanCount = (course.endPeriod - course.startPeriod + 1)
+                                    .coerceAtMost(totalPeriods - periodIdx)
+                                val palette = coursePalettes[course.courseName]
+                                    ?: coursePaletteForHue(course.color.toFloat(), false)
+
+                                CourseCard(
+                                    course = course,
+                                    isActive = course.id == activeCourseId,
+                                    palette = palette,
+                                    onClick = { onCourseClick(course) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .fillMaxHeight()
-                                        .padding(1.dp)
-                                ) {
-                                    cellCourses.forEach { course ->
-                                        CourseCard(
-                                            course = course,
-                                            isActive = course.id == activeCourseId,
-                                            onClick = { onCourseClick(course) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                }
+                                        .fillMaxHeight(spanCount.toFloat() / (totalPeriods - periodIdx).toFloat())
+                                )
                             }
                         }
                     }
@@ -139,76 +169,4 @@ fun WeekViewGrid(
             }
         }
     }
-}
-
-/**
- * Compact 3-line period label:
- *   1
- * 08:00
- * 09:40
- */
-@Composable
-private fun PeriodLabel(periodInfo: PeriodInfo, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = periodInfo.startPeriod.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                fontSize = 12.sp
-            )
-            Text(
-                text = periodInfo.startTime,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = periodInfo.endTime,
-                style = MaterialTheme.typography.labelSmall,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-private fun buildCourseGrid(
-    courses: List<CourseEntity>,
-    periodLabels: List<PeriodInfo>,
-    columns: Int
-): Array<Array<List<CourseEntity>>> {
-    val rows = periodLabels.size
-    val grid = Array(rows) { Array(columns) { emptyList<CourseEntity>() } }
-
-    for (course in courses) {
-        val dayIdx = course.dayOfWeek - 1
-        if (dayIdx !in 0 until columns) continue
-
-        var placed = false
-        for (rowIdx in 0 until rows) {
-            val pi = periodLabels[rowIdx]
-            if (course.startPeriod <= pi.endPeriod && course.endPeriod >= pi.startPeriod) {
-                grid[rowIdx][dayIdx] = grid[rowIdx][dayIdx] + course
-                placed = true
-                break
-            }
-        }
-        if (!placed && rows > 0) {
-            var bestRow = 0
-            var bestDist = Int.MAX_VALUE
-            for (rowIdx in 0 until rows) {
-                val dist = kotlin.math.abs(course.startPeriod - periodLabels[rowIdx].startPeriod)
-                if (dist < bestDist) { bestDist = dist; bestRow = rowIdx }
-            }
-            grid[bestRow][dayIdx] = grid[bestRow][dayIdx] + course
-        }
-    }
-    return grid
 }

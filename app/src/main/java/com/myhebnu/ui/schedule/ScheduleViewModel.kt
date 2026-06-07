@@ -32,8 +32,8 @@ data class ScheduleUiState(
     val dayLabels: List<String> = listOf("一", "二", "三", "四", "五"),
     // Period labels and time ranges
     val periodLabels: List<PeriodInfo> = emptyList(),
-    // Total number of periods shown
-    val maxPeriods: Int = 6,
+    // Course tonal palettes (name → palette)
+    val coursePalettes: Map<String, com.myhebnu.ui.theme.CourseTonalPalette> = emptyMap(),
     // Course detail BottomSheet
     val selectedCourse: CourseEntity? = null
 )
@@ -96,7 +96,7 @@ class ScheduleViewModel @Inject constructor(
                 it.copy(
                     semesterYear = year, semesterTerm = term,
                     currentWeek = autoWeek, displayWeek = autoWeek,
-                    periodLabels = buildDefaultPeriodLabels()
+                    periodLabels = buildPerPeriodLabels()
                 )
             }
 
@@ -120,6 +120,7 @@ class ScheduleViewModel @Inject constructor(
                         it.copy(
                             courses = allCourses,
                             filteredCourses = filtered,
+                            coursePalettes = buildCoursePalettes(allCourses),
                             isLoading = false,
                             activeCourseId = findActiveCourse(filtered, it.displayWeek)
                         )
@@ -307,15 +308,28 @@ class ScheduleViewModel @Inject constructor(
      * 1-2 (08:00-09:40), 3-4 (10:00-11:40), 5-6 (14:00-15:40),
      * 7-8 (16:00-17:40), 9-10 (19:00-20:40), 11-13 evening
      */
-    private fun buildDefaultPeriodLabels(): List<PeriodInfo> {
-        return listOf(
-            PeriodInfo("1-2", 1, 2, "08:00", "09:40", "08:00-09:40"),
-            PeriodInfo("3-4", 3, 4, "10:00", "11:40", "10:00-11:40"),
-            PeriodInfo("5-6", 5, 6, "14:00", "15:40", "14:00-15:40"),
-            PeriodInfo("7-8", 7, 8, "16:00", "17:40", "16:00-17:40"),
-            PeriodInfo("9-10", 9, 10, "19:00", "20:40", "19:00-20:40"),
-            PeriodInfo("11-13", 11, 13, "20:50", "23:00", "20:50-23:00")
+    /** Build per-period labels: 1, 2, 3...11 (each period is one row). */
+    private fun buildPerPeriodLabels(): List<PeriodInfo> {
+        val times = listOf(
+            1 to ("08:00" to "08:50"),   2 to ("08:55" to "09:40"),
+            3 to ("10:00" to "10:50"),   4 to ("10:55" to "11:40"),
+            5 to ("14:00" to "14:50"),   6 to ("14:55" to "15:40"),
+            7 to ("16:00" to "16:50"),   8 to ("16:55" to "17:40"),
+            9 to ("19:00" to "19:50"),  10 to ("19:55" to "20:40"),
+            11 to ("20:50" to "23:00")
         )
+        return times.map { (p, t) ->
+            PeriodInfo(p.toString(), p, p, t.first, t.second, "${t.first}-${t.second}")
+        }
+    }
+
+    /** Build tonal palettes for all courses in the current semester. */
+    private fun buildCoursePalettes(courses: List<CourseEntity>, isDark: Boolean = false): Map<String, com.myhebnu.ui.theme.CourseTonalPalette> {
+        val names = courses.map { it.courseName }.distinct()
+        val hues = com.myhebnu.ui.theme.assignCourseHues(names)
+        return names.associateWith { name ->
+            com.myhebnu.ui.theme.coursePaletteForHue(hues[name] ?: 0f, isDark)
+        }
     }
 
     fun selectCourse(course: CourseEntity?) {

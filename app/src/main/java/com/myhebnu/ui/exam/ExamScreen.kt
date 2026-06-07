@@ -45,10 +45,11 @@ fun ExamScreen(
             )
         },
         modifier = modifier
-    ) {
+    ) { paddingValues ->
         AnimatedContent(
             targetState = uiState,
-            transitionSpec = { fadeIn() togetherWith fadeOut() }
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            modifier = Modifier.padding(paddingValues)
         ) { state ->
             when {
                 state.isLoading -> {

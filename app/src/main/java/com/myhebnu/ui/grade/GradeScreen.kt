@@ -21,8 +21,27 @@ fun GradeScreen(
     viewModel: GradeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    when {
+    // Auto-load grades on every composition entry (tab switch, first launch, etc.)
+    LaunchedEffect(Unit) {
+        viewModel.loadAllGrades()
+    }
+
+    // Show warning in snackbar when refresh fails but cached data is displayed
+    LaunchedEffect(uiState.warningMessage) {
+        uiState.warningMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearWarning()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = modifier
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when {
         uiState.isLoading -> {
             Box(
                 modifier = modifier.fillMaxSize(),
@@ -126,4 +145,6 @@ fun GradeScreen(
             )
         }
     }
+        } // End Box
+    } // End Scaffold
 }

@@ -78,16 +78,26 @@ class GradeRepository @Inject constructor(
                 Triple("2025", "12", "2025-2026-2")
             )
             val allGrades = mutableMapOf<String, List<Grade>>()
+            val errors = mutableListOf<Throwable>()
 
             for ((year, term, name) in semesterParams) {
                 val result = getGrades(year, term)
-                result.onSuccess { grades ->
-                    if (grades.isNotEmpty()) {
-                        allGrades[name] = grades
-                    }
-                }
+                result.fold(
+                    onSuccess = { grades ->
+                        if (grades.isNotEmpty()) {
+                            allGrades[name] = grades
+                        }
+                    },
+                    onFailure = { error -> errors.add(error) }
+                )
             }
-            Result.success(allGrades)
+
+            // Only propagate error if ALL calls failed and we have no data
+            if (allGrades.isEmpty() && errors.isNotEmpty()) {
+                Result.failure(errors.first())
+            } else {
+                Result.success(allGrades)
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

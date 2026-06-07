@@ -12,6 +12,7 @@ import javax.inject.Inject
 data class GradeUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
+    val warningMessage: String? = null,        // snackbar warning when refresh fails but cache exists
     val semesters: List<SemesterGrades> = emptyList(),
     val currentStrategy: GpaStrategy = GpaStrategy.WEIGHTED_PERCENTAGE,
     val expandedSemester: String? = null,     // semesterName to expand
@@ -28,9 +29,8 @@ class GradeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(GradeUiState())
     val uiState: StateFlow<GradeUiState> = _uiState.asStateFlow()
 
-    init {
-        loadAllGrades()
-    }
+    // In-memory cache: survives within process lifetime, prevents data loss on refresh failure
+    private var cachedSemesters: List<SemesterGrades>? = null
 
     fun loadAllGrades() {
         viewModelScope.launch {
@@ -53,21 +53,47 @@ class GradeViewModel @Inject constructor(
                         )
                     }.sortedByDescending { it.semesterName }
 
+                    // Persist to in-memory cache before updating UI state
+                    cachedSemesters = semesters
+
                     _uiState.update {
                         it.copy(
                             isLoading = false,
+                            error = null,
+                            warningMessage = null,
                             semesters = semesters,
                             expandedSemester = semesters.firstOrNull()?.semesterName
                         )
                     }
                 },
                 onFailure = { e ->
-                    _uiState.update {
-                        it.copy(isLoading = false, error = e.message ?: "加载成绩失败")
+                    val cached = cachedSemesters
+                    if (cached != null && cached.isNotEmpty()) {
+                        // Refresh failed but we have cached data — keep showing it with a warning
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = null,
+                                warningMessage = e.message ?: "刷新失败，显示的是上次的数据"
+                            )
+                        }
+                    } else {
+                        // No cache — show error screen with retry
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = e.message ?: "加载成绩失败",
+                                warningMessage = null
+                            )
+                        }
                     }
                 }
             )
         }
+    }
+
+    fun clearWarning() {
+        _uiState.update { it.copy(warningMessage = null) }
     }
 
     fun toggleSemesterExpanded(semesterName: String) {

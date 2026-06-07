@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-07 | 状态: Batch 2 完成 — 课表按周过滤 + 自动学期/周次定位，真机验证中
+> 最后更新: 2026-06-07 | 状态: Batch 2.5 真机测试中 — 成绩数据加载修复
 
 ---
 
@@ -14,7 +14,8 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 → 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
 → Batch 2 (P1) 完成：课表按周过滤 + 自动学期探测 + 自动当前周定位
-→ Batch 2 待真机验证：N2154 Referer 修复后当前周是否自动定位
+→ Batch 2.5 (P0) 完成：成绩数据消失修复 — getAllGrades() 错误传播 + ViewModel 内存缓存 + 页面进入主动刷新
+→ 待真机验证：N2154 Referer 修复后当前周是否自动定位 + 成绩修复实际效果
 ```
 
 ---
@@ -34,10 +35,10 @@ Batch 2: 数据正确性（P1）✅ 已完成
   ├── 学期自动切换 ──→ guessCurrentSemester() + API 验证, 假期保护回退
   └── 奇偶周过滤 ──→ CourseEntity + oddEven 字段, filter 时检查
 
-Batch 2.5: 成绩数据加载修复（P0 — 数据消失）← 下一步
-  └── #8 成绩打开过一会就显示无成绩 ──→ 根因: GradeRepository 策略不当, 需每次访问主动查询
+Batch 2.5: 成绩数据加载修复（P0 — 数据消失）✅ 已完成
+  └── #8 成绩打开过一会就显示无成绩 ──→ getAllGrades() fold 收集失败 + ViewModel in-memory cache + GradeScreen LaunchedEffect 主动刷新
 
-Batch 3: 考试安排（P1 — Batch 5 前置依赖）
+Batch 3: 考试安排（P1 — Batch 5 前置依赖）← 下一步
   └── #6 考试安排页面 ──→ Repository + ViewModel + Screen
 
 Batch 4: 架构级变更（P2 — 需等 Batch 3 完成后开始）
@@ -238,7 +239,7 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | 5 | 课表需横向滑动才能看完整 | 🟡 P2 → Batch 3 #4a | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
 | 6 | 场地类别下拉 API 返回空 | 🟢 不影响 | 值可从查询结果 `cdlbmc` 字段提取 |
 | 7 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
-| 8 | **成绩页数据显示后过一段时间消失** | 🔴 P0 → Batch 2.5 | GradeRepository 疑似缓存策略有误或仅首次加载, 需改为每次访问页面主动拉取最新数据 |
+| 8 | **成绩页数据显示后过一段时间消失** | 🟢 已修复 | getAllGrades() 用 fold 替代 onSuccess 收集失败 → 全失败时返回 failure；ViewModel 内存缓存防止数据丢失；GradeScreen LaunchedEffect 主动刷新 |
 | 9 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
 | 10 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
 | 11 | 节次栏占宽过大, 格式冗余 | 🟡 P2 → Batch 3 #4c | 改为三行紧凑格式: 节次号/开始时间/结束时间 |
@@ -394,6 +395,10 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | 2026-06-05 | 课表 + 成绩在小米15真机验证通过 | 功能验证 |
 | 2026-06-05 | Batch 1 完成：空教室闪退（8次提交）+ 登录数据丢失（1次提交） | Bug 修复 |
 | 2026-06-05 | 编译警告清零（6 个 deprecation 警告） | 代码质量 |
+| **2026-06-07** | **Batch 2.5: 成绩数据加载修复** | **P0 Bug** |
+| → | `GradeRepository.getAllGrades()`: `onSuccess{}` → `fold()` + errors 列表, 全失败时返回 failure | 错误传播 |
+| → | `GradeViewModel`: 新增 in-memory `cachedSemesters`, 失败时查缓存决定 error/warning | 数据持久化 |
+| → | `GradeScreen`: 新增 `LaunchedEffect(Unit)` 自动刷新 + Snackbar 警告, 删除 `init{}` 避免双次触发 | UI 行为 |
 
 ---
 

@@ -11,19 +11,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.ui.schedule.PeriodInfo
 import com.myhebnu.ui.theme.CourseTonalPalette
 import com.myhebnu.ui.theme.coursePaletteForHue
 
 /**
- * Per-period grid: each period (1,2,3...) is one row.
- * Courses only fill the periods they actually occupy.
- * Week selector moved to parent's bottom area.
+ * Per-period grid: each period (1, 2, 3...) is one row with fixed height.
+ * Courses spanning multiple periods extend their card height across rows naturally.
+ * zIndex ensures earlier rows' overflowing cards render above later rows' grid lines.
  */
 @Composable
 fun WeekViewGrid(
@@ -42,27 +41,29 @@ fun WeekViewGrid(
     val timeColumnWidth = 40.dp
     val gridLineAlpha = 0.2f
     val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = gridLineAlpha)
+    val totalPeriods = periodLabels.size
+    val headerHeight = 32.dp
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
         val cellWidth = (maxWidth - timeColumnWidth) / columns
-        val totalPeriods = periodLabels.size
+        val rowHeight = (maxHeight - headerHeight) / totalPeriods
 
         Column(modifier = Modifier.fillMaxSize()) {
             // --- Header row ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(headerHeight)
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(vertical = 4.dp)
             ) {
-                // Time column header
                 Box(
                     modifier = Modifier.width(timeColumnWidth),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("节", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("节", style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                // Day headers
                 dayLabels.forEachIndexed { index, label ->
                     val isToday = (displayWeek == currentWeek) && (index + 1 == todayDayOfWeek)
                     Box(
@@ -89,19 +90,19 @@ fun WeekViewGrid(
             }
 
             // --- Period rows ---
-            // Build a map: (periodIndex, dayIndex) -> course(s)
-            val startPeriods = periodLabels.map { it.startPeriod }
-
+            // Higher zIndex for earlier rows: overflowing cards draw on top of later rows' grid lines.
             for (periodIdx in 0 until totalPeriods) {
-                val period = startPeriods[periodIdx]
+                val period = periodLabels[periodIdx].startPeriod
                 val pi = periodLabels[periodIdx]
+                val z = (totalPeriods - periodIdx).toFloat()
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f)
+                        .height(rowHeight)
+                        .zIndex(z)
                 ) {
-                    // Period label — show period number + start time
+                    // Period label
                     Box(
                         modifier = Modifier
                             .width(timeColumnWidth)
@@ -130,8 +131,7 @@ fun WeekViewGrid(
                     for (dayIdx in 0 until columns) {
                         val isToday = (displayWeek == currentWeek) && (dayIdx + 1 == todayDayOfWeek)
                         val cellCourses = courses.filter { c ->
-                            c.dayOfWeek == dayIdx + 1 &&
-                            c.startPeriod == period
+                            c.dayOfWeek == dayIdx + 1 && c.startPeriod == period
                         }
 
                         Box(
@@ -143,8 +143,7 @@ fun WeekViewGrid(
                                     if (isToday) Modifier.background(
                                         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.04f)
                                     ) else Modifier
-                                ),
-                            contentAlignment = Alignment.TopCenter
+                                )
                         ) {
                             if (cellCourses.isNotEmpty()) {
                                 val course = cellCourses.first()
@@ -160,7 +159,7 @@ fun WeekViewGrid(
                                     onClick = { onCourseClick(course) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .fillMaxHeight(spanCount.toFloat() / (totalPeriods - periodIdx).toFloat())
+                                        .height(rowHeight * spanCount)
                                 )
                             }
                         }

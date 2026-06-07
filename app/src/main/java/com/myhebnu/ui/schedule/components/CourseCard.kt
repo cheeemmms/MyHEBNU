@@ -36,9 +36,8 @@ fun CourseCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(2.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(palette.container, RoundedCornerShape(12.dp))
+            .background(palette.container)
             .then(
                 if (isActive) Modifier.border(borderWidth, palette.onContainer, RoundedCornerShape(12.dp))
                 else Modifier

@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-07 | 状态: Batch 3 完成+真机验证 — 考试安排模块，3 轮 UI 精修
+> 最后更新: 2026-06-07 | 状态: Batch 4 完成 — 单首页+课表重设计+设置，编译通过
 
 ---
 
@@ -15,8 +15,9 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
 → Batch 2 (P1) 完成：课表按周过滤 + 自动学期探测 + 自动当前周定位
 → Batch 2.5 (P0) 完成：成绩数据消失修复 — getAllGrades() 错误传播 + ViewModel 内存缓存 + 页面进入主动刷新
-→ Batch 3 (P1) 完成+验证：考试安排模块 — 5文件 + 3 轮 UI 精修（双层顶栏移除、卡片精简、MD3 字号对齐）
-→ 真机验证通过：考试安排数据正确加载，倒计时准确，UI 符合 MD3 层级规范
+→ Batch 3 (P1) 完成+验证：考试安排模块
+→ Batch 4 (P2) 完成：单首页(杂志式+统一卡片面板) + 课表重设计(5列动态宽+紧凑节次+BottomSheet) + 设置页面(暗色模式/高级功能)
+→ 17 文件变更 (+1140/-160 lines), 7 新建 10 修改
 ```
 
 ---
@@ -43,17 +44,12 @@ Batch 3: 考试安排（P1 — Batch 4 前置依赖）✅ 已完成
   ├── #6 考试安排页面 ──→ ExamRepository(registerMenuClick+API+JSON解析) + ViewModel(StateFlow) + Screen(AnimatedContent+TopAppBar+LazyColumn) + ExamCard(MD3 ElevatedCard+倒计时Badge)
   └── 新建 4 文件: domain/ExamModels.kt + ui/exam/ExamViewModel.kt + ui/exam/ExamScreen.kt + ui/exam/components/ExamCard.kt
 
-Batch 4: 架构级变更（P2 — 需等 Batch 3 完成后开始）← 下一步
-  ├── #7 单首页设计 ──→ 卡片式入口：下一节课 / 空教室 / 下一场考试 / 成绩
-  └── #4e UI/UX Pro Max ──→ 调用 ui-ux-pro-max skill 全量重设计课表页
-       │                    输入需求 (从旧 Batch 3 降级):
-       │                    · 只显示周一~周五, 动态列宽, 去掉横滚
-       │                    · 节次栏紧凑三行格式 (节次号/开始/结束时间)
-       │                    · 教室名换行不截断
-       │                    · 纵向填满屏幕可用高度
-       │                    · 课程详情 BottomSheet 展开
+Batch 4: 架构级变更（P2）✅ 已完成
+  ├── #7 单首页设计 ──→ 杂志式布局(displaySmall问候语+留白+卡片面板) + HomeViewModel 5态聚合
+  └── #4e 课表重设计 ──→ 5列动态宽+去横滚+紧凑三行节次栏+教室换行+等高行+CourseDetailSheet
+  └── 设置页面    ──→ SettingsScreen(暗色模式/动态色彩/教学周) + AdvancedSettingsScreen(捐赠开关)
 
-Batch 5: UI 残余打磨（P3 — 仅 Batch 4 完成后仍存在的问题）
+Batch 5: HTTP 302 + UI 残余打磨（P3）← 下一步
   └── Batch 4 重设计后未覆盖的细节
 ```
 
@@ -412,6 +408,11 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | → ① | 移除 ExamScreen 内重复 CenterAlignedTopAppBar（MainActivity 已有全局 TopAppBar） | 双层顶栏 |
 | → ② | ExamCard 移除学院/教师行 + AssistChip；考试类型改为列表顶部统一 labelLarge 标记 | 信息精简 |
 | → ③ | 日期时间行 bodyLarge(16sp) → bodyMedium(14sp)，与教室行保持 MD3 同层级 Token 一致 | 字号对齐 |
+| **2026-06-07** | **Batch 4: 单首页 + 课表重设计 + 设置** | **P2 架构变更** |
+| → Part A | HomeScreen(displaySmall问候语+留白+HomeCardPanel) + HomeViewModel(5态聚合) | 单首页 |
+| → Part B | WeekViewGrid(5列动态宽+去横滚+等高行) + 紧凑节次栏 + CourseDetailSheet | 课表重设计 |
+| → Part C | SettingsScreen(暗色模式/教学周) + AdvancedSettingsScreen(捐赠开关) | 设置页面 |
+| → 17 files, +1140/-160 lines | |
 
 ---
 

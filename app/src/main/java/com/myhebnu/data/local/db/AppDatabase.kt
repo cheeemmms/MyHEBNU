@@ -7,7 +7,7 @@ import com.myhebnu.data.local.db.entity.CourseEntity
 
 @Database(
     entities = [CourseEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

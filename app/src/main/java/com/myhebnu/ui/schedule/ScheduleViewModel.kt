@@ -12,6 +12,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 
 data class ScheduleUiState(
@@ -19,6 +20,7 @@ data class ScheduleUiState(
     val isRefreshing: Boolean = false,
     val isCached: Boolean = false,
     val courses: List<CourseEntity> = emptyList(),
+    val filteredCourses: List<CourseEntity> = emptyList(),  // 按周过滤后的课程
     val currentWeek: Int = 1,
     val displayWeek: Int = 1,
     val semesterYear: String = "2025",
@@ -50,6 +52,10 @@ class ScheduleViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
+    // Separate Flow to drive combine — avoids potential races when _uiState
+    // is updated concurrently from the outer coroutine and the combine collector.
+    private val _displayWeek = MutableStateFlow(1)
+
     private val today: LocalDate = LocalDate.now()
     private val currentTime: LocalTime = LocalTime.now()
 
@@ -61,17 +67,31 @@ class ScheduleViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            // Load preferences
-            val year = preferences.currentSemesterYear.first()
-            val term = preferences.currentSemesterTerm.first()
-            val savedWeek = preferences.currentWeek.first()
+            // ① 探测/切换学期
+            val (year, term) = detectAndApplySemester()
 
+            // ② 从 N2154 API 获取周次日期映射
+            val weekMappingResult = repository.fetchWeekDateMapping(year, term)
+
+            // ③ 自动计算当前周
+            val today = LocalDate.now()
+            val autoWeek = weekMappingResult.fold(
+                onSuccess = { mapping ->
+                    mapping.entries.find { (_, dateRange) ->
+                        val (start, end) = parseDateRange(dateRange)
+                        today in start..end
+                    }?.key ?: preferences.currentWeek.first()
+                },
+                onFailure = { preferences.currentWeek.first() }
+            )
+            preferences.setCurrentWeek(autoWeek)
+
+            // Sync both displayWeek sources
+            _displayWeek.value = autoWeek
             _uiState.update {
                 it.copy(
-                    semesterYear = year,
-                    semesterTerm = term,
-                    currentWeek = savedWeek,
-                    displayWeek = savedWeek,
+                    semesterYear = year, semesterTerm = term,
+                    currentWeek = autoWeek, displayWeek = autoWeek,
                     periodLabels = buildDefaultPeriodLabels()
                 )
             }
@@ -82,21 +102,28 @@ class ScheduleViewModel @Inject constructor(
                 _uiState.update { it.copy(isCached = true) }
             }
 
-            // Always subscribe to Room Flow (in its own coroutine — findActiveCourse
-            // needs periodLabels which are already set above)
+            // ④ combine: Room 课程 + 独立的 displayWeek Flow → 自动过滤
+            // 使用独立的 _displayWeek 而不是 _uiState.map{}，避免
+            // StateFlow 合并更新时潜在的竞态导致 combine 错过触发信号
             viewModelScope.launch {
-                repository.observeSchedule(year, term).collect { courses ->
+                combine(
+                    repository.observeSchedule(year, term),
+                    _displayWeek
+                ) { allCourses, week ->
+                    allCourses to filterCoursesByWeek(allCourses, week)
+                }.collect { (allCourses, filtered) ->
                     _uiState.update {
                         it.copy(
-                            courses = courses,
+                            courses = allCourses,
+                            filteredCourses = filtered,
                             isLoading = false,
-                            activeCourseId = findActiveCourse(courses, savedWeek)
+                            activeCourseId = findActiveCourse(filtered, it.displayWeek)
                         )
                     }
                 }
             }
 
-            // Refresh from network (not blocked by the Flow collect above)
+            // ⑤ 刷新课表 (后台，不阻塞 UI)
             refreshSchedule()
         }
     }
@@ -146,10 +173,13 @@ class ScheduleViewModel @Inject constructor(
     }
 
     private fun setDisplayWeek(week: Int) {
+        // Update the independent Flow FIRST — this triggers combine re-evaluation
+        _displayWeek.value = week
+        // Then update the UI state (activeCourseId will be overridden by combine result)
         _uiState.update {
             it.copy(
                 displayWeek = week,
-                activeCourseId = findActiveCourse(it.courses, week)
+                activeCourseId = findActiveCourse(it.filteredCourses, week)
             )
         }
     }
@@ -187,6 +217,84 @@ class ScheduleViewModel @Inject constructor(
             }
         }
         return null
+    }
+
+    /**
+     * Guess the current semester based on the phone's date.
+     *
+     * Chinese academic year: fall (Sep) = first semester (xqm=3),
+     * spring (Feb) = second semester (xqm=12).
+     *   month ∈ [8, 12] → xqm="3",  xnm=currentYear
+     *   month ∈ [1, 7]  → xqm="12", xnm=currentYear-1
+     */
+    private fun guessCurrentSemester(): Pair<String, String> {
+        val now = LocalDate.now()
+        return when (now.monthValue) {
+            in 8..12 -> now.year.toString() to "3"
+            in 1..7  -> (now.year - 1).toString() to "12"
+            else     -> "2025" to "12"
+        }
+    }
+
+    /**
+     * Detect the current semester. Compares the phone-date guess against
+     * the stored semester. If they differ, validates the guess via the
+     * N2154 API. Switches only when the new semester is confirmed active.
+     */
+    private suspend fun detectAndApplySemester(): Pair<String, String> {
+        val storedYear = preferences.currentSemesterYear.first()
+        val storedTerm = preferences.currentSemesterTerm.first()
+        val guessed = guessCurrentSemester()
+
+        // Same → no switch needed
+        if (storedYear == guessed.first && storedTerm == guessed.second) {
+            return storedYear to storedTerm
+        }
+
+        // Different → validate via API
+        val result = repository.fetchWeekDateMapping(guessed.first, guessed.second)
+        return if (result.isSuccess && result.getOrNull()?.isNotEmpty() == true) {
+            preferences.setCurrentSemester(guessed.first, guessed.second)
+            android.util.Log.w("MyHEBNU", "Semester switched: $storedYear-$storedTerm → ${guessed.first}-${guessed.second}")
+            guessed
+        } else {
+            android.util.Log.w("MyHEBNU", "Semester guess ${guessed.first}-${guessed.second} invalid (break?), keeping $storedYear-$storedTerm")
+            storedYear to storedTerm
+        }
+    }
+
+    /**
+     * Filter courses that are active in the given week.
+     * Checks week range AND odd/even week restriction.
+     */
+    private fun filterCoursesByWeek(
+        courses: List<CourseEntity>, week: Int
+    ): List<CourseEntity> {
+        val isOdd = (week % 2 == 1)
+        return courses.filter { course ->
+            week in course.startWeek..course.endWeek &&
+            when (course.oddEven) {
+                1 -> isOdd
+                2 -> !isOdd
+                else -> true
+            }
+        }
+    }
+
+    /**
+     * Parse a date range string like "2025-09-08/2025-09-14" into a pair of LocalDates.
+     */
+    private fun parseDateRange(range: String): Pair<LocalDate, LocalDate> {
+        val parts = range.split("/")
+        return if (parts.size == 2) {
+            try {
+                LocalDate.parse(parts[0]) to LocalDate.parse(parts[1])
+            } catch (_: Exception) {
+                LocalDate.now() to LocalDate.now()
+            }
+        } else {
+            LocalDate.now() to LocalDate.now()
+        }
     }
 
     /**

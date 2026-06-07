@@ -137,7 +137,7 @@ class ScheduleRepository @Inject constructor(
             if (courseName.isBlank() || periodRange.isBlank()) continue
 
             val (startPeriod, endPeriod) = parsePeriodRange(periodRange)
-            val (startWeek, endWeek) = parseWeekRange(weekText)
+            val (startWeek, endWeek, oddEven) = parseWeekRange(weekText)
 
             // Generate a stable ID
             val id = "$year-$term-$courseName-$dayOfWeek-$periodRange-$weekText"
@@ -157,6 +157,7 @@ class ScheduleRepository @Inject constructor(
                     endPeriod = endPeriod,
                     startWeek = startWeek,
                     endWeek = endWeek,
+                    oddEven = oddEven,
                     weekText = weekText,
                     category = category,
                     color = color,
@@ -184,10 +185,21 @@ class ScheduleRepository @Inject constructor(
     }
 
     /**
-     * Parse week range like "1-18周" → (1, 18)
-     * Also handles "1-10周,12-18周" → (1, 18) (takes min and max)
+     * Parse week range like "1-18周" → (1, 18, 0)
+     * "1-18周(单)" → (1, 18, 1)
+     * "1-18周(双)" → (1, 18, 2)
+     * Also handles "1-10周,12-18周" → (1, 18, 0) (takes min and max)
+     *
+     * @return Triple(startWeek, endWeek, oddEven) where oddEven: 0=all, 1=odd, 2=even
      */
-    private fun parseWeekRange(text: String): Pair<Int, Int> {
+    private fun parseWeekRange(text: String): Triple<Int, Int, Int> {
+        // Detect odd/even before cleaning
+        val oddEven = when {
+            text.contains("单") -> 1
+            text.contains("双") -> 2
+            else -> 0
+        }
+
         val weekNumbers = mutableListOf<Int>()
         // Extract all numbers from the text
         val cleaned = text.replace("周", "").replace("单", "").replace("双", "")
@@ -203,11 +215,77 @@ class ScheduleRepository @Inject constructor(
                 }
             }
         }
-        return if (weekNumbers.isEmpty()) {
+        val (minWeek, maxWeek) = if (weekNumbers.isEmpty()) {
             1 to 18
         } else {
             weekNumbers.min() to weekNumbers.max()
         }
+        return Triple(minWeek, maxWeek, oddEven)
+    }
+
+    /**
+     * Fetch week number → date range mapping from the N2154 API.
+     *
+     * Uses the three-step request sequence (menu click → page load → data) to
+     * satisfy the教务系统's access-control requirements.
+     *
+     * @param year 学年 (e.g. "2025")
+     * @param term 学期 (e.g. "12")
+     * @return Result with Map<weekNumber, dateRange>, e.g. {1: "2025-09-08/2025-09-14"}
+     */
+    suspend fun fetchWeekDateMapping(year: String, term: String): Result<Map<Int, String>> {
+        return try {
+            // Step 1: 注册菜单点击
+            val menuResult = api.registerMenuClick("N2154")
+            android.util.Log.w("MyHEBNU", "N2154 registerMenuClick -> ${menuResult.code()}")
+
+            // Step 2: 加载周次课表页面
+            val pageResult = api.loadWeekSchedulePage()
+            android.util.Log.w("MyHEBNU", "N2154 loadWeekSchedulePage -> ${pageResult.code()}")
+
+            // Step 3: 获取周次日期映射
+            val response = api.getWeeksBySemester(year = year, semester = term)
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("getWeeksBySemester HTTP ${response.code()}"))
+            }
+
+            val rawJson = response.body()?.string() ?: ""
+            if (rawJson.isBlank()) {
+                return Result.failure(Exception("getWeeksBySemester empty body"))
+            }
+            if (rawJson.contains("<!doctype") || rawJson.contains("<html")) {
+                return Result.failure(Exception("getWeeksBySemester returned HTML, permission denied"))
+            }
+
+            val mapping = parseWeekListFromRaw(rawJson)
+            android.util.Log.w("MyHEBNU", "N2154 week mapping: $mapping")
+            Result.success(mapping)
+        } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "fetchWeekDateMapping error", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Parse the N2154 week list JSON into a mapping of week number → date range.
+     *
+     * Response is a bare JSON array:
+     * [{"zs": 1, "rq": "2025-09-08/2025-09-14", "zsmc": "1", ...}, ...]
+     */
+    private fun parseWeekListFromRaw(rawJson: String): Map<Int, String> {
+        val result = mutableMapOf<Int, String>()
+        try {
+            val array = com.google.gson.JsonParser.parseString(rawJson).asJsonArray
+            for (item in array) {
+                val obj = item.asJsonObject
+                val zs = obj.get("zs")?.asInt ?: continue
+                val rq = obj.get("rq")?.asString ?: continue
+                result[zs] = rq
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "parseWeekListFromRaw error", e)
+        }
+        return result
     }
 
     /**

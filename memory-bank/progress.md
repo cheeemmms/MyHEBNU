@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-05 | 状态: Batch 1 完成 — 空教室查询功能可用，真机验证通过
+> 最后更新: 2026-06-07 | 状态: Batch 2 完成 — 课表按周过滤 + 自动学期/周次定位，真机验证中
 
 ---
 
@@ -13,7 +13,8 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 → 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
-→ 考试安排的数据接口已确认，待开发
+→ Batch 2 (P1) 完成：课表按周过滤 + 自动学期探测 + 自动当前周定位
+→ Batch 2 待真机验证：N2154 Referer 修复后当前周是否自动定位
 ```
 
 ---
@@ -24,37 +25,49 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
 
 ```
 Batch 1: 修 Bug（P0 — 阻塞使用）✅ 已完成
-  ├── #5 空教室闪退 ──→ 根因：Compose 嵌套滚动容器 (LazyColumn in Column+verticalScroll) + 数据层缺三步序列 + gnmkdm 参数错误
-  └── #1 登录后需杀应用 ──→ 根因：ScheduleViewModel Room Flow 仅在 isCached=true 时订阅，首次登录无缓存时数据静默丢失
+  ├── #5 空教室闪退 ──→ Compose 嵌套滚动容器 + 三步序列 + gnmkdm 参数
+  └── #1 登录后需杀应用 ──→ ViewModel Flow 仅在缓存命中时订阅
 
-Batch 2: 数据正确性（P1 — 核心体验缺陷）
-  ├── #4c 按周过滤课程 ──→ WeekViewGrid 未按 displayWeek 过滤 startWeek..endWeek
-  └── #2 默认周数为真实当前周 ──→ currentWeek 硬编码为 1，应从学期起始日期计算
+Batch 2: 数据正确性（P1）✅ 已完成
+  ├── #4c 按周过滤课程 ──→ combine(Room Flow, displayWeek) + filterCoursesByWeek()
+  ├── #2 默认周数为真实当前周 ──→ N2154 + 手机日期比对, 自动计算 currentWeek
+  ├── 学期自动切换 ──→ guessCurrentSemester() + API 验证, 假期保护回退
+  └── 奇偶周过滤 ──→ CourseEntity + oddEven 字段, filter 时检查
 
-Batch 3: UI 打磨（P2 — 课表卡片优化）
-  ├── #4a 周一~周五填满屏宽 ──→ 移除 horizontalScroll，改用动态列宽
-  ├── #4b 课程名/教师/教室排版 ──→ 调整 CourseCard 字号和顺序
-  └── #3 课程详情展开 ──→ 点击 CourseCard → BottomSheet 显示完整信息
+Batch 2.5: 成绩数据加载修复（P0 — 数据消失）← 下一步
+  └── #8 成绩打开过一会就显示无成绩 ──→ 根因: GradeRepository 策略不当, 需每次访问主动查询
 
-Batch 4: 新功能（P3 — 考试安排）
-  └── #6 考试安排页面 ──→ 全新三层开发（Repository + ViewModel + Screen），架构模式已成熟可复用
+Batch 3: 考试安排（P1 — Batch 5 前置依赖）
+  └── #6 考试安排页面 ──→ Repository + ViewModel + Screen
 
-Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
+Batch 4: 架构级变更（P2 — 需等 Batch 3 完成后开始）
   ├── #7 单首页设计 ──→ 卡片式入口：下一节课 / 空教室 / 下一场考试 / 成绩
-  └── #4d UI/UX Pro Max ──→ 调用 ui-ux-pro-max skill 重新设计课表页（后于 #7，避免风格冲突）
+  └── #4e UI/UX Pro Max ──→ 调用 ui-ux-pro-max skill 全量重设计课表页
+       │                    输入需求 (从旧 Batch 3 降级):
+       │                    · 只显示周一~周五, 动态列宽, 去掉横滚
+       │                    · 节次栏紧凑三行格式 (节次号/开始/结束时间)
+       │                    · 教室名换行不截断
+       │                    · 纵向填满屏幕可用高度
+       │                    · 课程详情 BottomSheet 展开
+
+Batch 5: UI 残余打磨（P3 — 仅 Batch 4 完成后仍存在的问题）
+  └── Batch 4 重设计后未覆盖的细节
 ```
 
-### Batch 1 完成详情
+### 关键依赖 (修订)
 
-| # | 问题 | 实际根因（多层） | 修改文件 | 提交数 |
-|---|------|-----------------|----------|--------|
-| #5 | 空教室闪退 | ① Compose: `LazyColumn` 嵌套在 `Column(verticalScroll)` 中 (RoomScreen + RoomList) ② 数据层: 缺三步序列中的页面加载 ③ API: `gnmkdm` 参数默认为空串 (应为 "index") ④ API: `Response<String>` 导致 Gson 解析"操作成功！"失败 | `RoomScreen`, `RoomList`, `EASystemApi`, `RoomRepository`, `RoomViewModel`, `FilterPanel` | 8 |
-| #1 | 登录不显示 | `collect` 阻塞协程 + Flow 仅在缓存命中时订阅 | `ScheduleViewModel` | 1 |
+```
+Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
+ (独立)      (考试数据    (单首页需要   (课表UI细节
+              是首页卡片    考试卡片)    在重设计后
+              的前置)                   再打磨)
+```
 
-### 关键依赖
-
-- **#7 ← #6**: 单首页需展示 "下一场考试" 卡片 → 考试数据必须可用
-- **#4d ← #7**: 首页架构定了，课表页设计才有方向
+- **Batch 2.5 独立**: 成绩加载策略修复不依赖任何后续批次
+- **Batch 3 ← 2.5**: 可选并行, 但成绩修复更快更紧急
+- **Batch 4 ← Batch 3**: 单首页需展示 "下一场考试" 卡片
+- **Batch 4 ← 4**: `ui-ux-pro-max` 重设计需等首页架构 (导航/抽屉/入口) 确定
+- **Batch 5 ← Batch 4**: 课表 UI 细节等重设计完成后再打磨, 避免返工
 
 ---
 
@@ -220,14 +233,17 @@ Batch 5: 架构级变更（P4 — 需等 #6 完成后开始）
 |----|------|------|------|
 | 1 | **登录后需杀应用才能看到课表** | 🟢 已修复 | `ScheduleViewModel` Flow 订阅移至独立协程 |
 | 2 | **空教室点击查询即闪退** | 🟢 已修复 | 实际是 Compose 嵌套滚动容器 + 数据层三步序列 + gnmkdm 参数三层问题 |
-| 3 | 课表未按周过滤（非本周课程也显示） | 🟡 P1 待修复 | `WeekViewGrid` 不按 `displayWeek` 过滤 `startWeek..endWeek` |
-| 4 | 默认周数为第1周而非真实当前周 | 🟡 P1 待修复 | `currentWeek` 硬编码为 1，需从学期起始日期计算 |
-| 5 | 课表需横向滑动才能看完整 | 🟢 P2 待优化 | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
+| 3 | 课表未按周过滤（非本周课程也显示） | 🟢 已修复 | combine(Room Flow, displayWeek) + filterCoursesByWeek |
+| 4 | 默认周数为第1周而非真实当前周 | 🟢 已修复 | N2154 getWeeksBySemester + 手机日期比对自动计算, AuthInterceptor Referer 修复 |
+| 5 | 课表需横向滑动才能看完整 | 🟡 P2 → Batch 3 #4a | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
 | 6 | 场地类别下拉 API 返回空 | 🟢 不影响 | 值可从查询结果 `cdlbmc` 字段提取 |
 | 7 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
-| 8 | 会话过期响应未捕获 | 🟡 开发中处理 | 通用 401/403 拦截方案 |
+| 8 | **成绩页数据显示后过一段时间消失** | 🔴 P0 → Batch 2.5 | GradeRepository 疑似缓存策略有误或仅首次加载, 需改为每次访问页面主动拉取最新数据 |
 | 9 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
 | 10 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
+| 11 | 节次栏占宽过大, 格式冗余 | 🟡 P2 → Batch 3 #4c | 改为三行紧凑格式: 节次号/开始时间/结束时间 |
+| 12 | 教室名过长时被截断 | 🟡 P2 → Batch 3 #4b | CourseCard 教室行改为可换行, 不截断 |
+| 13 | 课表页纵向空间利用不足 | 🟡 P2 → Batch 3 #4d | 课程卡片过小, 需填满屏幕可用高度 |
 
 ---
 

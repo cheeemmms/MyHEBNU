@@ -121,6 +121,22 @@ interface EASystemApi {
         @Query("gnmkdm") moduleCode: String = "N2155"
     ): Response<String>
 
+    // === 周次课表 (N2154) ===
+
+    @GET("/kbcx/xskbcxZccx_cxXskbcxIndex.html")
+    suspend fun loadWeekSchedulePage(
+        @Query("gnmkdm") moduleCode: String = "N2154",
+        @Query("layout") layout: String = "default"
+    ): Response<okhttp3.ResponseBody>
+
+    @POST("/kbcx/xskbcxZccx_cxZcByXnxq.html")
+    @FormUrlEncoded
+    suspend fun getWeeksBySemester(
+        @Field("xnm") year: String,
+        @Field("xqm") semester: String,
+        @Query("gnmkdm") moduleCode: String = "N2154"
+    ): Response<okhttp3.ResponseBody>
+
     // === 考试 ===
 
     @POST("/kwgl/kscx_cxXsksxxIndex.html")

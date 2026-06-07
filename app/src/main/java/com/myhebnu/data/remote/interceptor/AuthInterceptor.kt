@@ -28,12 +28,23 @@ class AuthInterceptor @Inject constructor() : Interceptor {
         val original = chain.request()
         val host = original.url.host
 
-        // Determine Referer: schedule APIs → schedule page; everything else → menu page
+        // Determine Referer: each教务模块 checks that the caller comes from its own page.
+        // Wrong module Referer → "无功能权限" HTML response.
         val path = original.url.encodedPath
         val referer = when {
-            path.contains("/kbcx/") -> "http://$host/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default"
-            path.contains("/cjcx/") -> "http://$host/cjcx/cjcx_cxXskbcxIndex.html?gnmkdm=N305007&layout=default"
-            path.contains("/cdjy/") -> "http://$host/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155"
+            // N2154 周次课表 (Mobile + Zccx paths)
+            path.contains("/kbcx/xskbcxZccx") || path.contains("/kbcx/xskbcxMobile") ->
+                "http://$host/kbcx/xskbcxZccx_cxXskbcxIndex.html?gnmkdm=N2154&layout=default"
+            // N2151 学期课表 (default kbcx)
+            path.contains("/kbcx/") ->
+                "http://$host/kbcx/xskbcx_cxXskbcxIndex.html?gnmkdm=N2151&layout=default"
+            // N305007 成绩
+            path.contains("/cjcx/") ->
+                "http://$host/cjcx/cjcx_cxXskbcxIndex.html?gnmkdm=N305007&layout=default"
+            // N2155 空教室
+            path.contains("/cdjy/") ->
+                "http://$host/cdjy/cdjy_cxKxcdlb.html?gnmkdm=N2155"
+            // 其他 (菜单/登录等)
             else -> "http://$host/xtgl/index_initMenu.html?jsdm=xs"
         }
 

@@ -105,7 +105,7 @@ fun ScheduleScreen(
                 else -> {
                     // Show week view grid
                     WeekViewGrid(
-                        courses = uiState.courses,
+                        courses = uiState.filteredCourses,
                         dayLabels = uiState.dayLabels,
                         periodLabels = uiState.periodLabels,
                         displayWeek = uiState.displayWeek,

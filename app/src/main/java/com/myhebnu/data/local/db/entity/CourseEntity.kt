@@ -15,6 +15,7 @@ data class CourseEntity(
     val endPeriod: Int,                  // 结束节次
     val startWeek: Int,                  // 起始教学周
     val endWeek: Int,                    // 结束教学周
+    val oddEven: Int = 0,               // 单双周: 0=全周, 1=仅单周, 2=仅双周
     val weekText: String,                // 周次描述文本 (如"1-18周")
     val category: String,                // 课程类别 (kclb: 理论/实践/实验)
     val color: Int,                      // 课程颜色 (ARGB, 由APP分配)

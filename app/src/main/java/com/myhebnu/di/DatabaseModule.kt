@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.myhebnu.data.local.db.AppDatabase
 import com.myhebnu.data.local.db.dao.ScheduleDao
+import com.myhebnu.data.local.db.migrations.Migrations
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,7 +23,8 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "myhebnu.db"
-        ).fallbackToDestructiveMigration(false).build()
+        ).addMigrations(Migrations.MIGRATION_1_2)
+          .fallbackToDestructiveMigration(false).build()
     }
 
     @Provides

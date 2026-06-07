@@ -31,26 +31,11 @@ fun ExamScreen(
     }
 
     Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.nav_exam),
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        },
         modifier = modifier
-    ) { paddingValues ->
+    ) {
         AnimatedContent(
             targetState = uiState,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            modifier = Modifier.padding(paddingValues)
+            transitionSpec = { fadeIn() togetherWith fadeOut() }
         ) { state ->
             when {
                 state.isLoading -> {

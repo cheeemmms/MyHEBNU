@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -20,9 +21,9 @@ import com.myhebnu.ui.theme.CourseTonalPalette
 import com.myhebnu.ui.theme.coursePaletteForHue
 
 /**
- * Per-period grid: each period (1, 2, 3...) is one row with fixed height.
- * Courses spanning multiple periods extend their card height across rows naturally.
- * zIndex ensures earlier rows' overflowing cards render above later rows' grid lines.
+ * Two-layer architecture:
+ *   Layer 1 (bottom) — empty grid: header + period rows (lines & labels only)
+ *   Layer 2 (top)    — course cards: absolute positioning via [offset], unconstrained by row height
  */
 @Composable
 fun WeekViewGrid(
@@ -45,13 +46,12 @@ fun WeekViewGrid(
     val headerHeight = 32.dp
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val cellWidth = (maxWidth - timeColumnWidth) / columns
-        val rowHeight = (maxHeight - headerHeight) / totalPeriods
+        val cellWidth: Dp = (maxWidth - timeColumnWidth) / columns
+        val rowHeight: Dp = (maxHeight - headerHeight) / totalPeriods
 
-        android.util.Log.d("MyHEBNU", "[Grid] maxH=$maxHeight totalP=$totalPeriods rowH=$rowHeight courses=${courses.size}")
-
+        // ═══ Layer 1: Empty grid (lines + labels only, no course cards) ═══
         Column(modifier = Modifier.fillMaxSize()) {
-            // --- Header row ---
+            // Header row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -59,116 +59,89 @@ fun WeekViewGrid(
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(vertical = 4.dp)
             ) {
-                Box(
-                    modifier = Modifier.width(timeColumnWidth),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(Modifier.width(timeColumnWidth), contentAlignment = Alignment.Center) {
                     Text("节", style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                dayLabels.forEachIndexed { index, label ->
-                    val isToday = (displayWeek == currentWeek) && (index + 1 == todayDayOfWeek)
+                dayLabels.forEachIndexed { idx, label ->
+                    val isToday = (displayWeek == currentWeek) && (idx + 1 == todayDayOfWeek)
                     Box(
                         modifier = Modifier
                             .width(cellWidth)
-                            .then(
-                                if (isToday) Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                                else Modifier
-                            )
+                            .then(if (isToday) Modifier.clip(RoundedCornerShape(6.dp))
+                                .background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
                             .padding(vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "周$label",
-                            style = MaterialTheme.typography.labelMedium,
+                        Text("周$label", style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                             color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                            else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
-            // --- Period rows ---
-            // Higher zIndex for earlier rows: overflowing cards draw on top of later rows' grid lines.
+            // Period rows — empty cells with grid lines only
             for (periodIdx in 0 until totalPeriods) {
-                val period = periodLabels[periodIdx].startPeriod
-                val pi = periodLabels[periodIdx]
-                val z = (totalPeriods - periodIdx).toFloat()
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(rowHeight)
-                        .zIndex(z)
-                ) {
-                    // Period label
+                Row(modifier = Modifier.fillMaxWidth().height(rowHeight)) {
                     Box(
                         modifier = Modifier
-                            .width(timeColumnWidth)
-                            .fillMaxHeight()
+                            .width(timeColumnWidth).fillMaxHeight()
                             .background(MaterialTheme.colorScheme.surfaceContainerLow)
                             .border(0.5.dp, gridLineColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = period.toString(),
+                            Text(periodLabels[periodIdx].startPeriod.toString(),
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 11.sp
-                            )
-                            Text(
-                                text = pi.startTime,
+                                fontWeight = FontWeight.Medium, fontSize = 11.sp)
+                            Text(periodLabels[periodIdx].startTime,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontSize = 9.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-
-                    // Day cells
                     for (dayIdx in 0 until columns) {
                         val isToday = (displayWeek == currentWeek) && (dayIdx + 1 == todayDayOfWeek)
-                        val cellCourses = courses.filter { c ->
-                            c.dayOfWeek == dayIdx + 1 && c.startPeriod == period
-                        }
-
                         Box(
                             modifier = Modifier
-                                .width(cellWidth)
-                                .fillMaxHeight()
+                                .width(cellWidth).fillMaxHeight()
                                 .border(0.5.dp, gridLineColor)
-                                .then(
-                                    if (isToday) Modifier.background(
-                                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.04f)
-                                    ) else Modifier
-                                )
-                        ) {
-                            if (cellCourses.isNotEmpty()) {
-                                val course = cellCourses.first()
-                                val spanCount = (course.endPeriod - course.startPeriod + 1)
-                                    .coerceAtMost(totalPeriods - periodIdx)
-                                val cardHeight = rowHeight * spanCount
-                                android.util.Log.d("MyHEBNU", "[Grid] p=$period day=${dayIdx+1} course=${course.courseName} sp=${course.startPeriod} ep=${course.endPeriod} span=$spanCount cardH=$cardHeight cellW=$cellWidth")
-                                val palette = coursePalettes[course.courseName]
-                                    ?: coursePaletteForHue(course.color.toFloat(), false)
-
-                                CourseCard(
-                                    course = course,
-                                    isActive = course.id == activeCourseId,
-                                    palette = palette,
-                                    onClick = { onCourseClick(course) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(rowHeight * spanCount)
-                                )
-                            }
-                        }
+                                .then(if (isToday) Modifier.background(
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.04f)
+                                ) else Modifier)
+                        )
                     }
                 }
+            }
+        }
+
+        // ═══ Layer 2: Course cards (absolute positioning, unconstrained by row height) ═══
+        Box(modifier = Modifier.fillMaxSize()) {
+            for (course in courses) {
+                val dayIdx = course.dayOfWeek - 1
+                if (dayIdx !in 0 until columns) continue
+
+                val periodIdx = periodLabels.indexOfFirst { it.startPeriod == course.startPeriod }
+                if (periodIdx < 0) continue
+
+                val spanCount = (course.endPeriod - course.startPeriod + 1)
+                    .coerceAtMost(totalPeriods - periodIdx)
+                val palette = coursePalettes[course.courseName]
+                    ?: coursePaletteForHue(course.color.toFloat(), false)
+
+                CourseCard(
+                    course = course,
+                    isActive = course.id == activeCourseId,
+                    palette = palette,
+                    onClick = { onCourseClick(course) },
+                    modifier = Modifier
+                        .offset(x = timeColumnWidth + cellWidth * dayIdx,
+                            y = headerHeight + rowHeight * periodIdx)
+                        .width(cellWidth)
+                        .height(rowHeight * spanCount)
+                        .zIndex(course.startPeriod.toFloat())
+                )
             }
         }
     }

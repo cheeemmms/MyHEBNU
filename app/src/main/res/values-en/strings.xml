@@ -64,4 +64,72 @@
     <!-- Login -->
     <string name="login_title">SSO Login</string>
     <string name="login_hint">Login with your school account</string>
+
+    <!-- Home -->
+    <string name="nav_home">Home</string>
+    <string name="home_next_class">Next Class</string>
+    <string name="home_empty_room">Empty Rooms</string>
+    <string name="home_next_exam">Next Exam</string>
+    <string name="home_grade">Grades</string>
+    <string name="home_class_done">All classes done for today</string>
+    <string name="home_weekend">Weekend! Take a rest~</string>
+    <string name="home_holiday">On holiday~</string>
+    <string name="home_empty_room_hint">Quickly find available classrooms</string>
+    <string name="home_no_exam">No upcoming exams</string>
+    <string name="home_no_grade">No grade data</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_dynamic_color">Dynamic Color</string>
+    <string name="settings_academics">Academics</string>
+    <string name="settings_advanced">Advanced</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version %s</string>
+    <string name="advanced_title">Advanced Features</string>
+    <string name="advanced_switch_label">I have donated in good faith, enable advanced features</string>
+    <string name="advanced_unlock_hint">After enabling:\n · Custom background\n · Free theme colors\n · More features in development…</string>
+
+    <!-- Updates & Contact -->
+    <string name="settings_contact">Contact &amp; Feedback</string>
+    <string name="contact_email">Email</string>
+    <string name="contact_qq_group">QQ Group</string>
+    <string name="qq_group_copied">Group number copied to clipboard</string>
+    <string name="check_update">Check for Updates</string>
+    <string name="checking_update">Checking…</string>
+    <string name="up_to_date">Up to date</string>
+    <string name="update_available">New version %s available</string>
+    <string name="check_failed">Check failed, tap to retry</string>
+    <string name="channel_app_update">App Updates</string>
+    <string name="channel_app_update_desc">Notify when a new version is available</string>
+    <string name="notification_update_title">New version %s available</string>
+    <string name="notification_update_body">Tap to view update details</string>
+    <string name="notification_update_dismiss">Ignore this version</string>
+    <string name="version_placeholder">yonglin200608@163.com</string>
+    <string name="qq_placeholder">682677205</string>
+
+    <!-- About -->
+    <string name="about_title">About</string>
+    <string name="about_version">%s</string>
+    <string name="about_card_community">Community &amp; Source</string>
+    <string name="about_view_source">View Source</string>
+    <string name="about_view_source_desc">GitHub</string>
+    <string name="about_join_group">Join Group</string>
+    <string name="about_contact_email">Contact Email</string>
+    <string name="about_card_licenses">Licenses</string>
+    <string name="about_license">License</string>
+    <string name="about_license_desc">AGPL-3.0</string>
+    <string name="about_third_party_licenses">Third Party Licenses</string>
+    <string name="about_card_system">System</string>
+    <string name="about_system_updates">System &amp; Updates</string>
+    <string name="about_system_updates_desc">GitHub, update settings, etc.</string>
+
+    <!-- Widgets -->
+    <string name="widget_micro_label">Schedule·Micro</string>
+    <string name="widget_micro_desc">Compact card: next class or tomorrow preview</string>
+    <string name="widget_medium_label">Schedule·Row</string>
+    <string name="widget_medium_desc">Horizontal row: timeline + color bars + 2 upcoming courses</string>
+    <string name="widget_large_grid_label">Schedule·Grid</string>
+    <string name="widget_large_grid_desc">Calendar grid: 3-day overview with navigation buttons</string>
+    <string name="widget_large_list_label">Schedule·List</string>
+    <string name="widget_large_list_desc">Card stream: full course list for today</string>
 </resources>

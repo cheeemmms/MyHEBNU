@@ -29,9 +29,13 @@ fun HomeCardPanel(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val nextClassTitle = when (uiState.nextClassState) {
+        NextClassState.IN_CLASS -> "正在上课"
+        else -> stringResource(R.string.home_next_class)
+    }
     val cards = listOf(
         HomeCardData(
-            title = stringResource(R.string.home_next_class),
+            title = nextClassTitle,
             info = buildNextClassInfo(uiState),
             route = "schedule",
             icon = Icons.Filled.CalendarToday
@@ -120,6 +124,15 @@ private fun HomeInfoCard(card: HomeCardData, onClick: () -> Unit) {
 @Composable
 private fun buildNextClassInfo(state: HomeUiState): String {
     return when (state.nextClassState) {
+        NextClassState.IN_CLASS -> {
+            buildString {
+                append(state.nextClassCourse)
+                if (state.nextClassRoom.isNotEmpty()) { append(" · "); append(state.nextClassRoom) }
+                if (state.nextClassTeacher.isNotEmpty()) { append(" · "); append(state.nextClassTeacher) }
+                if (state.nextClassTime.isNotEmpty()) { append(" · "); append(state.nextClassTime) }
+                if (state.nextClassRemaining.isNotEmpty()) { append("\n"); append(state.nextClassRemaining) }
+            }
+        }
         NextClassState.HAS_CLASS -> {
             buildString {
                 append(state.nextClassCourse)

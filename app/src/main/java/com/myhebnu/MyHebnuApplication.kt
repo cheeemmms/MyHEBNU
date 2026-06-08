@@ -3,7 +3,16 @@ package com.myhebnu
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.myhebnu.widget.ScheduleWidgetWorker
 import dagger.hilt.android.HiltAndroidApp
+import java.time.LocalTime
+import java.time.temporal.ChronoUnit
+import java.util.concurrent.TimeUnit
 
 @HiltAndroidApp
 class MyHebnuApplication : Application() {
@@ -11,6 +20,7 @@ class MyHebnuApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        scheduleWidgetMidnightRefresh()
     }
 
     private fun createNotificationChannels() {
@@ -34,11 +44,47 @@ class MyHebnuApplication : Application() {
             description = getString(R.string.channel_exam_reminder_desc)
         }
 
-        manager.createNotificationChannels(listOf(classChannel, examChannel))
+        // App update channel
+        val appUpdateChannel = NotificationChannel(
+            CHANNEL_APP_UPDATE,
+            getString(R.string.channel_app_update),
+            NotificationManager.IMPORTANCE_DEFAULT
+        ).apply {
+            description = getString(R.string.channel_app_update_desc)
+        }
+
+        manager.createNotificationChannels(listOf(classChannel, examChannel, appUpdateChannel))
+    }
+
+    /**
+     * Schedule a periodic WorkManager task that refreshes all widgets at midnight.
+     * This ensures the widget displays the correct date and course list each day.
+     */
+    private fun scheduleWidgetMidnightRefresh() {
+        val now = LocalTime.now()
+        val midnight = LocalTime.MIDNIGHT
+        var delayMs = ChronoUnit.MILLIS.between(now, midnight)
+        if (delayMs <= 0) delayMs += 24 * 60 * 60 * 1000L
+
+        val request = PeriodicWorkRequestBuilder<ScheduleWidgetWorker>(24, TimeUnit.HOURS)
+            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .build()
+            )
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "schedule_widget_midnight",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
     }
 
     companion object {
         const val CHANNEL_CLASS_REMINDER = "class_reminder"
         const val CHANNEL_EXAM_REMINDER = "exam_reminder"
+        const val CHANNEL_APP_UPDATE = "app_update"
     }
 }

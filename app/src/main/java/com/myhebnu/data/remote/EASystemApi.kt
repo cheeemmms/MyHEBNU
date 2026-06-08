@@ -47,9 +47,15 @@ interface EASystemApi {
         @Field("xqm") semester: String,
         @Field("xqh_id") campusId: String,
         @Query("gnmkdm") moduleCode: String = "N2151"
-    ): Response<List<JsonObject>>
+    ): Response<okhttp3.ResponseBody>
 
     // === 成绩 ===
+
+    @GET("/cjcx/cjcx_cxXsKcList.html")
+    suspend fun loadGradePage(
+        @Query("gnmkdm") moduleCode: String = "N305007",
+        @Query("layout") layout: String = "default"
+    ): Response<okhttp3.ResponseBody>
 
     @POST("/cjcx/cjcx_cxXsKcList.html")
     @FormUrlEncoded
@@ -101,6 +107,8 @@ interface EASystemApi {
         @Field("jyfs") usageMode: String = "0",
         @Field("cdjylx") usageType: String = "",
         @Field("sfbhkc") includeExam: String = "",
+        @Field("queryModel.showCount") pageSize: String = "20",
+        @Field("queryModel.currentPage") currentPage: String = "1",
         @Query("doType") doType: String = "query",
         @Query("gnmkdm") moduleCode: String = "N2155"
     ): Response<okhttp3.ResponseBody>
@@ -135,6 +143,28 @@ interface EASystemApi {
         @Field("xnm") year: String,
         @Field("xqm") semester: String,
         @Query("gnmkdm") moduleCode: String = "N2154"
+    ): Response<okhttp3.ResponseBody>
+
+    // === 登录 ===
+
+    @GET("/xtgl/login_slogin.html")
+    suspend fun getLoginPage(): Response<okhttp3.ResponseBody>
+
+    @GET("/xtgl/login_getPublicKey.html")
+    suspend fun getLoginPublicKey(
+        @Query("time") time: Long = System.currentTimeMillis()
+    ): Response<JsonObject>
+
+    @POST("/xtgl/login_slogin.html")
+    @FormUrlEncoded
+    suspend fun login(
+        @Field("csrftoken") csrfToken: String,
+        @Field("language") language: String = "zh_CN",
+        @Field("ydType") ydType: String = "",
+        @Field("yhm") username: String,
+        @Field("mm") encryptedPassword: String,
+        @Field("yzm") captcha: String = "",
+        @Query("time") time: Long = System.currentTimeMillis()
     ): Response<okhttp3.ResponseBody>
 
     // === 考试 ===

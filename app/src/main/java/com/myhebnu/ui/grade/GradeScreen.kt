@@ -116,6 +116,16 @@ fun GradeScreen(
                     )
                 }
 
+                // Disclaimer
+                item {
+                    Text(
+                        text = "算法仅供参考，实际GPA请参考官方公布结果",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                    )
+                }
+
                 // Trend Chart
                 item {
                     GradeTrendChart(

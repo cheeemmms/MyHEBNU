@@ -5,9 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.ScheduleRepository
+import com.myhebnu.ui.theme.ColorPreset
+import com.myhebnu.ui.theme.builtInPresets
+import com.myhebnu.ui.theme.findPresetById
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -50,7 +55,8 @@ data class PeriodInfo(
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
-    private val preferences: UserPreferences
+    private val preferences: UserPreferences,
+    private val widgetUpdateManager: com.myhebnu.widget.WidgetUpdateManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ScheduleUiState())
@@ -59,6 +65,24 @@ class ScheduleViewModel @Inject constructor(
     // Separate Flow to drive combine — avoids potential races when _uiState
     // is updated concurrently from the outer coroutine and the combine collector.
     private val _displayWeek = MutableStateFlow(1)
+
+    // Reactive color preferences for course card palettes
+    private data class ColorPrefs(
+        val seedHue: Float?,
+        val isDark: Boolean
+    )
+
+    private val colorPrefsFlow: Flow<ColorPrefs> = combine(
+        preferences.useCustomColors,
+        preferences.activePresetId,
+        preferences.customPresetsJson,
+        preferences.themeMode
+    ) { useCustom, presetId, presetsJson, themeMode ->
+        val seedHue = if (useCustom && presetId != null) {
+            findPresetById(presetId, parsePresetsJson(presetsJson))?.seedHue
+        } else null
+        ColorPrefs(seedHue = seedHue, isDark = themeMode == "dark")
+    }
 
     private val today: LocalDate = LocalDate.now()
     private val currentTime: LocalTime = LocalTime.now()
@@ -90,13 +114,26 @@ class ScheduleViewModel @Inject constructor(
             )
             preferences.setCurrentWeek(autoWeek)
 
+            // Fetch real period time table from API (fallback = hardcoded 13-period table)
+            val periods = repository.fetchPeriods(year, term)
+            val periodLabels = periods.map { pt ->
+                PeriodInfo(
+                    label = pt.period.toString(),
+                    startPeriod = pt.period,
+                    endPeriod = pt.period,
+                    startTime = pt.startTime,
+                    endTime = pt.endTime,
+                    timeRange = "${pt.startTime}-${pt.endTime}"
+                )
+            }
+
             // Sync both displayWeek sources
             _displayWeek.value = autoWeek
             _uiState.update {
                 it.copy(
                     semesterYear = year, semesterTerm = term,
                     currentWeek = autoWeek, displayWeek = autoWeek,
-                    periodLabels = buildPerPeriodLabels()
+                    periodLabels = periodLabels
                 )
             }
 
@@ -109,18 +146,24 @@ class ScheduleViewModel @Inject constructor(
             // ④ combine: Room 课程 + 独立的 displayWeek Flow → 自动过滤
             // 使用独立的 _displayWeek 而不是 _uiState.map{}，避免
             // StateFlow 合并更新时潜在的竞态导致 combine 错过触发信号
+            // ④ combine: Room 课程 + displayWeek + 色彩偏好 → 自动过滤 + 课程色相感知 seedHue
             viewModelScope.launch {
                 combine(
                     repository.observeSchedule(year, term),
-                    _displayWeek
-                ) { allCourses, week ->
-                    allCourses to filterCoursesByWeek(allCourses, week)
-                }.collect { (allCourses, filtered) ->
+                    _displayWeek,
+                    colorPrefsFlow
+                ) { allCourses, week, colorPrefs ->
+                    Triple(allCourses, filterCoursesByWeek(allCourses, week), colorPrefs)
+                }.collect { (allCourses, filtered, colorPrefs) ->
                     _uiState.update {
                         it.copy(
                             courses = allCourses,
                             filteredCourses = filtered,
-                            coursePalettes = buildCoursePalettes(allCourses),
+                            coursePalettes = buildCoursePalettes(
+                                allCourses,
+                                seedOffset = colorPrefs.seedHue ?: 0f,
+                                isDark = colorPrefs.isDark
+                            ),
                             isLoading = false,
                             activeCourseId = findActiveCourse(filtered, it.displayWeek)
                         )
@@ -142,6 +185,8 @@ class ScheduleViewModel @Inject constructor(
                 onSuccess = {
                     // Room Flow will automatically emit updated data
                     _uiState.update { it.copy(isRefreshing = false, isCached = true) }
+                    // Refresh all widget instances
+                    widgetUpdateManager.updateAll()
                 },
                 onFailure = { e ->
                     _uiState.update {
@@ -302,31 +347,14 @@ class ScheduleViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Build the default period structure based on the教务系统's schedule.
-     * Standard Chinese university periods:
-     * 1-2 (08:00-09:40), 3-4 (10:00-11:40), 5-6 (14:00-15:40),
-     * 7-8 (16:00-17:40), 9-10 (19:00-20:40), 11-13 evening
-     */
-    /** Build per-period labels: 1, 2, 3...11 (each period is one row). */
-    private fun buildPerPeriodLabels(): List<PeriodInfo> {
-        val times = listOf(
-            1 to ("08:00" to "08:50"),   2 to ("08:55" to "09:40"),
-            3 to ("10:00" to "10:50"),   4 to ("10:55" to "11:40"),
-            5 to ("14:00" to "14:50"),   6 to ("14:55" to "15:40"),
-            7 to ("16:00" to "16:50"),   8 to ("16:55" to "17:40"),
-            9 to ("19:00" to "19:50"),  10 to ("19:55" to "20:40"),
-            11 to ("20:50" to "23:00")
-        )
-        return times.map { (p, t) ->
-            PeriodInfo(p.toString(), p, p, t.first, t.second, "${t.first}-${t.second}")
-        }
-    }
-
-    /** Build tonal palettes for all courses in the current semester. */
-    private fun buildCoursePalettes(courses: List<CourseEntity>, isDark: Boolean = false): Map<String, com.myhebnu.ui.theme.CourseTonalPalette> {
+    /** Build tonal palettes for all courses, optionally rotated by [seedOffset]. */
+    private fun buildCoursePalettes(
+        courses: List<CourseEntity>,
+        seedOffset: Float = 0f,
+        isDark: Boolean = false
+    ): Map<String, com.myhebnu.ui.theme.CourseTonalPalette> {
         val names = courses.map { it.courseName }.distinct()
-        val hues = com.myhebnu.ui.theme.assignCourseHues(names)
+        val hues = com.myhebnu.ui.theme.assignCourseHues(names, seedOffset)
         return names.associateWith { name ->
             com.myhebnu.ui.theme.coursePaletteForHue(hues[name] ?: 0f, isDark)
         }
@@ -334,5 +362,24 @@ class ScheduleViewModel @Inject constructor(
 
     fun selectCourse(course: CourseEntity?) {
         _uiState.update { it.copy(selectedCourse = course) }
+    }
+
+    // ============================================================
+    // JSON helpers for color preset parsing
+    // ============================================================
+
+    private fun parsePresetsJson(json: String): List<ColorPreset> {
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { i ->
+                val obj = arr.getJSONObject(i)
+                ColorPreset(
+                    id = obj.getString("id"),
+                    name = obj.getString("name"),
+                    seedHue = obj.getDouble("seedHue").toFloat(),
+                    isBuiltIn = false
+                )
+            }
+        } catch (e: Exception) { emptyList() }
     }
 }

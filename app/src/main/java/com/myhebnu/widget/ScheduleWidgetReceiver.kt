@@ -1,20 +1,23 @@
 package com.myhebnu.widget
 
-import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
-import android.content.Context
+import androidx.glance.appwidget.GlanceAppWidgetReceiver
 
 /**
- * Schedule Widget provider.
- * Phase 7 will implement the Glance-based widget UI.
+ * 4 Glance widget receivers, one per widget size.
+ * Each appears as a separate entry in the launcher's widget picker.
  */
-class ScheduleWidgetReceiver : AppWidgetProvider() {
+class MicroWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget = ScheduleMicroWidget()
+}
 
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-        // Phase 7: Implement Glance widget
-    }
+class MediumWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget = ScheduleMediumWidget()
+}
+
+class LargeGridReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget = ScheduleLargeGridWidget()
+}
+
+class LargeListReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget = ScheduleLargeListWidget()
 }

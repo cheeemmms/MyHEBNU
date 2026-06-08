@@ -1,9 +1,12 @@
 package com.myhebnu.di
 
+import android.content.Context
 import com.myhebnu.data.local.db.dao.ScheduleDao
+import com.myhebnu.data.local.preferences.CredentialManager
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.remote.CasApi
 import com.myhebnu.data.remote.EASystemApi
+import com.myhebnu.data.remote.GitHubApi
 import com.myhebnu.data.remote.PersistentCookieJar
 import com.myhebnu.data.remote.SessionManager
 import com.myhebnu.data.remote.interceptor.AuthInterceptor
@@ -11,6 +14,7 @@ import com.myhebnu.data.repository.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
 import javax.inject.Singleton
@@ -38,8 +42,9 @@ object RepositoryModule {
         sessionManager: SessionManager,
         preferences: UserPreferences,
         authInterceptor: AuthInterceptor,
+        credentialManager: CredentialManager,
         okHttpClient: okhttp3.OkHttpClient
-    ): AuthRepository = AuthRepository(cookieJar, sessionManager, preferences, authInterceptor, okHttpClient)
+    ): AuthRepository = AuthRepository(cookieJar, sessionManager, preferences, authInterceptor, credentialManager, okHttpClient)
 
     @Provides
     @Singleton
@@ -66,4 +71,18 @@ object RepositoryModule {
     fun provideExamRepository(
         api: EASystemApi
     ): ExamRepository = ExamRepository(api)
+
+    @Provides
+    @Singleton
+    fun provideGitHubApi(@javax.inject.Named("github") retrofit: Retrofit): GitHubApi {
+        return retrofit.create(GitHubApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdateRepository(
+        githubApi: GitHubApi,
+        preferences: UserPreferences,
+        @ApplicationContext context: Context
+    ): UpdateRepository = UpdateRepository(githubApi, preferences, context)
 }

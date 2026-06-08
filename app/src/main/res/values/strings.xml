@@ -85,7 +85,65 @@
     <string name="advanced_switch_label">我已诚信捐赠，启用高级功能</string>
     <string name="advanced_unlock_hint">开启后解锁：\n · 自定义背景\n · 自由主题色彩\n · 更多功能开发中…</string>
 
+    <!-- Updates &amp; Contact -->
+    <string name="settings_contact">联系与反馈</string>
+    <string name="contact_email">联系邮箱</string>
+    <string name="contact_qq_group">QQ交流群</string>
+    <string name="qq_group_copied">群号已复制到剪贴板</string>
+    <string name="check_update">检查更新</string>
+    <string name="checking_update">检查中…</string>
+    <string name="up_to_date">已是最新版本</string>
+    <string name="update_available">发现新版本 %s</string>
+    <string name="check_failed">检查失败，点击重试</string>
+    <string name="channel_app_update">应用更新</string>
+    <string name="channel_app_update_desc">当有新版本可用时通知</string>
+    <string name="notification_update_title">发现新版本 %s</string>
+    <string name="notification_update_body">点击查看更新详情</string>
+    <string name="notification_update_dismiss">忽略此版本</string>
+    <string name="version_placeholder">yonglin200608@163.com</string>
+    <string name="qq_placeholder">682677205</string>
+
+    <!-- About -->
+    <string name="about_title">关于</string>
+    <string name="about_version">%s</string>
+    <string name="about_card_community">社区与源码</string>
+    <string name="about_view_source">查看源码</string>
+    <string name="about_view_source_desc">GitHub</string>
+    <string name="about_join_group">加入交流群</string>
+    <string name="about_contact_email">联系邮箱</string>
+    <string name="about_card_licenses">许可证</string>
+    <string name="about_license">开源协议</string>
+    <string name="about_license_desc">AGPL-3.0</string>
+    <string name="about_third_party_licenses">第三方开源证书</string>
+    <string name="about_card_system">系统与更新</string>
+    <string name="about_system_updates">系统与更新</string>
+    <string name="about_system_updates_desc">GitHub、检查更新等</string>
+    <string name="system_update_title">系统与更新</string>
+    <string name="auto_check_update">自动检查更新</string>
+    <string name="auto_check_update_desc">开启后每次启动 App 自动检查 GitHub 新版本</string>
+    <string name="changelog">更新日志</string>
+    <string name="changelog_content">v1.1.0
+主要更新
+• 修复了多级页面导航返回失效问题
+• 修复了系统返回手势直接退出应用问题 
+• 修复了深色模式页面切换闪屏问题
+• 修复了app过于流畅的问题
+• 空教室查询支持分页加载，且不再只显示 10 个结果 
+• 启动时自动检测 GitHub 更新并推送通知
+• 新增关于页面
+•其他没有提到的更新</string>
+
     <!-- Login -->
     <string name="login_title">统一身份认证</string>
     <string name="login_hint">请使用学校统一认证账号登录</string>
+
+    <!-- Widgets -->
+    <string name="widget_micro_label">课表·微型</string>
+    <string name="widget_micro_desc">紧凑信息卡：快速查看下节课或明天课程</string>
+    <string name="widget_medium_label">课表·横条</string>
+    <string name="widget_medium_desc">横向双行：时间轴+色彩指示条+两节近期课程</string>
+    <string name="widget_large_grid_label">课表·日历</string>
+    <string name="widget_large_grid_desc">网格视图：三天课表概览+导航按钮</string>
+    <string name="widget_large_list_label">课表·列表</string>
+    <string name="widget_large_list_desc">卡片流：当天全部课程详细展示</string>
 </resources>

@@ -61,6 +61,15 @@ data class RoomFilter(
 )
 
 /**
+ * Query result wrapper with server-reported total count.
+ */
+data class RoomQueryResult(
+    val rooms: List<EmptyRoom>,
+    val totalCount: Int,
+    val totalPage: Int
+)
+
+/**
  * Week/period bitmask utility.
  *
  * The教务系统 uses bitmasks:

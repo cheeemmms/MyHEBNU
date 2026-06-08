@@ -30,18 +30,68 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Widget deep link: myhebnu://navigate/{route} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <data android:scheme="myhebnu" android:host="navigate" />
+            </intent-filter>
         </activity>
 
-        <!-- Schedule Widget -->
+        <!-- Widget: 课表·微型 (2×2) -->
         <receiver
-            android:name=".widget.ScheduleWidgetReceiver"
-            android:exported="false">
+            android:name=".widget.MicroWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_micro_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/schedule_widget_info" />
+                android:resource="@xml/schedule_widget_micro" />
         </receiver>
+
+        <!-- Widget: 课表·横条 (4×2) -->
+        <receiver
+            android:name=".widget.MediumWidgetReceiver"
+            android:exported="false"
+            android:label="@string/widget_medium_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/schedule_widget_medium" />
+        </receiver>
+
+        <!-- Widget: 课表·日历 (4×4) -->
+        <receiver
+            android:name=".widget.LargeGridReceiver"
+            android:exported="false"
+            android:label="@string/widget_large_grid_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/schedule_widget_large_grid" />
+        </receiver>
+
+        <!-- Widget: 课表·列表 (4×4) -->
+        <receiver
+            android:name=".widget.LargeListReceiver"
+            android:exported="false"
+            android:label="@string/widget_large_list_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/schedule_widget_large_list" />
+        </receiver>
+
+        <!-- Grid navigation broadcast receiver (internal) -->
+        <receiver
+            android:name=".widget.GridNavReceiver"
+            android:exported="false" />
     </application>
 </manifest>

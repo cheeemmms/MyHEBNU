@@ -34,7 +34,9 @@ data class RoomUiState(
     val isQuerying: Boolean = false,
     val queryResult: List<EmptyRoom>? = null,       // null = not yet queried
     val queryError: String? = null,
-    val totalCount: Int = 0
+    val totalCount: Int = 0,
+    val currentPage: Int = 1,
+    val totalPage: Int = 1
 )
 
 @HiltViewModel
@@ -148,10 +150,17 @@ class RoomViewModel @Inject constructor(
     }
 
     fun query() {
+        executeQuery(page = 1)
+    }
+
+    fun goToPage(page: Int) {
+        executeQuery(page = page)
+    }
+
+    private fun executeQuery(page: Int) {
         val state = _uiState.value
 
-        // Validate required fields before making the request.
-        // The 教务 system returns "必选字段！" (non-JSON) if any are empty → Gson crash.
+        // Validate required fields
         if (state.selectedDays.isEmpty()) {
             _uiState.update { it.copy(queryError = "请至少选择一天（星期）") }
             return
@@ -180,14 +189,16 @@ class RoomViewModel @Inject constructor(
 
             _uiState.update { it.copy(isQuerying = true, queryError = null) }
 
-            val result = repository.queryEmptyRooms(filter)
+            val result = repository.queryEmptyRooms(filter, page = page)
             result.fold(
-                onSuccess = { rooms ->
+                onSuccess = { queryResult ->
                     _uiState.update {
                         it.copy(
                             isQuerying = false,
-                            queryResult = rooms,
-                            totalCount = rooms.size
+                            queryResult = queryResult.rooms,
+                            totalCount = queryResult.totalCount,
+                            currentPage = page,
+                            totalPage = queryResult.totalPage
                         )
                     }
                 },

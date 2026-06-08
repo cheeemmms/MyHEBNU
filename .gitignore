@@ -16,3 +16,5 @@ local.properties
 *.keystore
 keystore.properties
 logcat/
+HAR/
+mitm/

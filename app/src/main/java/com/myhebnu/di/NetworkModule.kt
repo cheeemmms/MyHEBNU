@@ -1,5 +1,6 @@
 package com.myhebnu.di
 
+import com.myhebnu.BuildConfig
 import com.myhebnu.data.remote.PersistentCookieJar
 import com.myhebnu.data.remote.interceptor.AuthInterceptor
 import dagger.Module
@@ -58,6 +59,28 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(CAS_BASE_URL)
             .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @javax.inject.Named("github")
+    fun provideGitHubRetrofit(): Retrofit {
+        val githubClient = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", "MyHEBNU/${BuildConfig.VERSION_NAME}")
+                    .header("Accept", "application/vnd.github+json")
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl("https://api.github.com/")
+            .client(githubClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }

@@ -41,6 +41,29 @@ object CryptoUtil {
         return bytesToHex(encryptedBytes)
     }
 
+    /**
+     * Convert a base64-encoded string (as returned by login_getPublicKey.html
+     * for modulus and exponent) to a lowercase hex string.
+     *
+     * login.js does: b64tohex(modulus), b64tohex(exponent) before building the key.
+     */
+    fun base64ToHex(b64: String): String {
+        val bytes = Base64.decode(b64, Base64.DEFAULT)
+        return bytesToHex(bytes)
+    }
+
+    /**
+     * Encrypt plaintext with the given RSA public key, returning a base64-encoded
+     * ciphertext string. This matches the format expected by login_slogin.html's
+     * "mm" field (login.js: hex2b64(rsaKey.encrypt(...))).
+     */
+    fun encryptPasswordToBase64(plainText: String, publicKey: PublicKey): String {
+        val cipher = Cipher.getInstance(CIPHER_ALGORITHM)
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        val encryptedBytes = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
+    }
+
     private fun bytesToHex(bytes: ByteArray): String {
         val sb = StringBuilder(bytes.size * 2)
         for (b in bytes) {

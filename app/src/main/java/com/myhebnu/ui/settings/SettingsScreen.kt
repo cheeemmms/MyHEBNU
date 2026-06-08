@@ -2,6 +2,9 @@ package com.myhebnu.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
@@ -10,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
@@ -19,6 +23,8 @@ import com.myhebnu.R
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAdvanced: () -> Unit,
+    onNavigateToWebViewLogin: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -49,84 +55,103 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
         ) {
-            // Appearance section
+            // ═══ Appearance ═══
             SettingsSectionHeader(title = stringResource(R.string.settings_appearance))
-
-            // Theme mode dropdown
-            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
-                ExposedDropdownMenuBox(
-                    expanded = themeDropdownExpanded,
-                    onExpandedChange = { themeDropdownExpanded = it }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .clickable { themeDropdownExpanded = true },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "主题模式",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = currentLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    ExposedDropdownMenu(
+            SettingsCard {
+                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    ExposedDropdownMenuBox(
                         expanded = themeDropdownExpanded,
-                        onDismissRequest = { themeDropdownExpanded = false }
+                        onExpandedChange = { themeDropdownExpanded = it }
                     ) {
-                        themeOptions.forEach { (value, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    viewModel.setThemeMode(value)
-                                    themeDropdownExpanded = false
-                                }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                .clickable { themeDropdownExpanded = true },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "主题模式",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            Text(
+                                text = currentLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        ExposedDropdownMenu(
+                            expanded = themeDropdownExpanded,
+                            onDismissRequest = { themeDropdownExpanded = false }
+                        ) {
+                            themeOptions.forEach { (value, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        viewModel.setThemeMode(value)
+                                        themeDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-            // Academics section
+            // ═══ Academics ═══
             SettingsSectionHeader(title = stringResource(R.string.settings_academics))
-            SettingsInfoItem(
-                title = stringResource(R.string.current_week),
-                value = "第 ${uiState.currentWeek} 周"
-            )
-            SettingsInfoItem(
-                title = "当前学期",
-                value = "${uiState.semesterYear}-${uiState.semesterTerm}"
-            )
+            SettingsCard {
+                SettingsInfoItem(
+                    title = stringResource(R.string.current_week),
+                    value = "第 ${uiState.currentWeek} 周"
+                )
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                SettingsInfoItem(
+                    title = "当前学期",
+                    value = "${uiState.semesterYear}-${uiState.semesterTerm}"
+                )
+            }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-
-            // Advanced features
+            // ═══ Advanced ═══
             SettingsSectionHeader(title = stringResource(R.string.settings_advanced))
-            SettingsNavigateItem(
-                title = stringResource(R.string.settings_advanced),
-                onClick = onNavigateToAdvanced
-            )
+            SettingsCard {
+                SettingsNavigateItem(
+                    title = stringResource(R.string.settings_advanced),
+                    onClick = onNavigateToAdvanced
+                )
+            }
 
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+            // ═══ Account ═══
+            SettingsSectionHeader(title = "账号")
+            SettingsCard {
+                SettingsNavigateItem(
+                    title = "浏览器登录",
+                    onClick = onNavigateToWebViewLogin
+                )
+            }
 
-            // About
+            // ═══ About ═══
             SettingsSectionHeader(title = stringResource(R.string.settings_about))
-            SettingsInfoItem(title = "版本 1.0.0", value = "")
+            SettingsCard {
+                SettingsNavigateItem(
+                    title = stringResource(R.string.about_title),
+                    onClick = onNavigateToAbout
+                )
+            }
 
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// Reusable components
+// ═══════════════════════════════════════════════════════════════
 
 @Composable
 private fun SettingsSectionHeader(title: String) {
@@ -134,8 +159,24 @@ private fun SettingsSectionHeader(title: String) {
         text = title,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 16.dp, top = 24.dp, bottom = 8.dp)
+        modifier = Modifier.padding(start = 4.dp, top = 24.dp, bottom = 8.dp)
     )
+}
+
+@Composable
+private fun SettingsCard(
+    content: @Composable ColumnScope.() -> Unit
+) {
+    ElevatedCard(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth(), content = content)
+    }
 }
 
 @Composable
@@ -147,7 +188,11 @@ private fun SettingsInfoItem(title: String, value: String) {
     ) {
         Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
         if (value.isNotEmpty()) {
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -159,7 +204,16 @@ private fun SettingsNavigateItem(title: String, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-        Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            title,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Icon(
+            Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outlineVariant
+        )
     }
 }

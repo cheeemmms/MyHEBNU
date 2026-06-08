@@ -3,6 +3,8 @@ package com.myhebnu.ui.room.components
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.*
@@ -19,6 +21,10 @@ import com.myhebnu.domain.EmptyRoom
 fun RoomList(
     rooms: List<EmptyRoom>,
     totalCount: Int,
+    currentPage: Int,
+    totalPage: Int,
+    isQuerying: Boolean,
+    onPageChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
@@ -62,7 +68,7 @@ fun RoomList(
                 )
             }
         } else {
-            // Use Column (not LazyColumn) — parent RoomScreen already provides verticalScroll
+            // Room cards
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -71,6 +77,71 @@ fun RoomList(
                     RoomCard(room = room)
                 }
             }
+
+            // Pagination bar (only show if more than 1 page)
+            if (totalPage > 1) {
+                PaginationBar(
+                    currentPage = currentPage,
+                    totalPage = totalPage,
+                    isQuerying = isQuerying,
+                    onPageChange = onPageChange,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaginationBar(
+    currentPage: Int,
+    totalPage: Int,
+    isQuerying: Boolean,
+    onPageChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedButton(
+            onClick = { onPageChange(currentPage - 1) },
+            enabled = currentPage > 1 && !isQuerying
+        ) {
+            Icon(
+                imageVector = Icons.Default.ChevronLeft,
+                contentDescription = "上一页",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("上一页")
+        }
+
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Text(
+                text = "第 $currentPage / $totalPage 页",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        OutlinedButton(
+            onClick = { onPageChange(currentPage + 1) },
+            enabled = currentPage < totalPage && !isQuerying
+        ) {
+            Text("下一页")
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "下一页",
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

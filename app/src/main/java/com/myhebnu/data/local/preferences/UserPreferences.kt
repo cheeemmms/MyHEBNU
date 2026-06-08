@@ -28,6 +28,12 @@ class UserPreferences @Inject constructor(
         val CAMPUS_ID = stringPreferencesKey("campus_id")
         val STUDENT_NAME = stringPreferencesKey("student_name")
         val ADVANCED_ENABLED = booleanPreferencesKey("advanced_enabled")
+        val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
+        val USE_CUSTOM_COLORS = booleanPreferencesKey("use_custom_colors")
+        val ACTIVE_PRESET_ID = stringPreferencesKey("active_preset_id")
+        val CUSTOM_PRESETS_JSON = stringPreferencesKey("custom_presets_json")
+        val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
+        val AUTO_CHECK_UPDATE = booleanPreferencesKey("auto_check_update")
     }
 
     val currentSemesterYear: Flow<String> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_YEAR] ?: "2025" }
@@ -40,6 +46,12 @@ class UserPreferences @Inject constructor(
     val campusId: Flow<String> = context.dataStore.data.map { it[Keys.CAMPUS_ID] ?: "4" }
     val studentName: Flow<String> = context.dataStore.data.map { it[Keys.STUDENT_NAME] ?: "" }
     val advancedEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.ADVANCED_ENABLED] ?: false }
+    val isFirstLaunch: Flow<Boolean> = context.dataStore.data.map { it[Keys.IS_FIRST_LAUNCH] ?: true }
+    val useCustomColors: Flow<Boolean> = context.dataStore.data.map { it[Keys.USE_CUSTOM_COLORS] ?: false }
+    val activePresetId: Flow<String?> = context.dataStore.data.map { it[Keys.ACTIVE_PRESET_ID] }
+    val customPresetsJson: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PRESETS_JSON] ?: "[]" }
+    val dismissedUpdateVersion: Flow<String> = context.dataStore.data.map { it[Keys.DISMISSED_UPDATE_VERSION] ?: "" }
+    val autoCheckUpdate: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CHECK_UPDATE] ?: true }
 
     suspend fun setCurrentSemester(year: String, term: String) {
         context.dataStore.edit {
@@ -78,5 +90,29 @@ class UserPreferences @Inject constructor(
 
     suspend fun setAdvancedEnabled(enabled: Boolean) {
         context.dataStore.edit { it[Keys.ADVANCED_ENABLED] = enabled }
+    }
+
+    suspend fun setFirstLaunchComplete() {
+        context.dataStore.edit { it[Keys.IS_FIRST_LAUNCH] = false }
+    }
+
+    suspend fun setUseCustomColors(value: Boolean) {
+        context.dataStore.edit { it[Keys.USE_CUSTOM_COLORS] = value }
+    }
+
+    suspend fun setActivePresetId(id: String?) {
+        context.dataStore.edit { it[Keys.ACTIVE_PRESET_ID] = id ?: "" }
+    }
+
+    suspend fun setCustomPresetsJson(json: String) {
+        context.dataStore.edit { it[Keys.CUSTOM_PRESETS_JSON] = json }
+    }
+
+    suspend fun setDismissedUpdateVersion(version: String) {
+        context.dataStore.edit { it[Keys.DISMISSED_UPDATE_VERSION] = version }
+    }
+
+    suspend fun setAutoCheckUpdate(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.AUTO_CHECK_UPDATE] = enabled }
     }
 }

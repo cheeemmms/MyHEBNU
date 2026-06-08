@@ -1,3 +1,10 @@
+import java.util.Properties
+
+val localProps = Properties().apply {
+    val propsFile = rootProject.file("local.properties")
+    if (propsFile.exists()) load(propsFile.inputStream())
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +14,14 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        create("release") {
+            storeFile = file(localProps.getProperty("KEYSTORE_PATH"))
+            storePassword = localProps.getProperty("KEYSTORE_PASSWORD")
+            keyAlias = localProps.getProperty("KEY_ALIAS")
+            keyPassword = localProps.getProperty("KEY_PASSWORD")
+        }
+    }
     namespace = "com.myhebnu"
     compileSdk = 35
 
@@ -14,13 +29,14 @@ android {
         applicationId = "com.myhebnu"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -29,6 +45,7 @@ android {
             )
         }
         debug {
+            applicationIdSuffix = ".debug"
             isMinifyEnabled = false
         }
     }
@@ -50,6 +67,14 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    applicationVariants.all {
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
+                "MyHEBNU-v${versionName}-${name}.apk"
+        }
     }
 }
 
@@ -108,6 +133,9 @@ dependencies {
 
     // WorkManager
     implementation(libs.workmanager.ktx)
+
+    // Security
+    implementation(libs.security.crypto)
 
     // Testing (Phase 8)
     testImplementation(libs.junit)

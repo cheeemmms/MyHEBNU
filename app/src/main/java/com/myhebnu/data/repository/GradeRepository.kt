@@ -18,20 +18,31 @@ class GradeRepository @Inject constructor(
      */
     suspend fun getGrades(year: String, term: String): Result<List<Grade>> {
         return try {
-            api.registerMenuClick("N305007")
-            val response = api.getGradeList(year = year, semester = term)
-            if (response.isSuccessful) {
-                val body = response.body()
-                if (body != null) {
-                    val items = body.getAsJsonArray("items")
-                    val grades = parseGradeList(items ?: JsonArray(), year, term)
-                    Result.success(grades)
-                } else {
-                    Result.success(emptyList())
-                }
-            } else {
-                Result.failure(Exception("HTTP ${response.code()}"))
+            // Step 1: 注册菜单点击
+            val menuResult = api.registerMenuClick("N305007")
+            if (!menuResult.isSuccessful) {
+                return Result.failure(Exception("菜单注册失败: HTTP ${menuResult.code()}"))
             }
+
+            // Step 2: 加载成绩页面（建立浏览器 context — 教务系统门控要求）
+            val pageResult = api.loadGradePage()
+            if (!pageResult.isSuccessful) {
+                return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
+            }
+            val pageBody = pageResult.body()?.string() ?: ""
+            if (pageBody.contains("登录") || pageBody.contains("login_slogin")) {
+                return Result.failure(Exception("Session 已失效，页面重定向到登录页"))
+            }
+
+            // Step 3: 获取成绩数据
+            val response = api.getGradeList(year = year, semester = term)
+            if (!response.isSuccessful) {
+                return Result.failure(Exception("HTTP ${response.code()}"))
+            }
+            val body = response.body() ?: return Result.success(emptyList())
+            val items = body.getAsJsonArray("items") ?: JsonArray()
+            val grades = parseGradeList(items, year, term)
+            Result.success(grades)
         } catch (e: Exception) {
             Result.failure(e)
         }

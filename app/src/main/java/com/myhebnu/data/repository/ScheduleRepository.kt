@@ -12,12 +12,26 @@ import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Period time info from the教务 system's real timetable.
+ * Returned by [fetchPeriods] and used by both ScheduleViewModel (grid display)
+ * and HomeViewModel (current-period detection).
+ */
+data class PeriodTime(
+    val period: Int,       // period number (1-13)
+    val startTime: String, // e.g. "08:00"
+    val endTime: String    // e.g. "08:45"
+)
+
 @Singleton
 class ScheduleRepository @Inject constructor(
     private val api: EASystemApi,
     private val dao: ScheduleDao,
     private val preferences: UserPreferences
 ) {
+    // In-memory cache — period times don't change within a semester
+    private var cachedPeriods: List<PeriodTime>? = null
+    private var cachedPeriodsSemester: Pair<String, String>? = null
     /**
      * Observe the cached schedule from Room for a given semester.
      * Returns a Flow that emits updates whenever the local cache changes.
@@ -322,5 +336,103 @@ class ScheduleRepository @Inject constructor(
      */
     suspend fun hasCachedData(year: String, term: String): Boolean {
         return dao.getCourseListBySemester(year, term).isNotEmpty()
+    }
+
+    /**
+     * Fetch the real period time table from the教务 system.
+     *
+     * Uses the three-step request sequence (menu click → page load → data).
+     * Results are cached in memory — period times don't change within a semester.
+     *
+     * Falls back to the hardcoded河北师大 13-period schedule if the API call fails.
+     *
+     * @param year 学年 (e.g. "2025")
+     * @param term 学期 (e.g. "12")
+     * @return List of [PeriodTime] ordered by period number.
+     */
+    suspend fun fetchPeriods(year: String, term: String): List<PeriodTime> {
+        // Return cached if same semester
+        if (cachedPeriods != null && cachedPeriodsSemester == (year to term)) {
+            return cachedPeriods!!
+        }
+
+        return try {
+            // Step 1: 注册菜单点击
+            api.registerMenuClick("N2151")
+
+            // Step 2: 加载课表页面
+            api.loadSchedulePage()
+
+            // Step 3: 获取节次时间表
+            val response = api.getPeriodList(year = year, semester = term, campusId = "4")
+            if (response.isSuccessful) {
+                val rawJson = response.body()?.string() ?: ""
+                if (rawJson.isBlank() || rawJson.contains("<!doctype") || rawJson.contains("<html")) {
+                    android.util.Log.w("MyHEBNU", "fetchPeriods: server returned HTML, using fallback")
+                    return fallbackPeriods()
+                }
+                val periods = parsePeriodListResponse(rawJson)
+                if (periods.isNotEmpty()) {
+                    cachedPeriods = periods
+                    cachedPeriodsSemester = year to term
+                    android.util.Log.w("MyHEBNU", "fetchPeriods: loaded ${periods.size} periods from API")
+                    periods
+                } else {
+                    fallbackPeriods()
+                }
+            } else {
+                android.util.Log.w("MyHEBNU", "fetchPeriods: HTTP ${response.code()}, using fallback")
+                fallbackPeriods()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "fetchPeriods error: ${e.message}", e)
+            fallbackPeriods()
+        }
+    }
+
+    /**
+     * Parse the period list JSON response.
+     *
+     * Expected format: [{ "jcmc": "1", "qssj": "08:00", "jssj": "08:45" }, ...]
+     */
+    private fun parsePeriodListResponse(rawJson: String): List<PeriodTime> {
+        val result = mutableListOf<PeriodTime>()
+        try {
+            val array = com.google.gson.JsonParser.parseString(rawJson).asJsonArray
+            for (item in array) {
+                val obj = item.asJsonObject
+                val period = obj.get("jcmc")?.asString?.toIntOrNull() ?: continue
+                val startTime = obj.get("qssj")?.asString ?: ""
+                val endTime = obj.get("jssj")?.asString ?: ""
+                if (startTime.isNotEmpty() && endTime.isNotEmpty()) {
+                    result.add(PeriodTime(period, startTime, endTime))
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MyHEBNU", "parsePeriodListResponse error", e)
+        }
+        return result.sortedBy { it.period }
+    }
+
+    /**
+     * Hardcoded fallback matching the real河北师大 13-period schedule.
+     * Used only when the API is unreachable.
+     */
+    private fun fallbackPeriods(): List<PeriodTime> {
+        return listOf(
+            PeriodTime(1, "08:00", "08:45"),
+            PeriodTime(2, "08:45", "09:45"),
+            PeriodTime(3, "09:45", "10:30"),
+            PeriodTime(4, "10:30", "11:20"),
+            PeriodTime(5, "11:20", "12:00"),    // 第5节结束时间按下一节开始
+            PeriodTime(6, "14:00", "14:45"),
+            PeriodTime(7, "14:45", "15:35"),
+            PeriodTime(8, "15:35", "16:35"),
+            PeriodTime(9, "16:35", "17:20"),
+            PeriodTime(10, "17:20", "18:05"),   // 第10节结束时间按下一节开始
+            PeriodTime(11, "19:00", "19:45"),
+            PeriodTime(12, "19:45", "20:35"),
+            PeriodTime(13, "20:35", "21:20")
+        )
     }
 }

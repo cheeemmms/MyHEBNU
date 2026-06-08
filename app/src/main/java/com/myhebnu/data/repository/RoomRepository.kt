@@ -121,7 +121,7 @@ class RoomRepository @Inject constructor(
     /**
      * Query empty classrooms with the given filter.
      */
-    suspend fun queryEmptyRooms(filter: RoomFilter): Result<List<EmptyRoom>> {
+    suspend fun queryEmptyRooms(filter: RoomFilter, page: Int = 1): Result<RoomQueryResult> {
         return try {
             // Step 1: 注册菜单点击
             android.util.Log.w("MyHEBNU", "queryEmptyRooms step1: registerMenuClick")
@@ -172,7 +172,9 @@ class RoomRepository @Inject constructor(
                 periodBitmask = jcd,
                 minSeats = filter.minSeats ?: "",
                 maxSeats = filter.maxSeats ?: "",
-                roomName = filter.roomName ?: ""
+                roomName = filter.roomName ?: "",
+                currentPage = page.toString(),
+                pageSize = "20"
             )
 
             android.util.Log.w("MyHEBNU", "queryEmptyRooms HTTP ${response.code()}")
@@ -185,8 +187,11 @@ class RoomRepository @Inject constructor(
 
             val items = body.getAsJsonArray("items")
             val rooms = parseEmptyRooms(items ?: JsonArray())
-            android.util.Log.w("MyHEBNU", "queryEmptyRooms success: ${rooms.size} rooms")
-            Result.success(rooms)
+            val totalCount = body.get("totalCount")?.asInt ?: rooms.size
+            val totalPage = body.get("totalPage")?.asInt
+                ?: ((totalCount + 19) / 20)  // fallback: calculate from totalCount at 20/page
+            android.util.Log.w("MyHEBNU", "queryEmptyRooms page=$page: ${rooms.size} rooms, totalCount=$totalCount, totalPage=$totalPage")
+            Result.success(RoomQueryResult(rooms = rooms, totalCount = totalCount, totalPage = totalPage))
         } catch (e: Exception) {
             android.util.Log.e("MyHEBNU", "queryEmptyRooms exception: ${e.message}", e)
             Result.failure(e)

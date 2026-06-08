@@ -1,5 +1,8 @@
 package com.myhebnu.ui.theme
 
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import kotlin.math.pow
 
@@ -68,12 +71,12 @@ fun coursePaletteForHue(hue: Float, isDark: Boolean): CourseTonalPalette {
     }
 }
 
-/** Assign hues evenly spaced across 360°, min 30° apart. */
-fun assignCourseHues(courseNames: List<String>): Map<String, Float> {
+/** Assign hues evenly spaced across 360°, rotated by [seedOffset]. */
+fun assignCourseHues(courseNames: List<String>, seedOffset: Float = 0f): Map<String, Float> {
     val result = mutableMapOf<String, Float>()
     val step = 360f / maxOf(courseNames.size, 1)
     courseNames.sorted().forEachIndexed { i, name ->
-        result[name] = (i * step) % 360f
+        result[name] = ((seedOffset + i * step) % 360f)
     }
     return result
 }
@@ -109,4 +112,83 @@ enum class ColorTemplate(val label: String, val hues: List<Float>) {
     companion object {
         fun templates(): List<ColorTemplate> = entries.toList()
     }
+}
+
+// ============================================================
+// Custom color preset (seed-hue driven, persists to UserPreferences)
+// ============================================================
+
+data class ColorPreset(
+    val id: String,
+    val name: String,
+    val seedHue: Float,
+    val isBuiltIn: Boolean = false
+)
+
+/** 6 built-in presets with stable IDs — keyed by a representative seed hue. */
+fun builtInPresets(): List<ColorPreset> = listOf(
+    ColorPreset("builtin_rainbow", "彩虹", 210f, isBuiltIn = true),
+    ColorPreset("builtin_morandi", "莫兰迪", 45f, isBuiltIn = true),
+    ColorPreset("builtin_warmred", "暖红", 5f, isBuiltIn = true),
+    ColorPreset("builtin_coolblue", "冷蓝", 220f, isBuiltIn = true),
+    ColorPreset("builtin_forest", "森林", 120f, isBuiltIn = true),
+    ColorPreset("builtin_sunset", "日落", 25f, isBuiltIn = true)
+)
+
+/**
+ * Generate a full MD3 [ColorScheme] from a single seed hue.
+ *
+ * Light scheme: moderate saturation, medium-high lightness for containers.
+ * Dark scheme: lower saturation, lower lightness for containers.
+ */
+fun seedColorScheme(seedHue: Float, isDark: Boolean): ColorScheme {
+    if (isDark) {
+        return darkColorScheme(
+            primary = Color.hsl(seedHue, 0.45f, 0.75f),
+            onPrimary = Color.hsl(seedHue, 0.15f, 0.15f),
+            primaryContainer = Color.hsl(seedHue, 0.30f, 0.25f),
+            onPrimaryContainer = Color.hsl(seedHue, 0.35f, 0.88f),
+            secondary = Color.hsl((seedHue + 30) % 360, 0.25f, 0.70f),
+            onSecondary = Color.hsl((seedHue + 30) % 360, 0.10f, 0.15f),
+            secondaryContainer = Color.hsl((seedHue + 30) % 360, 0.20f, 0.22f),
+            onSecondaryContainer = Color.hsl((seedHue + 30) % 360, 0.25f, 0.85f),
+            tertiary = Color.hsl((seedHue + 60) % 360, 0.35f, 0.65f),
+            onTertiary = Color.hsl((seedHue + 60) % 360, 0.10f, 0.12f),
+            tertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.25f, 0.20f),
+            onTertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.30f, 0.85f),
+            error = Red80, onError = Red20, errorContainer = Red30, onErrorContainer = Red90,
+            background = Neutral10, onBackground = Neutral90,
+            surface = Neutral10, onSurface = Neutral90,
+            surfaceVariant = Neutral10.copy(alpha = 0.8f),
+            onSurfaceVariant = Neutral90.copy(alpha = 0.8f),
+            outline = Neutral90.copy(alpha = 0.2f)
+        )
+    } else {
+        return lightColorScheme(
+            primary = Color.hsl(seedHue, 0.40f, 0.38f),
+            onPrimary = Neutral99,
+            primaryContainer = Color.hsl(seedHue, 0.30f, 0.90f),
+            onPrimaryContainer = Color.hsl(seedHue, 0.50f, 0.10f),
+            secondary = Color.hsl((seedHue + 30) % 360, 0.25f, 0.42f),
+            onSecondary = Neutral99,
+            secondaryContainer = Color.hsl((seedHue + 30) % 360, 0.20f, 0.90f),
+            onSecondaryContainer = Color.hsl((seedHue + 30) % 360, 0.35f, 0.10f),
+            tertiary = Color.hsl((seedHue + 60) % 360, 0.30f, 0.40f),
+            onTertiary = Neutral99,
+            tertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.25f, 0.90f),
+            onTertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.40f, 0.10f),
+            error = Red40, onError = Neutral99, errorContainer = Red90, onErrorContainer = Red10,
+            background = Neutral99, onBackground = Neutral10,
+            surface = Neutral99, onSurface = Neutral10,
+            surfaceVariant = Neutral95, onSurfaceVariant = Neutral10.copy(alpha = 0.6f),
+            outline = Neutral10.copy(alpha = 0.2f)
+        )
+    }
+}
+
+/**
+ * Load a [ColorPreset] by ID, searching both built-in and custom presets.
+ */
+fun findPresetById(id: String, customPresets: List<ColorPreset>): ColorPreset? {
+    return builtInPresets().find { it.id == id } ?: customPresets.find { it.id == id }
 }

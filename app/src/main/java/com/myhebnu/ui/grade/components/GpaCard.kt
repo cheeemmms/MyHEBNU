@@ -32,7 +32,7 @@ fun GpaCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.Start
         ) {
             // Strategy selector chips
             Row(

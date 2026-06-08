@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-07 | 状态: Batch 4 精修完成 — 课表跨行合并+排版精简+抽屉删除，真机验证通过
+> 最后更新: 2026-06-08 | 状态: 设置页重构 ✅。Phase 7.1 Widget 实施中 ⏳（API 适配受阻，详细记录见 [[glance-api-research]]）
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [⏳ 待开始]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [⏳ 待开始]    [🔄 进行中]
 
 → 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
@@ -21,6 +21,13 @@ Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phas
   ├─ 课表: 逐节网格 + 双层架构(绝对定位跨行) + MD3 Tonal Palette + 紧凑排版
   ├─ 色彩: 6套预设模板 + HSL色轮 + WCAG对比度
   └─ 导航: 删除抽屉, 首页⚙→设置, 子页←返回首页
+→ Batch 5 (P0+P3) 完成+验证：自定义登录 + 自动重登 + 欢迎页
+  ├─ 登录: 自定义Compose UI + 无框线胶囊设计 + 呼吸红错误动效 + 验证码展开动画
+  ├─ 凭证: EncryptedSharedPreferences 加密存储学号+密码
+  ├─ 自动重登: Session过期(302) → autoLogin(加密凭证) → 无感恢复 / 失败→提示重新登录
+  ├─ 欢迎页: 仅首次启动展示, 隐私声明+GitHub+胶囊按钮
+  ├─ 验证码修复: loginClient共享CookieJar加载/kaptcha; logoutAccount仅首次调用
+  └─ 导航: 登录页移除"用浏览器登录"→设置页"账号"区块
 ```
 
 ---
@@ -55,7 +62,75 @@ Batch 4: 架构级变更（P2）✅ 已完成 + 6轮精修
   ├── 卡片排版: 课程名11sp/教室10sp/教师9.5sp + 3dp间距 + 2dp呼吸
   └── 导航简化: 抽屉删除 → 仅首页⚙设置入口
 
-Batch 5: HTTP 302 + UI 残余打磨（P3）← 下一步
+Batch 5: HTTP 302 + 自定义登录 + 欢迎页（P0+P3）✅ 已完成
+
+Batch 6: 导航 + 主题 Bug 修复（P0+P1）✅ 已完成（2026-06-08）
+  ├── #6a 捐赠展示: 开关关闭时展示收款二维码 + 图注文案；开关打开时收起 ✅
+  ├── #6b 自由主题色: 三层联动修复 ✅
+  │     ├─ ① 实时生效 → MainActivity: LaunchedEffect+.first() → collectAsState() 持续观察
+  │     ├─ ② 开关误关 → SettingsViewModel: 移除 useCustomColors 条件绑定 (不再 && activePreset)
+  │     ├─ ③ 课表联动 → ScheduleViewModel: colorPrefsFlow + combine + seedOffset 传入 assignCourseHues
+  │     ├─ ④ 预设改名 → Color.kt: "彩虹色系"→"彩虹" 等六个去"系"
+  │     └─ ⑤ 色相条 → ColorThemeScreen: HueSliderBar 彩虹渐变替换单色 Slider
+  ├── #6c 多级页面导航返回失效 ✅
+  │     └─ 修复: previousRoute String → backStack mutableStateListOf + navigateTo/goBack 函数
+  ├── #6d 系统返回手势直接退出应用 ✅
+  │     └─ 修复: BackHandler(enabled = currentRoute != "home") 拦截系统返回 → goBack()
+  ├── #6e 深色模式页面切换闪屏 ✅ (2026-06-08)
+  │     └─ 修复: MainActivity AnimatedContent 外包 Box(background=theme) 防白底穿透
+  │           + Theme SideEffect → DisposableEffect 优化状态栏同步
+  ├── #6f 捐赠图注更改 ✅
+  │     └─ 图注1 → "诚信捐赠，本项目所有收入将用于支持项目开发"
+  └── #6g 首页成绩修正 + GpaCard排版 ✅
+        ├─ HomeViewModel: 全学期展平 → 真·本学期(year/term过滤)
+        ├─ GpaCard: CenterHorizontally → Start 左对齐
+        └─ GradeScreen: GpaCard下方免责声明
+
+Batch 7: 数据完整性 + 首页上课状态 + GPA（P1）✅ 已完成
+  ├── #7a 空教室只显示 10 个 — 分页查询 ✅ (2026-06-08)
+  ├── #7b 首页上课中状态识别 + 距下课倒计时 ✅ (2026-06-08)
+  │     ├─ 根因: computeNextClass() 只找"下一节"不识别"当前节",
+  │     │   estimateCurrentPeriod() 硬编码12区间与实际13节次表不匹配,
+  │     │   HOLIDAY 误判(数据未加载时 courses.any 返回 false)
+  │     ├─ 修复: 新增 ScheduleRepository.fetchPeriods() 调 API (/kbcx/xskbcx_cxRjc.html) 获取真实13节时间表,
+  │     │   computeNextClass() 重写 → 用真实时间逐课程比对: 优先检测 IN_CLASS(距下课倒计时),
+  │     │   其次 HAS_CLASS(查找未开始的最近课程), HOLIDAY 仅数据已加载且无附近课程时触发
+  │     ├─ 节次表: buildPerPeriodLabels() 硬编码11节删除 → API 数据(fallback=真实13节)
+  │     ├─ 课表布局: WeekViewGrid 固定55dp行高 + verticalScroll, 表头固定不滚动
+  │     ├─ 主页卡片: 新增 NextClassState.IN_CLASS, 标题动态切换"正在上课"/"下一节课",
+  │     │   卡片显示"距下课 XX分钟"倒计时
+  │     └─ 共 6 files: EASystemApi + ScheduleRepository + ScheduleViewModel + WeekViewGrid + HomeViewModel + HomeCardPanel
+  └── #7c GPA 算法适配本校 ✅ 已确认
+        └─ 当前: 标准北大4.0 + 标准5.0 + 百分制加权，公式无逻辑错误
+            用户已确认，无需调整
+
+Batch 8: 应用生态 — 反馈 + 更新通道（P2 新功能）✅ 已完成 (2026-06-08)
+  ├── #8a 设置页展示邮箱 + QQ交流群 ✅
+  │     └─ 新增"联系与反馈"section: 联系邮箱(mailto:) + QQ交流群(复制到剪贴板)
+  │         + SettingsTappableItem 可交互组件 + 占位符待用户填充真实信息
+  ├── #8b 启动时 GitHub Releases API 检测更新 + 通知 ✅
+  │     └─ GitHubApi 调 /repos/cheeemmms/MyHEBNU/releases/latest
+  │         + UpdateRepository: semver 比对 + 自动/手动双模式 + 通知 + dismiss 去重
+  │         + 设置页"检查更新"多态按钮(空闲/检查中/已最新/发现新版本/失败)
+  │         + HomeViewModel init 自动检查 fire-and-forget
+  │         + 新增 app_update 通知渠道
+  └─ 共 14 files: 3 new + 11 modified. 编译通过.
+
+Batch 9: 设置页胶囊重构 + 关于页面 + 系统与更新（P2 UI 重设计）✅ 已完成 (2026-06-08)
+  ├── 设置页胶囊卡片重构 ✅
+  │     └─ 全部项目用 ElevatedCard(shape=16dp, elevation=0) 包裹
+  │         + 外观/教务/高级/账号/关于 五个胶囊 section
+  ├── 关于页面 ✅
+  │     ├─ App 图标(80dp, 自定义 app_icon.png) + MyHEBNU 标题 + 版本号
+  │     ├─ 社区与源码 Card: 查看源码(GitHub) + 加入交流群(QQ复制) + 联系邮箱(mailto)
+  │     ├─ 许可证 Card: 开源协议(AGPL-3.0 URL) + 第三方开源证书(AlertDialog内联)
+  │     └─ 系统与更新 Card → 导航到二级页面
+  ├── 系统与更新二级页面 ✅
+  │     ├─ 自动检查更新 Switch (UserPreferences.autoCheckUpdate, 默认 true)
+  │     ├─ 检查更新按钮(多态: 检查/检查中/已最新/发现新版本)
+  │     └─ 更新日志卡片 (v1.0.0 changelog)
+  ├── HomeViewModel 自动检查尊重 autoCheckUpdate 偏好
+  └── 共 6 files: AboutScreen + SystemUpdateScreen + SettingsScreen 重写 + MainActivity + SettingsViewModel + UserPreferences
 ```
 
 ### 关键依赖 (修订)
@@ -65,7 +140,12 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
  (独立)      (考试数据    (单首页需要   (课表UI细节
               是首页卡片    考试卡片)    在重设计后
               的前置)                   再打磨)
-```
+
+Batch 6 (导航/主题修复) ──→ Batch 7 (数据/首页状态)
+  独立, 无前置依赖              独立, 可并行
+                              
+Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Phase 8 (国际化+打磨)
+                 可选, 低优先级
 
 - **Batch 2.5 独立**: 成绩加载策略修复不依赖任何后续批次
 - **Batch 3 ← 2.5**: 可选并行, 但成绩修复更快更紧急
@@ -213,9 +293,17 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
-| 7.1 | 课表 Widget (Glance) | ⏳ 待开始 | — |
+| 7.1 | 课表 Widget (Glance) | 🔴 阻塞 | Glance 1.1.1 API 不兼容 — `provideContent`/`Dimension.Dp` 不可用，详见 [[glance-api-research]] |
 | 7.2 | 上课提醒通知 | ⏳ 待开始 | — |
 | 7.3 | 考试提醒通知 | ⏳ 待开始 | — |
+
+### 7.1 进度摘要
+
+- **已完成**：4 种 Widget 配置文件(XML) + 共享数据加载层 + 4 个 GlanceAppWidget 子类框架 + Hilt EntryPoint + 颜色/排版工具 + 4 个 Receiver + Worker/UpdateManager 基础设施 + Deep Link 导航
+- **阻塞于**：`provideContent` 在 Glance 1.1.1 中并非 `GlanceAppWidget` 成员函数；`Dimension.Dp` 构造函数私有，无法创建 dp 值
+- **推荐方案**：升级 Glance 到 1.2.0+（需确认阿里云 Maven 镜像可用性）
+- **已创建 14 个文件，修改 7 个文件，删除 3 个文件** — 代码在 `main` 分支待编译修复
+- **详细记录**：[[glance-api-research]]
 
 ---
 
@@ -233,22 +321,25 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 
 ## 已知问题 & 待决策项
 
-| # | 问题 | 状态 | 备注 |
-|----|------|------|------|
-| 1 | **登录后需杀应用才能看到课表** | 🟢 已修复 | `ScheduleViewModel` Flow 订阅移至独立协程 |
-| 2 | **空教室点击查询即闪退** | 🟢 已修复 | 实际是 Compose 嵌套滚动容器 + 数据层三步序列 + gnmkdm 参数三层问题 |
-| 3 | 课表未按周过滤（非本周课程也显示） | 🟢 已修复 | combine(Room Flow, displayWeek) + filterCoursesByWeek |
-| 4 | 默认周数为第1周而非真实当前周 | 🟢 已修复 | N2154 getWeeksBySemester + 手机日期比对自动计算, AuthInterceptor Referer 修复 |
-| 5 | 课表需横向滑动才能看完整 | 🟡 P2 → Batch 3 #4a | 周一~周日 7列 + 固定 `columnWidth=100dp` + `horizontalScroll` |
-| 6 | 考试安排页面 | 🟢 已实现 | Batch 3 完成: ExamRepository + ViewModel + Screen(AnimatedContent+TopAppBar+LazyColumn) + MD3 ExamCard + 倒计时Badge |
-| 7 | 登出 API 未捕获 | 🟢 不影响 | 清除 Cookie 即可实现登出 |
-| 8 | **成绩页数据显示后过一段时间消失** | 🟢 已修复 | getAllGrades() 用 fold 替代 onSuccess 收集失败 → 全失败时返回 failure；ViewModel 内存缓存防止数据丢失；GradeScreen LaunchedEffect 主动刷新 |
-| 9 | GPA 具体计算规则 | 🟡 预留扩展 | 4.0/5.0/百分制均支持 |
-| 10 | Vico 图表库 API 不兼容 | 🟢 已解决 | 替换为 Compose Canvas 自定义折线图 |
-| 11 | 节次栏占宽过大, 格式冗余 | 🟡 P2 → Batch 3 #4c | 改为三行紧凑格式: 节次号/开始时间/结束时间 |
-| 12 | 教室名过长时被截断 | 🟡 P2 → Batch 3 #4b | CourseCard 教室行改为可换行, 不截断 |
-| 13 | 课表页纵向空间利用不足 | 🟡 P2 → Batch 4 | 课程卡片过小, 需填满屏幕可用高度 |
-| 14 | **登录后一段时间访问考试/成绩报 HTTP 302，重试无效** | 🔴 P0 → 待修复 | `AuthInterceptor._sessionExpired` StateFlow 从未被观察，session 过期后静默失败，CAS cookie 失效导致重试永远失败 |
+| # | 问题 | 状态 | 批次 | 根因摘要 |
+|---|------|------|------|----------|
+| **6b** | 自由主题色：①选色后需杀应用 ②开关误关 ③课表颜色不跟随 ④需实时生效 | 🟢 已修复 | Batch 6 | 三层修复：(1) MainActivity collectAsState 持续观察；(2) SettingsViewModel 移除条件绑定；(3) ScheduleViewModel colorPrefsFlow+seedOffset；附加：预设去"系"+彩虹色相条 |
+| **6c** | 设置→高级→自由主题色，进入后卡死无法返回 | 🟢 已修复 | Batch 6 | `previousRoute` String → `backStack` mutableStateListOf + `navigateTo`/`goBack` |
+| **6d** | 系统返回手势（侧滑）直接退出到桌面 | 🟢 已修复 | Batch 6 | `BackHandler(enabled = currentRoute != "home")` 拦截系统返回 → `goBack()` |
+| **6e** | 深色模式下切换页面闪屏 | 🟢 已修复 | Batch 6 | `AnimatedContent` crossfade 暴露 Scaffold 白底 + `Box(background)` wrapper + `SideEffect→DisposableEffect` |
+| **7a** | 空教室查询只显示 10 个 | 🟢 已修复 | Batch 7 | API 参数名错误(`rows`→`queryModel.showCount`) + 未解析 totalPage + 新增 PageBar 翻页条 |
+| **7b** | 上课中主页显示"放假中"或未识别当前课程 | 🟢 已修复 | Batch 7 | 新增 fetchPeriods() 调 API 获取13节时间表; computeNextClass() 重写用真实时间逐课程比对; 优先 IN_CLASS(倒计时) → HAS_CLASS → ALL_DONE; 删除硬编码 estimateCurrentPeriod(); 修复 HOLIDAY 仅数据已加载时触发 |
+| **8a** | 缺少内置反馈通道 | 🟢 已修复 | Batch 8 | 关于页"联系与反馈": 邮箱(mailto) + QQ群(复制) |
+| **8b** | 缺少应用更新检测 | 🟢 已修复 | Batch 8 | GitHubApi + UpdateRepository + 关于页检查更新 + 自动检查开关 |
+| **9** | 关于页闪退 | 🟢 已修复 | Batch 9 | `R.mipmap.ic_launcher` adaptive-icon XML → `R.drawable.app_icon` PNG |
+| **10** | 第三方开源证书不可用 | 🟢 已修复 | Batch 9 | Google OSS Licenses 插件不在阿里云镜像 → AlertDialog 内联展示 |
+| **1** | ~~登录后需杀应用才能看到课表~~ | 🟢 已修复 | Batch 1 | `ScheduleViewModel` Flow 订阅移至独立协程 |
+| **2** | ~~空教室点击查询即闪退~~ | 🟢 已修复 | Batch 1 | Compose 嵌套滚动容器 + 数据层三步序列 + gnmkdm 参数 |
+| **3** | 课表未按周过滤（非本周课程也显示） | 🟢 已修复 | Batch 2 | combine(Room Flow, displayWeek) + filterCoursesByWeek |
+| **4** | 默认周数为第1周而非真实当前周 | 🟢 已修复 | Batch 2 | N2154 getWeeksBySemester + 手机日期比对自动计算 |
+| **5** | 课表需横向滑动才能看完整 | 🟡 已知 | — | 设计取舍：周视图需滚动 5 天列 |
+| **8** | ~~成绩页数据显示后过一段时间消失~~ | 🟢 已修复 | Batch 2.5 | getAllGrades() fold + ViewModel 内存缓存 + LaunchedEffect 主动刷新 |
+| **14** | ~~登录后一段时间访问考试/成绩报 HTTP 302~~ | 🟢 已修复 | Batch 5 | autoLogin() 用加密凭证自动重登 |
 
 ---
 
@@ -375,7 +466,7 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | 代理端口 | `127.0.0.1:7892` (已写入 gradle.properties) |
 | Gradle 镜像 | 阿里云 (settings.gradle.kts) |
 | Git 仓库 | `D:\Personal_file\VibeCoding\Program\My-University` |
-| 当前分支 | main (13 次提交) |
+| 当前分支 | main (17+ 次提交) |
 
 ---
 
@@ -383,6 +474,27 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 
 | 日期 | 变更 | 原因 |
 |------|------|------|
+| **2026-06-08** | **Batch 6 扩展 + 新增 Batch 7/8 — 6 项真机反馈评估** | **计划更新** |
+| → | Batch 6 扩展: #6d 系统返回手势退出 + #6e 深色模式闪屏 | 新增 P0/P1 Bug |
+| → | Batch 7 新建: #7a 空教室分页 + #7b 首页上课中状态+倒计时 | 新增 P1 数据+体验 |
+| → | Batch 8 新建: #8a 反馈通道 + #8b GitHub 更新检测 | 新增 P2 功能 |
+| → | #6c 精确定位: 设置→高级→自由主题色 3级导航返回失效 | 用户反馈复现路径 |
+| **2026-06-08** | **#6c + #6d 修复: 导航返回栈 + BackHandler** | **P0 Bug** |
+| → | `MainActivity.kt`: `previousRoute` String → `backStack` mutableStateListOf + `navigateTo`/`goBack` | #6c 导航返回 |
+| → | `MainActivity.kt`: 新增 `BackHandler(enabled = currentRoute != "home")` 拦截系统返回手势 | #6d 系统返回 |
+| **2026-06-08** | **#6b 深度诊断: 用户反馈 4 项具体症状** | **Bug 精确定位** |
+| → ① | 选色后需杀应用才生效 → `remember` State 不观察 DataStore Flow | MainActivity 层 |
+| → ② | 开关可能误显示关闭 → `useCustomColors && activePreset != null` 条件过于严苛 | SettingsViewModel 层 |
+| → ③ | 课表卡片颜色不变 → `assignCourseHues(课程名)` 独立分配, 零感知 seedHue | ScheduleViewModel 层 |
+| → ④ | 要求实时生效 → 需三层联动修复 | 架构级 |
+| **2026-06-08** | **#6b 修复: 自由主题色彩三层联动 + UX 改进** | **P0 Bug** |
+| → | `MainActivity.kt`: LaunchedEffect+.first() → collectAsState() 持续观察 4 个 DataStore Flow | 实时生效 |
+| → | `SettingsViewModel.kt`: 移除三处 useCustomColors 条件绑定 (不再 && activePreset) | 开关不误关 |
+| → | `ScheduleViewModel.kt`: colorPrefsFlow + combine + seedOffset → assignCourseHues | 课表联动 |
+| → | `Color.kt`: 预设改名去"系" + assignCourseHues 加 seedOffset 参数 | UX |
+| → | `ColorThemeScreen.kt`: 自制 HueSliderBar 彩虹渐变替换单色 Slider | UX |
+| → | `WeekViewGrid.kt`: fallback isDark 从硬编码 false → isSystemInDarkTheme() | 暗色修正 |
+| → | 共 6 文件 | |
 | 2026-06-04 | 初始化 memory-bank + 8 轮需求沟通 | 项目启动 |
 | 2026-06-04 | Phase 0: 7 HAR + 17 API 端点文档 | API 侦察 |
 | 2026-06-04 | Phase 1: 45 文件项目骨架 | 项目初始化 |
@@ -435,6 +547,47 @@ Batch 2.5 ──→ Batch 3 ──→ Batch 4 ──→ Batch 5
 | **2026-06-07** | **Batch 4 精修 R6: 卡片收敛+抽屉删除** | **真机反馈** |
 | → | 卡片宽高各减4dp+offset各偏2dp=四周2dp呼吸; 删除ModalNavigationDrawer | |
 | → | 首页☰→⚙设置齿轮; DrawerContent.kt删除 | |
+| **2026-06-07** | **Batch 5: 自定义登录 + 自动重登 + 欢迎页** | **P0 + P3** |
+| → Part A | 自定义登录: Compose UI + 无框线胶囊设计 + 呼吸红错误动效 + 验证码展开动画 | 替换WebView |
+| → Part B | 凭证管理: `CredentialManager` (EncryptedSharedPreferences) 加密存储学号+密码 | 自动填充 |
+| → Part C | 自动重登: `MainActivity` 观察 `sessionExpired` → `autoLogin()` 无感恢复 | HTTP 302 |
+| → Part D | 欢迎页: `WelcomeScreen` 仅首次展示, 隐私声明+GitHub+胶囊按钮 | 首次引导 |
+| → Part E | 验证码修复: loginClient 共享 CookieJar 加载 `/kaptcha`; logoutAccount 仅首次调用 | 验证码 |
+| → Part F | UI: 登录页移除"用浏览器登录"→设置页"账号"区块; +webview_login 路由 | 导航 |
+| → 5 new, 8 modified files | |
+| → HAR 逆向: 登录 API 端点 + RSA 加密流程 + 验证码机制 (/kaptcha) 从 login.js 逆向 | |
+| **2026-06-08** | **#6e 修复: 深色模式页面切换闪屏** | **P0 Bug** |
+| → | `MainActivity.kt`: AnimatedContent 外包 Box(fillMaxSize.background=theme) 防白底穿透 | 2 files, +5 lines |
+| → | `Theme.kt`: SideEffect → DisposableEffect(colorScheme.primary, darkTheme) 优化状态栏同步 | |
+| **2026-06-08** | **#7a 修复(修订): 空教室分页 — 正确参数 + 翻页 UI** | **P1** |
+| → 诊断 | 上次 `rows=200` 无效 — HAR 确认参数名应为 `queryModel.showCount` + `queryModel.currentPage` | dot notation |
+| → | `EASystemApi.kt`: 删除 rows，新增 queryModel.showCount=20 + queryModel.currentPage=1 | 数据层 |
+| → | `RoomModels.kt`: RoomQueryResult 新增 totalPage 字段 | 数据层 |
+| → | `RoomRepository.kt`: queryEmptyRooms(filter, page) 新增 page 参数 + 解析 totalPage | 数据层 |
+| → | `RoomViewModel.kt`: UiState 新增 currentPage/totalPage，query()→第1页，goToPage() | 业务层 |
+| → | `RoomScreen.kt`: Column(verticalScroll) → LazyColumn 防嵌套滚动崩溃 | UI层 |
+| → | `RoomList.kt`: 新增 PaginationBar (←上一页/第X/Y页/下一页→)，仅多页时显示 | UI层 |
+| → | 共 6 files, +160/-80 lines | |
+| **2026-06-08** | **Batch 6 完成 + #7a 完成 — 提交 a6be1c6** | **里程碑** |
+| **2026-06-08** | **#7b 修复: 首页上课状态 + 节次表13节** | **P1** |
+| → | ScheduleRepository.fetchPeriods() 调 API 获取真实13节时间表 | 数据层 |
+| → | HomeViewModel.computeNextClass() 重写: IN_CLASS(倒计时) → HAS_CLASS → ALL_DONE | 业务层 |
+| → | WeekViewGrid 固定55dp行高 + verticalScroll, 表头固定 | UI层 |
+| → | 删除 estimateCurrentPeriod() 硬编码 + buildPerPeriodLabels() 硬编码11节 | 清理 |
+| **2026-06-08** | **Batch 8: 联系反馈 + GitHub 更新检测** | **P2 新功能** |
+| → | GitHubApi + GitHubRelease + UpdateRepository: semver比对 + 通知 + dismiss | 更新检测 |
+| → | SettingsScreen 检查更新多态按钮 + HomeViewModel 启动自动检查 | UI |
+| → | 联系与反馈 section + app_update 通知渠道 | 反馈通道 |
+| **2026-06-08** | **#7b 修订: 主页逻辑修复 + 课表滚动 + 设置页滚动** | **Bug** |
+| → | SettingsScreen Column 加 verticalScroll 防止内容溢出 | |
+| → | 联系反馈图标 14dp→20dp, Email/Group 语义化图标 | |
+| **2026-06-08** | **设置页胶囊卡片重构 + 关于页面 + 系统与更新** | **UI 重设计** |
+| → | SettingsScreen: 全部项目用 ElevatedCard(16dp, elevation=0) 包裹 | 胶囊卡片 |
+| → | AboutScreen: App图标 + 版本号 + 三张卡片(社区/许可证/系统与更新) | 关于页 |
+| → | SystemUpdateScreen: 自动检查开关 + 检查更新按钮 + 更新日志 | 二级页面 |
+| → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
+| → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
+| → | APP 图标: 使用自定义 app_icon.png | |
 
 ---
 

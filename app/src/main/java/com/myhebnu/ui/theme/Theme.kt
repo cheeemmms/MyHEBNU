@@ -5,7 +5,7 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -66,6 +66,8 @@ private val DarkColorScheme = darkColorScheme(
 @Composable
 fun MyHEBNUTheme(
     themeMode: String = "system",
+    useCustomColors: Boolean = false,
+    seedHue: Float? = null,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
@@ -77,6 +79,9 @@ fun MyHEBNUTheme(
     }
 
     val colorScheme = when {
+        // Custom seed-hue scheme takes priority
+        useCustomColors && seedHue != null -> seedColorScheme(seedHue, darkTheme)
+        // Fall back to system dynamic color
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context)
@@ -88,11 +93,14 @@ fun MyHEBNUTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
+        // #6e: DisposableEffect with explicit keys avoids redundant
+        // window updates; tighter lifecycle than SideEffect.
+        DisposableEffect(colorScheme.primary, darkTheme) {
             val window = (view.context as Activity).window
             @Suppress("DEPRECATION")
             window.statusBarColor = colorScheme.primary.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            onDispose { }
         }
     }
 

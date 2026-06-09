@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget surface/background colors (light theme) -->
+    <color name="widget_surface">#FFFFFBFE</color>
+    <color name="widget_surface_container_lowest">#FFFFF7FF</color>
+    <color name="widget_surface_container">#FFF3EDF7</color>
+    <color name="widget_surface_container_high">#FFECE6F0</color>
+
+    <!-- Widget on-surface / text colors (light theme) -->
+    <color name="widget_on_surface">#FF1D1B20</color>
+    <color name="widget_on_surface_variant">#FF49454F</color>
+
+    <!-- Widget primary / accent colors (light theme) -->
+    <color name="widget_primary">#FF6750A4</color>
+    <color name="widget_primary_container">#FFEADDFF</color>
+    <color name="widget_on_primary_container">#FF21005D</color>
+
+    <!-- Course color dots (6 hue buckets, light theme) -->
+    <color name="widget_course_red">#FFC62828</color>
+    <color name="widget_course_orange">#FFEF6C00</color>
+    <color name="widget_course_yellow">#FFF9A825</color>
+    <color name="widget_course_green">#FF2E7D32</color>
+    <color name="widget_course_blue">#FF1565C0</color>
+    <color name="widget_course_purple">#FF6750A4</color>
+</resources>

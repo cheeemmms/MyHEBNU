@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.sp
+import com.myhebnu.R
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -49,16 +50,25 @@ class GridNavReceiver : BroadcastReceiver() {
 
 class ScheduleLargeGridWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val state = loadDaySchedule(context)
-        val prefs = context.getSharedPreferences("widget_grid_prefs", Context.MODE_PRIVATE)
-        provideContent { GlanceTheme { LargeGridContent(state, prefs.getInt("day_offset", 0), prefs.getInt("period_offset", 0), context) } }
+        val tag = "MyHEBNU-Widget"
+        android.util.Log.d(tag, "LargeGridWidget.provideGlance: START id=$id")
+        try {
+            val state = loadDaySchedule(context)
+            val prefs = context.getSharedPreferences("widget_grid_prefs", Context.MODE_PRIVATE)
+            android.util.Log.d(tag, "LargeGridWidget.provideGlance: state=$state, calling provideContent")
+            provideContent { GlanceTheme { LargeGridContent(state, prefs.getInt("day_offset", 0), prefs.getInt("period_offset", 0), context) } }
+            android.util.Log.d(tag, "LargeGridWidget.provideGlance: DONE")
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "LargeGridWidget.provideGlance: EXCEPTION ${e.javaClass.simpleName}: ${e.message}", e)
+            throw e
+        }
     }
 }
 
 @Composable
 private fun LargeGridContent(state: DayScheduleState, dayOff: Int, perOff: Int, context: Context) {
     val isDark = false
-    Box(modifier = GlanceModifier.fillMaxSize().background(ColorProvider(widgetSurfaceContainerHigh(isDark))).cornerRadius(28)
+    Box(modifier = GlanceModifier.fillMaxSize().background(widgetSurfaceContainerHigh(isDark)).cornerRadius(R.dimen.widget_dp_28)
         .clickable(actionStartActivity(navigateIntent(context, "schedule")))) {
         when (state) {
             is DayScheduleState.HasCourses -> GridHasCourses(state, dayOff, perOff, isDark, context)
@@ -73,50 +83,50 @@ private fun GridHasCourses(state: DayScheduleState.HasCourses, dayOff: Int, perO
         "14:00" to "14:45", "14:45" to "15:35", "15:35" to "16:35", "16:35" to "17:20", "17:20" to "18:05",
         "19:00" to "19:45", "19:45" to "20:35", "20:35" to "21:20")
 
-    Column(modifier = GlanceModifier.fillMaxSize().padding(all = 10)) {
+    Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_10)) {
         // Column headers
         Row(modifier = GlanceModifier.fillMaxWidth()) {
-            Spacer(modifier = GlanceModifier.width(42))
+            Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_42))
             for (d in 0..2) {
                 val dn = dayOff + d + 1; val today = dn == state.dayOfWeek
-                Box(modifier = GlanceModifier.width(56).padding(horizontal = 2), contentAlignment = Alignment.Center) {
-                    Text(weekdayShortLabel(dn), style = TextStyle(color = ColorProvider(if (today) widgetPrimary(isDark) else widgetOnSurfaceVariant(isDark)),
+                Box(modifier = GlanceModifier.width(R.dimen.widget_dp_56).padding(horizontal = R.dimen.widget_dp_2), contentAlignment = Alignment.Center) {
+                    Text(weekdayShortLabel(dn), style = TextStyle(color = if (today) widgetPrimary(isDark) else widgetOnSurfaceVariant(isDark),
                         fontSize = 11.sp, fontWeight = if (today) FontWeight.Bold else FontWeight.Normal), maxLines = 1)
                 }
             }
         }
-        Spacer(modifier = GlanceModifier.height(4))
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_4))
         // Grid rows
         for (r in 0..5) {
             val pn = perOff + r + 1
             Row(modifier = GlanceModifier.fillMaxWidth()) {
-                Column(modifier = GlanceModifier.width(42), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(modifier = GlanceModifier.width(R.dimen.widget_dp_42), horizontalAlignment = Alignment.CenterHorizontally) {
                     val (s, e) = periods.getOrElse(pn - 1) { "" to "" }
-                    Text(s, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 9.sp))
-                    Text(e, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 9.sp))
+                    Text(s, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 9.sp))
+                    Text(e, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 9.sp))
                 }
                 for (d in 0..2) {
                     val dn = dayOff + d + 1
                     val course = state.courses.find { it.dayOfWeek == dn && pn in it.startPeriod..it.endPeriod }
                     val first = course != null && pn == course.startPeriod
-                    Box(modifier = GlanceModifier.width(56).height(36).padding(all = 1)
-                        .background(ColorProvider(if (course != null) courseColorFromHueInt(course.colorHue, isDark) else widgetSurfaceContainer(isDark)))
-                        .cornerRadius(4), contentAlignment = Alignment.Center) {
+                    Box(modifier = GlanceModifier.width(R.dimen.widget_dp_56).height(R.dimen.widget_dp_36).padding(all = R.dimen.widget_dp_1)
+                        .background(if (course != null) courseColorResource(course.colorHue, isDark) else widgetSurfaceContainer(isDark))
+                        .cornerRadius(R.dimen.widget_dp_4), contentAlignment = Alignment.Center) {
                         if (first) Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(course!!.courseName, style = TextStyle(color = ColorProvider(widgetOnPrimaryContainer(isDark)), fontSize = 8.sp, fontWeight = FontWeight.Bold), maxLines = 1)
-                            Text(course.classroom.take(8), style = TextStyle(color = ColorProvider(widgetOnPrimaryContainer(isDark)), fontSize = 7.sp), maxLines = 1)
+                            Text(course!!.courseName, style = TextStyle(color = widgetOnPrimaryContainer(isDark), fontSize = 8.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+                            Text(course.classroom.take(8), style = TextStyle(color = widgetOnPrimaryContainer(isDark), fontSize = 7.sp), maxLines = 1)
                         }
                     }
                 }
             }
-            if (r < 5) Spacer(modifier = GlanceModifier.height(2))
+            if (r < 5) Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_2))
         }
-        Spacer(modifier = GlanceModifier.height(4))
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_4))
         // Nav buttons
         Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            GridBtn("←", "LEFT", context); Spacer(modifier = GlanceModifier.width(16))
-            GridBtn("→", "RIGHT", context); Spacer(modifier = GlanceModifier.width(16))
-            GridBtn("↑", "UP", context); Spacer(modifier = GlanceModifier.width(16))
+            GridBtn("←", "LEFT", context); Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_16))
+            GridBtn("→", "RIGHT", context); Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_16))
+            GridBtn("↑", "UP", context); Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_16))
             GridBtn("↓", "DOWN", context)
         }
     }
@@ -125,13 +135,13 @@ private fun GridHasCourses(state: DayScheduleState.HasCourses, dayOff: Int, perO
 @Composable
 private fun GridBtn(label: String, dir: String, context: Context) {
     val intent = Intent(context, GridNavReceiver::class.java).apply { action = GridNavReceiver.ACTION_GRID_NAV; putExtra(GridNavReceiver.EXTRA_DIRECTION, dir) }
-    Box(modifier = GlanceModifier.size(28).background(ColorProvider(widgetSurfaceContainer(false))).cornerRadius(14).clickable(actionSendBroadcast(intent)), contentAlignment = Alignment.Center) {
-        Text(label, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(false)), fontSize = 14.sp))
+    Box(modifier = GlanceModifier.size(R.dimen.widget_dp_28).background(widgetSurfaceContainer(false)).cornerRadius(R.dimen.widget_dp_14).clickable(actionSendBroadcast(intent)), contentAlignment = Alignment.Center) {
+        Text(label, style = TextStyle(color = widgetOnSurfaceVariant(false), fontSize = 14.sp))
     }
 }
 
 @Composable
 private fun GridEmpty(state: DayScheduleState, isDark: Boolean) {
     val t = when (state) { is DayScheduleState.Weekend -> "周末愉快 ☀️"; is DayScheduleState.NoData -> "暂无课表"; is DayScheduleState.NoCoursesToday -> "今日无课"; else -> "" }
-    Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(t, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 14.sp)) }
+    Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(t, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 14.sp)) }
 }

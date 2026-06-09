@@ -56,29 +56,44 @@ private fun entryPoint(context: Context): ScheduleWidgetEntryPoint =
  * Never makes network calls — reads Room cache exclusively.
  */
 suspend fun loadDaySchedule(context: Context): DayScheduleState {
+    val tag = "MyHEBNU-Widget"
     return try {
+        android.util.Log.d(tag, "loadDaySchedule: START")
         val today = LocalDate.now()
         val dayOfWeek = today.dayOfWeek.value  // 1=Mon..7=Sun
-        if (dayOfWeek >= 6) return DayScheduleState.Weekend
+        android.util.Log.d(tag, "loadDaySchedule: today=$today, dayOfWeek=$dayOfWeek")
+        if (dayOfWeek >= 6) {
+            android.util.Log.d(tag, "loadDaySchedule: result=Weekend")
+            return DayScheduleState.Weekend
+        }
 
         val ep = entryPoint(context)
+        android.util.Log.d(tag, "loadDaySchedule: entryPoint OK, loading prefs")
         val prefs = ep.userPreferences()
         val year = prefs.currentSemesterYear.first()
         val term = prefs.currentSemesterTerm.first()
         val currentWeek = prefs.currentWeek.first()
+        android.util.Log.d(tag, "loadDaySchedule: year=$year, term=$term, currentWeek=$currentWeek")
 
         val dao = ep.appDatabase().scheduleDao()
         val allCourses = dao.getCoursesByDay(year, term, dayOfWeek)
+        android.util.Log.d(tag, "loadDaySchedule: allCourses.size=${allCourses.size}")
 
         if (allCourses.isEmpty()) {
             val hasAny = dao.getCourseListBySemester(year, term).isNotEmpty()
-            return if (hasAny) DayScheduleState.NoCoursesToday else DayScheduleState.NoData
+            val result = if (hasAny) DayScheduleState.NoCoursesToday else DayScheduleState.NoData
+            android.util.Log.d(tag, "loadDaySchedule: result=$result (hasAny=$hasAny)")
+            return result
         }
 
         // Filter by current week + oddEven
         val filtered = filterByWeek(allCourses, currentWeek)
             .sortedBy { it.startPeriod }
-        if (filtered.isEmpty()) return DayScheduleState.NoCoursesToday
+        android.util.Log.d(tag, "loadDaySchedule: filtered.size=${filtered.size}")
+        if (filtered.isEmpty()) {
+            android.util.Log.d(tag, "loadDaySchedule: result=NoCoursesToday (after filter)")
+            return DayScheduleState.NoCoursesToday
+        }
 
         // Load period times to enrich courses with clock times
         val periodTimes = loadPeriodTimes(ep, year, term)
@@ -108,7 +123,7 @@ suspend fun loadDaySchedule(context: Context): DayScheduleState {
             } catch (_: Exception) { false }
         }
 
-        DayScheduleState.HasCourses(
+        val result = DayScheduleState.HasCourses(
             dayOfWeek = dayOfWeek,
             dateText = "${today.monthValue}月${today.dayOfMonth}日",
             weekdayLabel = weekdayLabel(dayOfWeek),
@@ -117,8 +132,10 @@ suspend fun loadDaySchedule(context: Context): DayScheduleState {
             nextCourseIndex = nextIdx,
             totalCount = enriched.size
         )
+        android.util.Log.d(tag, "loadDaySchedule: result=HasCourses(count=${enriched.size}, nextIdx=$nextIdx)")
+        result
     } catch (e: Throwable) {
-        android.util.Log.e("MyHEBNU", "Widget data load error: ${e.javaClass.simpleName}: ${e.message}", e)
+        android.util.Log.e(tag, "loadDaySchedule: ERROR ${e.javaClass.simpleName}: ${e.message}", e)
         DayScheduleState.NoData
     }
 }

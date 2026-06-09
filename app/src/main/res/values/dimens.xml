@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+    MIUI/Glance 1.1.1 compatibility: ALL Int dimension parameters (size/width/height/
+    padding/cornerRadius) are treated as @DimenRes resource IDs by MIUI's RemoteViews
+    inflater, NOT as raw dp values. Every numeric dimension must be defined here.
+    -->
+    <dimen name="widget_dp_1">1dp</dimen>
+    <dimen name="widget_dp_2">2dp</dimen>
+    <dimen name="widget_dp_4">4dp</dimen>
+    <dimen name="widget_dp_6">6dp</dimen>
+    <dimen name="widget_dp_8">8dp</dimen>
+    <dimen name="widget_dp_10">10dp</dimen>
+    <dimen name="widget_dp_12">12dp</dimen>
+    <dimen name="widget_dp_14">14dp</dimen>
+    <dimen name="widget_dp_16">16dp</dimen>
+    <dimen name="widget_dp_28">28dp</dimen>
+    <dimen name="widget_dp_32">32dp</dimen>
+    <dimen name="widget_dp_36">36dp</dimen>
+    <dimen name="widget_dp_40">40dp</dimen>
+    <dimen name="widget_dp_42">42dp</dimen>
+    <dimen name="widget_dp_56">56dp</dimen>
+</resources>

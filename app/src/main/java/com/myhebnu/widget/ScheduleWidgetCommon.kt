@@ -5,51 +5,37 @@ import android.content.Intent
 import android.net.Uri
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.action.actionStartActivity
-import androidx.glance.unit.ColorProvider
+import androidx.glance.unit.ResourceColorProvider
+import com.myhebnu.R
 import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 
 // ──────────────────────────────────────────────
-// MD3 Color definitions (ARGB Int values)
+// MD3 Color definitions (resource-based)
 // ──────────────────────────────────────────────
 
-fun widgetSurfaceColor(isDark: Boolean): Int = if (isDark) 0xFF1D1B20.toInt() else 0xFFFFFBFE.toInt()
-fun widgetSurfaceContainerLowest(isDark: Boolean): Int = if (isDark) 0xFF141218.toInt() else 0xFFFFF7FF.toInt()
-fun widgetSurfaceContainer(isDark: Boolean): Int = if (isDark) 0xFF211F26.toInt() else 0xFFF3EDF7.toInt()
-fun widgetSurfaceContainerHigh(isDark: Boolean): Int = if (isDark) 0xFF2B2930.toInt() else 0xFFECE6F0.toInt()
-fun widgetOnSurface(isDark: Boolean): Int = if (isDark) 0xFFE6E0E9.toInt() else 0xFF1D1B20.toInt()
-fun widgetOnSurfaceVariant(isDark: Boolean): Int = if (isDark) 0xFFCAC4D0.toInt() else 0xFF49454F.toInt()
-fun widgetPrimary(isDark: Boolean): Int = if (isDark) 0xFFD0BCFF.toInt() else 0xFF6750A4.toInt()
-fun widgetPrimaryContainer(isDark: Boolean): Int = if (isDark) 0xFF4F378B.toInt() else 0xFFEADDFF.toInt()
-fun widgetOnPrimaryContainer(isDark: Boolean): Int = if (isDark) 0xFFEADDFF.toInt() else 0xFF21005D.toInt()
+fun widgetSurfaceColor(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface)
+fun widgetSurfaceContainerLowest(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container_lowest)
+fun widgetSurfaceContainer(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container)
+fun widgetSurfaceContainerHigh(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container_high)
+fun widgetOnSurface(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_surface)
+fun widgetOnSurfaceVariant(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_surface_variant)
+fun widgetPrimary(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_primary)
+fun widgetPrimaryContainer(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_primary_container)
+fun widgetOnPrimaryContainer(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_primary_container)
 
 // ──────────────────────────────────────────────
-// Course color from hue → ARGB Int
+// Course color from hue → color resource
+// Maps hue to 1 of 6 predefined color resources
 // ──────────────────────────────────────────────
 
-fun courseColorFromHueInt(hue: Int, isDark: Boolean): Int {
-    val h = (hue % 360).absoluteValue.toFloat()
-    val s = if (isDark) 0.50f else 0.55f
-    val l = if (isDark) 0.68f else 0.48f
-    return hslToColorInt(h, s, l)
-}
+private val courseColorResources = listOf(
+    R.color.widget_course_red, R.color.widget_course_orange, R.color.widget_course_yellow,
+    R.color.widget_course_green, R.color.widget_course_blue, R.color.widget_course_purple
+)
 
-private fun hslToColorInt(h: Float, s: Float, l: Float): Int {
-    val c = (1 - kotlin.math.abs(2 * l - 1)) * s
-    val x = c * (1 - kotlin.math.abs((h / 60) % 2 - 1))
-    val m = l - c / 2
-    val (r1, g1, b1) = when {
-        h < 60 -> Triple(c, x, 0f)
-        h < 120 -> Triple(x, c, 0f)
-        h < 180 -> Triple(0f, c, x)
-        h < 240 -> Triple(0f, x, c)
-        h < 300 -> Triple(x, 0f, c)
-        else -> Triple(c, 0f, x)
-    }
-    val r = ((r1 + m) * 255).roundToInt()
-    val g = ((g1 + m) * 255).roundToInt()
-    val b = ((b1 + m) * 255).roundToInt()
-    return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+fun courseColorResource(hue: Int, @Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider {
+    val bucket = ((hue % 360).absoluteValue / 60).coerceIn(0, 5)
+    return ResourceColorProvider(courseColorResources[bucket])
 }
 
 // ──────────────────────────────────────────────
@@ -69,15 +55,24 @@ fun navigateIntent(context: Context, route: String): Intent {
 // ──────────────────────────────────────────────
 
 suspend fun updateAllWidgets(context: Context) {
+    val tag = "MyHEBNU-Widget"
     val manager = GlanceAppWidgetManager(context)
     listOf(
-        ScheduleMicroWidget(),
-        ScheduleMediumWidget(),
-        ScheduleLargeGridWidget(),
-        ScheduleLargeListWidget()
-    ).forEach { widget ->
-        val ids = manager.getGlanceIds(widget.javaClass)
-        ids.forEach { id -> widget.update(context, id) }
+        "Micro" to ScheduleMicroWidget(),
+        "Medium" to ScheduleMediumWidget(),
+        "LargeGrid" to ScheduleLargeGridWidget(),
+        "LargeList" to ScheduleLargeListWidget()
+    ).forEach { (name, widget) ->
+        try {
+            val ids = manager.getGlanceIds(widget.javaClass)
+            android.util.Log.d(tag, "updateAllWidgets: $name → ${ids.size} glanceId(s)")
+            ids.forEach { id ->
+                android.util.Log.d(tag, "updateAllWidgets: calling update for $name id=$id")
+                widget.update(context, id)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "updateAllWidgets: $name failed: ${e.javaClass.simpleName}: ${e.message}", e)
+        }
     }
 }
 

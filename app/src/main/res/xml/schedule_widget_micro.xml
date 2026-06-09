@@ -3,6 +3,7 @@
     android:minWidth="110dp"
     android:minHeight="110dp"
     android:resizeMode="none"
+    android:previewImage="@drawable/widget_preview_micro"
     android:updatePeriodMillis="3600000"
     android:widgetCategory="home_screen"
     android:widgetFeatures="reconfigurable"

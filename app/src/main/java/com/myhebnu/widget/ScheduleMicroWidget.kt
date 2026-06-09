@@ -3,6 +3,7 @@ package com.myhebnu.widget
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.sp
+import com.myhebnu.R
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -31,8 +32,17 @@ import androidx.glance.unit.ColorProvider
 
 class ScheduleMicroWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val state = loadDaySchedule(context)
-        provideContent { GlanceTheme { MicroWidgetContent(state, context) } }
+        val tag = "MyHEBNU-Widget"
+        android.util.Log.d(tag, "MicroWidget.provideGlance: START id=$id")
+        try {
+            val state = loadDaySchedule(context)
+            android.util.Log.d(tag, "MicroWidget.provideGlance: state=$state, calling provideContent")
+            provideContent { GlanceTheme { MicroWidgetContent(state, context) } }
+            android.util.Log.d(tag, "MicroWidget.provideGlance: DONE")
+        } catch (e: Exception) {
+            android.util.Log.e(tag, "MicroWidget.provideGlance: EXCEPTION ${e.javaClass.simpleName}: ${e.message}", e)
+            throw e
+        }
     }
 }
 
@@ -41,8 +51,8 @@ private fun MicroWidgetContent(state: DayScheduleState, context: Context) {
     val isDark = false
     Box(
         modifier = GlanceModifier.fillMaxSize()
-            .background(ColorProvider(widgetSurfaceContainerLowest(isDark)))
-            .cornerRadius(28)
+            .background(widgetSurfaceContainerLowest(isDark))
+            .cornerRadius(R.dimen.widget_dp_28)
             .clickable(actionStartActivity(navigateIntent(context, "schedule"))),
         contentAlignment = Alignment.Center
     ) {
@@ -59,29 +69,29 @@ private fun MicroWidgetContent(state: DayScheduleState, context: Context) {
 private fun MicroHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean) {
     val course = if (state.nextCourseIndex >= 0) state.courses[state.nextCourseIndex] else state.courses.last()
     val label = when { state.nextCourseIndex == 0 && state.courses.isNotEmpty() -> "正在上课"; state.nextCourseIndex > 0 -> "下节课"; else -> "" }
-    Column(modifier = GlanceModifier.fillMaxSize().padding(all = 12)) {
+    Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_12)) {
         Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-            Text(label, style = TextStyle(color = ColorProvider(widgetPrimary(isDark)), fontSize = 11.sp, fontWeight = FontWeight.Medium))
-            Spacer(modifier = GlanceModifier.width(8))
-            Text(state.weekdayLabel, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 11.sp))
+            Text(label, style = TextStyle(color = widgetPrimary(isDark), fontSize = 11.sp, fontWeight = FontWeight.Medium))
+            Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_8))
+            Text(state.weekdayLabel, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
         }
-        Spacer(modifier = GlanceModifier.height(6))
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_6))
         Text(course.courseName, modifier = GlanceModifier.fillMaxWidth(),
-            style = TextStyle(color = ColorProvider(widgetOnSurface(isDark)), fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center), maxLines = 1)
-        Spacer(modifier = GlanceModifier.height(8))
+            style = TextStyle(color = widgetOnSurface(isDark), fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center), maxLines = 1)
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_8))
         Column(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${course.startPeriod}-${course.endPeriod}节", style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 13.sp), maxLines = 1)
-            Spacer(modifier = GlanceModifier.height(2))
-            Text(course.classroom, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 13.sp), maxLines = 1)
+            Text("${course.startPeriod}-${course.endPeriod}节", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 13.sp), maxLines = 1)
+            Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_2))
+            Text(course.classroom, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 13.sp), maxLines = 1)
         }
-        Spacer(modifier = GlanceModifier.height(6))
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_6))
         val n = state.totalCount - 1
         if (n > 0) Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("其他${n}节", style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 10.sp))
-            Spacer(modifier = GlanceModifier.width(4))
+            Text("其他${n}节", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 10.sp))
+            Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_4))
             state.courses.filterIndexed { idx, _ -> idx != state.nextCourseIndex && state.nextCourseIndex >= 0 }.take(5).forEach { c ->
-                Spacer(modifier = GlanceModifier.size(8).background(ColorProvider(courseColorFromHueInt(c.colorHue, isDark))))
-                Spacer(modifier = GlanceModifier.width(2))
+                Spacer(modifier = GlanceModifier.size(R.dimen.widget_dp_8).background(courseColorResource(c.colorHue, isDark)))
+                Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_2))
             }
         }
     }
@@ -89,10 +99,10 @@ private fun MicroHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean)
 
 @Composable
 private fun MicroEmpty(t: String, s: String, isDark: Boolean) {
-    Column(modifier = GlanceModifier.fillMaxSize().padding(all = 12), horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(modifier = GlanceModifier.height(16))
-        Text(t, style = TextStyle(color = ColorProvider(widgetOnSurface(isDark)), fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center))
-        Spacer(modifier = GlanceModifier.height(4))
-        Text(s, style = TextStyle(color = ColorProvider(widgetOnSurfaceVariant(isDark)), fontSize = 11.sp, textAlign = TextAlign.Center))
+    Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_12), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_16))
+        Text(t, style = TextStyle(color = widgetOnSurface(isDark), fontSize = 16.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center))
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_4))
+        Text(s, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp, textAlign = TextAlign.Center))
     }
 }

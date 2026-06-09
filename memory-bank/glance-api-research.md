@@ -1,176 +1,101 @@
-# Glance 1.1.1 API 逆向研究与实施备忘
+# Glance 1.1.1 + MIUI 兼容性排查全程记录
 
-> 创建日期: 2026-06-08 | 状态: 编译受阻，待升级 Glance 或降级实现方案
-
----
-
-## 1. 背景
-
-Phase 7.1 目标为实现 4 种尺寸的课表桌面 Widget（微型 2×2 / 横条 4×2 / 日历网格 4×4 / 垂直列表 4×4）。当前 `glance-appwidget:1.1.1` 已作为依赖引入，但 API 与最新文档存在显著差异，导致 4 轮编译均失败。
+> 最后更新: 2026-06-09 | 状态: ✅ 已解决 — 4 种 Widget 在小米15 (MIUI/Android 16) 上成功显示并跳转
 
 ---
 
-## 2. 已创建的文件清单
+## 1. 结论（先写重要内容）
 
-### 共享层（已就绪，无编译问题）
-| 文件 | 状态 | 说明 |
-|------|------|------|
-| `ScheduleWidgetEntryPoint.kt` | ✅ | Hilt `@EntryPoint` 桥接 `AppDatabase` + `UserPreferences` |
-| `ScheduleWidgetData.kt` | ✅ | 数据加载层：`loadDaySchedule()` + `DayScheduleState` 状态模型 + 周/奇偶过滤 |
-| `ScheduleWidgetCommon.kt` | ✅ | 色彩定义(MD3 色板 ARGB Int)、HSL→RGB、`navigateIntent()`、`updateAllWidgets()` |
+**Glance 1.1.1 在代码层面完全可用。** 之前的 5 轮编译失败诊断（`provideContent` 不存在、`Dimension.Dp` 不可构造、`sp` 类型不匹配）是**误判**——所有 API 都可用，代码通过 `javap` 反编译字节码验证后在 Glance 1.1.1 上成功编译。
 
-### Widget UI 层（已创建但编译受阻）
-| 文件 | 状态 | 受阻于 |
-|------|------|--------|
-| `ScheduleMicroWidget.kt` | ⚠️ | `provideContent` 不存在、`Dimension.Dp` 不可构造 |
-| `ScheduleMediumWidget.kt` | ⚠️ | 同上 |
-| `ScheduleLargeGridWidget.kt` | ⚠️ | 同上 + `SpaceBetween` 不确定 |
-| `ScheduleLargeListWidget.kt` | ⚠️ | 同上 |
-| `GridNavReceiver.kt` | ⚠️ | 依赖 `ScheduleLargeGridWidget().updateAll()` |
+**真正的阻塞原因是 MIUI RemoteViews 膨胀器的资源解析行为**：MIUI 的 `RemoteViews` 反射执行器（`ResourceReflectionAction`、`LayoutParamAction`、`SetViewOutlinePreferredRadiusAction` 等）把 Glance 生成的**所有** Int 参数当作 `@DimenRes`/`@ColorRes` 资源 ID 去 `Resources.getDimension()`/`getColor()` 查表，而非像 AOSP 那样 fallback 回原始值。
 
-### 基础设施层
-| 文件 | 状态 | 说明 |
-|------|------|------|
-| `ScheduleWidgetReceiver.kt` | ✅ | 4 个 `GlanceAppWidgetReceiver` 子类 |
-| `ScheduleWidgetWorker.kt` | ⚠️ | 依赖 `updateAllWidgets()` → `GlanceAppWidgetManager` |
-| `WidgetUpdateManager.kt` | ⚠️ | 同上 |
-| 4 × XML configs | ✅ | 已创建 |
-| `AndroidManifest.xml` | ✅ | 4 个 receiver + GridNavReceiver + deep link |
-| `MainActivity.kt` | ✅ | `onNewIntent` + `pendingNavigation` Channel |
+### 最终解决方案
 
-### 删除的文件
-- `schedule_widget.xml`（旧占位 XML 布局）
-- `widget_background.xml`（旧 drawable）
-- `schedule_widget_info.xml`（被 4 个新 XML 替代）
+**把每一处数值——颜色、尺寸、间距、圆角——都定义为 Android 资源（`R.color.*` / `R.dimen.*`），代码中统一使用资源引用。**
+
+| 资源文件 | 内容 |
+|---------|------|
+| `res/values/colors.xml` | 9 个表面/文字色 + 6 个课程色桶，全部 `ResourceColorProvider(R.color.xxx)` |
+| `res/values/dimens.xml` | `widget_dp_N` 系列覆盖所有 dp 值（1,2,4,6,8,10,12,14,16,28,32,36,40,42,56） |
+| `res/drawable/widget_preview_*.xml` | 3 个 XML Shape 预览图，`previewImage` 占位 |
+
+### 修改的 Kotlin 文件
+
+| 文件 | 关键改动 |
+|------|---------|
+| `ScheduleWidgetCommon.kt` | 9 个 `widgetXxx(): Int` → `ResourceColorProvider`；`courseColorResource()` 替代 `courseColorFromHueInt()` |
+| `ScheduleWidgetData.kt` | 新增全链路诊断日志 `MyHEBNU-Widget` |
+| 4 个 `ScheduleXxxWidget.kt` | `ColorProvider(xxx)` → `xxx`；所有 `size/width/height/padding/cornerRadius(Int)` → `(R.dimen.widget_dp_N)`；新增 `import com.myhebnu.R` |
+| `res/xml/schedule_widget_*.xml` | 加 `previewImage` 防止 MIUI 桌面超时 |
 
 ---
 
-## 3. Glance 1.1.1 API 反编译发现
+## 2. 错诊复盘
 
-通过 `javap` 对 Glance 1.1.1 的 `glance-1.1.1-api.jar` 和 `glance-appwidget-1.1.1-runtime.jar` 进行完整反编译，关键发现：
+### 之前 5 轮编译失败的真正原因
 
-### 3.1 `provideContent` 不存在于 GlanceAppWidget
+此前文档记录 `provideContent` 不存在于 Glance 1.1.1——**经 `javap` 反编译验证，此判断错误**。`provideContent` 是 `GlanceAppWidget` 的扩展函数，定义在 `GlanceAppWidget.kt` 中，`import androidx.glance.appwidget.provideContent` 完全合法。
 
-| 预期 API（Glance 1.2+） | Glance 1.1.1 实际 API |
-|---|---|
-| `GlanceAppWidget.provideContent { ... }` | **不存在此方法** |
-| 在 `provideGlance()` 内调用 `provideContent` 提供 UI | 实际通过 `ContentReceiver` 接口的 `provideContent` 方法（CoroutineContext Element） |
+那 5 轮编译失败的真正原因可能是：
+1. **代理未运行**（`gradle.properties` 中 `127.0.0.1:7892` 端口拒绝连接）导致依赖无法解析
+2. **代码版本不符**——当时代码可能使用了与当前不同的 API 写法
 
-**发现的替代机制**：
-- `AppWidgetUtilsKt.runGlance()` 返回 `Flow<@Composable () -> Unit>` — 这是 Glance 运行时获取 Composable 内容的内部机制
-- `ContentReceiver` 是一个 `CoroutineContext.Element`，其 `provideContent(Composer, Continuation)` 方法接收 Composable lambda
+### 为什么没发现真问题
 
-**阻塞结论**：`provideContent` 在 Glance 1.1.1 中不是 `GlanceAppWidget` 的成员函数，而是通过 CoroutineContext 机制传递。当前代码的调用模式在 1.1.1 中不可用。
+因为代码**从未成功部署到真机**。5 轮尝试全部花在"修编译错误"上，等到编译通过已是今天的 `ResourceColorProvider` 修复。RemoteViews 膨胀失败只能通过真机 logcat 发现——它在编译期完全沉默。
 
-### 3.2 `Dimension.Dp` 不可公开构造
-
-| 预期 API | Glance 1.1.1 实际 API |
-|---|---|
-| `12.dp` 或 `Dp(12f)` 创建 dp 值 | `Dimension.Dp(Float, DefaultConstructorMarker)` — **私有构造函数** |
-| `width(12.dp)` / `cornerRadius(28.dp)` | 仅 `width(Dp)` 或 `width(Int)` 两个重载 |
-
-**已验证不存在的内容**：
-- ❌ `androidx.glance.unit.Color` — 不存在此独立类
-- ❌ `androidx.glance.unit.dp` 扩展属性 — 不存在
-- ❌ `androidx.glance.unit.sp` 扩展属性 — 不存在
-- ❌ `DimensionKt` 文件 — 不存在，无法通过顶层函数构造 Dp
-
-**存在的重载**（来源于 `SizeModifiersKt` 反编译）：
-```
-width-3ABfNKs(GMod, float)     // mangled name → Kotlin 层解析为 width(Dp)
-width(GMod, int)               // pixel overload
-height-3ABfNKs(GMod, float)    // → height(Dp)
-height(GMod, int)              // pixel overload
-size-3ABfNKs(GMod, float)      // → size(Dp)
-size(GMod, int)                // pixel overload
-size-VpY3zN4(GMod, float, float) // → size(Dp, Dp)
-size(GMod, int, int)           // pixel overload
-```
-
-**阻塞结论**：`Dp` 值无法由用户代码构造。使用 `Int`（像素值）重载虽然可编译，但不同屏幕密度下组件尺寸会严重变形。
-
-### 3.3 `ColorProvider(Int)` — 此接口可用
-
-| 方法 | 位置 | 签名 |
-|------|------|------|
-| `ColorProvider(int)` | `ColorProviderKt` (顶层函数) | `(Int) -> ColorProvider` — ARGB int → ColorProvider |
-| `ColorProvider(long)` | `ColorProviderKt` (顶层函数) | `(Long) -> ColorProvider` — Color long → ColorProvider |
-
-**结论**：`import androidx.glance.unit.ColorProvider` + `ColorProvider(0xFFXXXXXX.toInt())` 是正确的用法。这是唯一一个无需修正的 API 调用。
-
-### 3.4 `GlanceAppWidget.updateAll(context)` — 不存在
-
-| 预期 API | Glance 1.1.1 实际 API |
-|---|---|
-| `widget.updateAll(context)` | **不存在此实例方法** |
-
-**正确方式**：通过 `GlanceAppWidgetManager`：
-```kotlin
-GlanceAppWidgetManager(context).getGlanceIds(widget::class.java)
-    .forEach { id -> widget.update(context, id) }
-```
-注意：`getGlanceIds` 和 `update` 均为 suspend 函数，必须在协程作用域内调用。
-
-### 3.5 `TextStyle.fontSize` 的 SP 单位
-
-`TextStyle` 构造函数接受 `androidx.compose.ui.unit.TextUnit`（来自 Compose UI）。项目已有 Compose BOM 依赖，因此 `import androidx.compose.ui.unit.sp` 并使用 `12.sp` 是正确的。
+教训与 [[progress.md]] 中"空教室闪退"诊断完全一致：**没看运行时堆栈就开始猜测**。
 
 ---
 
-## 4. 历次编译尝试与失败路径
+## 3. 真机诊断时间线
 
-| 轮次 | 方案 | 结果 | 关键错误 |
-|------|------|------|----------|
-| 1 | 原始 `sp(12)` / `dp(12)` 函数调用 | ❌ | `sp`/`dp` 不是函数，且无 `Color` 类 |
-| 2 | `12.sp` / `12.dp` 扩展属性 + `Color(ARGB)` | ❌ | `Color` 类不存在，`dp`/`sp` 扩展属性不存在于 Glance |
-| 3 | `12f` Float 字面量 + `ColorProvider(Int)` | ❌ | `width(12f)` 无 Float 重载，`ColorProvider` import 路径错误 |
-| 4 | `Dimension.Dp(12f)` + `ColorProvider(Int)` | ❌ | `Dimension.Dp` 构造函数私有，`provideContent` 不存在 |
-| 5 | `Int` 像素值 + `ColorProvider(Int)` | ❌ | `provideContent` 不存在，`SpaceBetween` 未解析 |
-
----
-
-## 5. 可行解决方案（优先级排序）
-
-### 方案 A：升级 Glance 到 1.2.0+（推荐）
-
-Glance 1.2.0+ 修复了维度 API 和 `provideContent` 访问性问题。
-
-**风险**：需确认阿里云 Maven 镜像是否有 1.2.x 版本；AGP 8.7.3 / Kotlin 2.2.21 兼容性。
-
-### 方案 B：使用 Glance 1.1.1 的 ContentReceiver 模式
-
-根据反编译，Glance 1.1.1 通过 `ContentReceiver`（CoroutineContext Element）接收 Composable 内容。需要深入研究 `runGlance()` 的内部机制才能正确实现。
-
-**风险**：API 未公开文档化，属于内部实现细节，未来可能变化。
-
-### 方案 C：退回到传统 RemoteViews + AppWidgetProvider
-
-完全放弃 Glance，使用 Android 原生 `RemoteViews` API 实现 Widget。虽然更冗长，但 API 稳定、文档齐全。
-
-**风险**：开发成本高（4 种尺寸需大量 RemoteViews 代码），UI 灵活度不如 Glance。
-
-### 方案 D：像素值硬编码 + 降级 Glance
-
-使用 `Int` 像素值重载，配合 `context.resources.displayMetrics.density` 手动 dp→px 转换，在 `provideGlance()` 中使用 `coroutineContext[ContentReceiver]?.provideContent(...)`。
-
-**风险**：依赖未公开 API，不同设备可能表现不一致。
+| 轮次 | 修复目标 | logcat 错误 | 结果 |
+|------|---------|------------|------|
+| 1 | 原始代码（padding Int 字面量） | `Resource ID #0xc` → `PaddingKt.toDp` | ❌ |
+| 2 | padding → `R.dimen.widget_pad_*` | `Resource ID #0xfffff7ff` → `RemoteViews$ResourceReflectionAction`（颜色）| ❌ |
+| 3 | 颜色 → `ResourceColorProvider` | `Resource ID #0x1c` → `SetViewOutlinePreferredRadiusAction`（圆角 28）| ❌ |
+| 4 | cornerRadius → `R.dimen.widget_dp_*` | `Resource ID #0x8` → `LayoutParamAction.getPixelSize`（size/width/height 8）| ❌ |
+| 5 | **全量：所有 size/width/height/padding/cornerRadius 都用 `R.dimen.widget_dp_N`** | **零错误** | ✅ |
 
 ---
 
-## 6. 用户需求摘要（待实施）
+## 4. 运行机制
 
-Widget UI 设计方案已完成并记录在计划文件中。4 种小组件的详细设计要求见 `C:\Users\yongl\.claude\plans\twinkling-puzzling-moon.md`。
+### 为什么 `R.xxx` 资源引用能通过而裸值不行
+
+Glance 的 `FixedColorProvider` / `Dimension.Dp` 在 RemoteViews 中编码为 Action 的 Int 参数。MIUI 的反射执行器对这些 Int 参数调用 `Resources.getDimension(int)` / `Resources.getColor(int)`：
+
+- **AOSP**：先尝试资源解析 → 失败 → fallback 返回原始值
+- **MIUI**：`MiuiResourcesImpl.getValue()` 直接抛 `NotFoundException`，没有 fallback
+
+当使用 `R.color.xxx` / `R.dimen.widget_dp_N` 时，Int 值是合法的资源 ID（package=0x7F），MIUI 能成功解析。
+
+### Glance 1.1.1 实际可用 API（已验证）
+
+| API | 状态 | 备注 |
+|-----|------|------|
+| `provideContent { }` | ✅ | 扩展函数，`androidx.glance.appwidget` 包 |
+| `TextStyle(fontSize = 12.sp)` | ✅ | `fontSize` 类型是 Compose UI 的 `TextUnit` |
+| `ColorProvider(Int)` | ✅ （已弃用）| FixedColorProvider，在 MIUI 上有兼容问题 |
+| `ResourceColorProvider(Int)` | ✅ | **推荐的替代方案**，构造参数为 `@ColorRes Int` |
+| `size/width/height(Int)` | ✅ | 但在 MIUI 上 Int 被当资源 ID |
+| `size/width/height(@DimenRes Int)` | ✅ | **用 `R.dimen.*` 传入** |
+| `padding(Int)` | ✅ | 但在 MIUI 上 Int 被当资源 ID |
+| `cornerRadius(Dp)` | ✅ | 但在 MIUI 上内部 Int 被当资源 ID |
+| `cornerRadius(@DimenRes Int)` | ✅ | **用 `R.dimen.*` 传入** |
+| `GlanceAppWidgetManager.getGlanceIds()` | ✅ | suspend 函数 |
+| `widget.update(context, id)` | ✅ | 内部方法，在协程中调用 |
 
 ---
 
-## 7. 下一步行动
+## 5. 不影响此结论的改动
 
-1. **决策**：管理员选择方案 A/B/C/D 之一
-2. **方案 A**：修改 `libs.versions.toml` 升级 Glance → `1.2.0` 或更高，验证编译
-3. **方案 A 备选**：若阿里云镜像无 1.2.x，探索 Maven Central 直连
-4. **方案 A 成功后**：恢复 `provideContent` + `Dp(12f)` + `12.dp` 写法，继续编译验证
-5. **编译通过后**：真机部署验证 4 种 Widget 视觉效果
+- `previewImage` — 有帮助（Widget 选择器缩略图+占位），但非核心修复
+- 诊断日志 — 保留以支持后续调试
+- `courseColorResource()` 6 色桶 — 替代动态 HSL 色生成
 
 ---
 
-> **关联文档**: [[progress]] | [[architecture]] | `C:\Users\yongl\.claude\plans\twinkling-puzzling-moon.md`
+> **关联文档**: [[progress]] | [[architecture]]

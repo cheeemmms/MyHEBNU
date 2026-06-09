@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-08 | 状态: 设置页重构 ✅。Phase 7.1 Widget 实施中 ⏳（API 适配受阻，详细记录见 [[glance-api-research]]）
+> 最后更新: 2026-06-09 | 状态: Phase 7.1 Widget ✅ 已修复。真机显示+跳转均正常（MIUI兼容性解决，详见 [[glance-api-research]]）
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [⏳ 待开始]    [🔄 进行中]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [🔄 进行中]    [⏳ 待开始]
 
 → 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
@@ -293,17 +293,16 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
-| 7.1 | 课表 Widget (Glance) | 🔴 阻塞 | Glance 1.1.1 API 不兼容 — `provideContent`/`Dimension.Dp` 不可用，详见 [[glance-api-research]] |
+| 7.1 | 课表 Widget (Glance) | ✅ 已完成 | 4 种尺寸全通过 — 根因是 MIUI RemoteViews 膨胀器把 Int 当资源 ID（非 API 问题），全量改 `R.dimen.*`/`R.color.*` 解决，详见 [[glance-api-research]] |
 | 7.2 | 上课提醒通知 | ⏳ 待开始 | — |
 | 7.3 | 考试提醒通知 | ⏳ 待开始 | — |
 
-### 7.1 进度摘要
+### 7.1 交付物
 
-- **已完成**：4 种 Widget 配置文件(XML) + 共享数据加载层 + 4 个 GlanceAppWidget 子类框架 + Hilt EntryPoint + 颜色/排版工具 + 4 个 Receiver + Worker/UpdateManager 基础设施 + Deep Link 导航
-- **阻塞于**：`provideContent` 在 Glance 1.1.1 中并非 `GlanceAppWidget` 成员函数；`Dimension.Dp` 构造函数私有，无法创建 dp 值
-- **推荐方案**：升级 Glance 到 1.2.0+（需确认阿里云 Maven 镜像可用性）
-- **已创建 14 个文件，修改 7 个文件，删除 3 个文件** — 代码在 `main` 分支待编译修复
-- **详细记录**：[[glance-api-research]]
+- **最终修改**：4 Widget 文件 + ScheduleWidgetCommon.kt + ScheduleWidgetData.kt + colors.xml(新建) + dimens.xml(新建) + 3 预览 drawable(新建) + 4 widget XML 配置
+- **核心修复**：所有 Glance 维度值 (size/width/height/padding/cornerRadius) 改用 `@DimenRes` 资源引用；所有颜色改用 `ResourceColorProvider(R.color.xxx)`；加 `previewImage` 防止 MIUI 桌面超时
+- **真机验证**：小米15/Android 16/MIUI 桌面 — Widget 显示课表数据、点击跳转 App 均正常
+- **错诊纠正**：此前 `provideContent` 不存在等判断均为误判，代码在 Glance 1.1.1 上完全可编译
 
 ---
 
@@ -588,6 +587,16 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-09** | **Phase 7.1 Widget 修复 — MIUI 兼容性** | **里程碑** |
+| → 诊断 | 此前 `provideContent` 等误判全部推翻：javap 反编译确认 Glance 1.1.1 API 完整可用，代码可编译 | |
+| → 根因 | MIUI RemoteViews 膨胀器把所有 Int 参数当 `@DimenRes`/`@ColorRes` 资源 ID 查表（非 Glance API 问题） | |
+| → 修复1 | padding: `padding(all = 12)` → `padding(all = R.dimen.widget_dp_12)` | |
+| → 修复2 | 颜色: `ColorProvider(widgetXxx(isDark))` → `ResourceColorProvider(R.color.widget_xxx)` 直接返回 | |
+| → 修复3 | cornerRadius: `cornerRadius(28)` → `cornerRadius(R.dimen.widget_dp_28)` | |
+| → 修复4 | 全量: 所有 `size/width/height(Int)` → `(R.dimen.widget_dp_N)`，values/colors.xml + dimens.xml 覆盖15色+15维度 | |
+| → 修复5 | `previewImage` + XML Shape drawable 占位 — 防止 MIUI 桌面 Glance WorkManager 延迟触发超时 | |
+| → | 共 14 files: res/values/colors.xml (新), res/values/dimens.xml (新), 3 drawable (新), 4 widget XML, ScheduleWidgetCommon.kt, ScheduleWidgetData.kt, 4 widget KT files | |
+| → | 真机验证: 小米15/Android 16 — 4 种 Widget 显示+跳转正常 | |
 
 ---
 

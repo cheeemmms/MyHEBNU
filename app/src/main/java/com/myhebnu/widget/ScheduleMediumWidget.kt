@@ -69,8 +69,8 @@ private fun MediumHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean
         }
         Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_10))
         val d = state.courses.take(2)
-        d.forEachIndexed { i, c -> MediumCourseRow(c, isDark); if (i < d.size - 1) Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_6)) }
-        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_4))
+        d.forEachIndexed { i, c -> MediumCourseRow(c, isDark); if (i < d.size - 1) Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_8)) }
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_8))
         val r = state.totalCount - d.size
         if (r > 0) Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
             Text("其他${r}节课程", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 10.sp))

@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 Session 1 ✅。Micro 居中 + Medium 时间列/间距 已修复。
+> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 S1+S2 ✅。Medium 垂直节奏 10→8→8 统一。
 
 ---
 
@@ -595,6 +595,11 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-10** | **Widget 前端精修 Session 2: Medium 信息层级 + 间距统一** | **样式修复** |
+| → S2-1 | `ScheduleMediumWidget.kt`: 课程行间距 `height(6→8)` 增强卡片呼吸感 | |
+| → S2-2 | `ScheduleMediumWidget.kt`: 水平间距审计 — 非对称 6dp/8dp 保持 (色条靠近时间是有意设计) | |
+| → S2-3 | `ScheduleMediumWidget.kt`: "其他N节"间距 `height(4→8)` 与课程间距统一节奏 | |
+| → | 共 1 file, 2 lines. 编译零错误通过. | |
 | **2026-06-10** | **Widget 前端精修 Session 1: Micro 居中 + Medium 时间列 + 间距** | **样式修复** |
 | → S1-1 | `ScheduleMicroWidget.kt`: MicroHasCourses Column 内加双 `defaultWeight()` Spacer, 垂直居中 | |
 | → S1-2 | `ScheduleMediumWidget.kt`: MediumCourseRow 时间列 `width(32→42)`, 修复 `09:45` 冒号断行 | |

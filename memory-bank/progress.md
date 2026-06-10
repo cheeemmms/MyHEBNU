@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 S1+S2+S3 ✅。HyperOS 对标: initialLayout + miuiWidgetVersion + 命名规范。
+> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 S1+S2+S3 ✅ + #16 跨日 ✅。跨日逻辑 + Micro 课程轮换 + AllDoneToday 已修复。
 
 ---
 
@@ -342,7 +342,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **15** | Widget 深色模式未实现 | 🔴 待开始 | Widget-FE | `isDark` 硬编码 false; 需 `res/values-night/colors.xml` + 读取 Configuration.uiMode — 延后 |
 | **15.1** | ~~Widget Micro 内容视觉偏上~~ | 🟢 已修复 | Widget-FE-S1 | MicroHasCourses Column 内加双 `defaultWeight()` Spacer 垂直居中 |
 | **15.2** | ~~Widget Medium 时间列换行 (09:45→09:\n45)~~ | 🟢 已修复 | Widget-FE-S1 | 时间列 `width(32→42)` + 标题→课程间距 `height(6→10)` |
-| **16** | Widget 今日课程结束后不显示明日课程 | 🔴 待开始 | Widget-FE | 新逻辑: 今日课程已上完 OR 周末 → 且时间 >19:00 → 显示明日课表 — 延后 |
+| **16** | ~~Widget 今日课程结束后不显示明日课程~~ | 🟢 已修复 | Widget-FE | 跨日逻辑: 全部结束>19:00→明日; 周五>19:00→Weekend; 周日>19:00→周一(跨周); 新增 AllDoneToday 状态 |
 | **17** | Widget 色彩不跟随 App 主题 | ⚪ 暂不处理 | Widget-FE | 管理员决定不扩颜色桶, 保持现有 6 色 |
 | **18** | Widget 课程色桶仅 6 个, App 支持 HSL 连续色相 | ⚪ 暂不处理 | Widget-FE | 与 #17 同, 保持现状 |
 | **19** | Widget 1 小时系统刷新周期 | ⚪ 已接受 | Widget-FE | 管理员决定放弃分钟更新, 维持 XML 1 小时间隔 |
@@ -596,6 +596,14 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-10** | **#16 + Micro 课程轮换: 跨日逻辑 + AllDoneToday** | **核心逻辑** |
+| → 根因 | `loadDayCourses()` 中 `nextCourseIndex = if (nextIdx >= 0) nextIdx else 0` 全天结束时误判为有课 | |
+| → 修复 | `nextCourseIndex = nextIdx` 直接透传; `loadDaySchedule()` 重构两阶段决策 | |
+| → 新增 | `AllDoneToday` 状态 + `HasCourses.isTomorrow`/`tomorrowDayOfWeek` 字段 | |
+| → 逻辑 | 工作日<19:00 全部结束→AllDoneToday; >19:00→明日; 周五>19:00→Weekend; 周日>19:00→周一(跨周) | |
+| → UI | Micro "明天" 标签 + Medium/Large "明天 周一" 日期前缀 | |
+| → | 共 4 files. 编译零错误. 真机验证通过. | |
+| → | `LocalTime` 是 locale-independent, 不受系统 12H/24H 显示格式影响 — 已确认 | |
 | **2026-06-10** | **Widget 前端精修 Session 3: HyperOS 对标检查** | **配置补全** |
 | → HS-4 | 新建 `res/layout/widget_loading.xml` + 3 Widget XML 加 `initialLayout` | |
 | → HS-5 | `AndroidManifest.xml` 加 `miuiWidgetVersion=1` meta-data | |

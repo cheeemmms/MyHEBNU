@@ -56,6 +56,7 @@ private fun LargeListContent(state: DayScheduleState, context: Context) {
             is DayScheduleState.Loading, is DayScheduleState.NoData -> ListEmpty("暂无课表", "请打开应用同步课表", isDark)
             is DayScheduleState.Weekend -> ListEmpty("周末愉快", "☀️ 好好休息吧", isDark)
             is DayScheduleState.NoCoursesToday -> ListEmpty("今日无课", "📚 自由安排", isDark)
+            is DayScheduleState.AllDoneToday -> ListEmpty("今日课程已结束", "📚 自由安排", isDark)
         }
     }
 }
@@ -63,8 +64,9 @@ private fun LargeListContent(state: DayScheduleState, context: Context) {
 @Composable
 private fun ListHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean) {
     Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_12)) {
+        val datePrefix = if (state.isTomorrow) "明天 " else ""
         Row(modifier = GlanceModifier.fillMaxWidth()) {
-            Text("${state.dateText} ${state.weekdayLabel}", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 12.sp, fontWeight = FontWeight.Medium))
+            Text("${datePrefix}${state.dateText} ${state.weekdayLabel}", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 12.sp, fontWeight = FontWeight.Medium))
             Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_8))
             Text("第${state.weekNumber}周", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 12.sp))
         }

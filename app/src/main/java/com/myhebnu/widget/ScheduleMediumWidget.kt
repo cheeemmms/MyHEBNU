@@ -56,6 +56,7 @@ private fun MediumWidgetContent(state: DayScheduleState, context: Context) {
             is DayScheduleState.Loading, is DayScheduleState.NoData -> MediumEmpty("暂无课表", "请打开应用同步课表", isDark)
             is DayScheduleState.Weekend -> MediumEmpty("周末愉快", "☀️ 好好休息吧", isDark)
             is DayScheduleState.NoCoursesToday -> MediumEmpty("今日无课", "📚 自由安排", isDark)
+            is DayScheduleState.AllDoneToday -> MediumEmpty("今日课程已结束", "📚 自由安排", isDark)
         }
     }
 }
@@ -63,8 +64,9 @@ private fun MediumWidgetContent(state: DayScheduleState, context: Context) {
 @Composable
 private fun MediumHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean) {
     Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_12)) {
+        val datePrefix = if (state.isTomorrow) "明天 " else ""
         Row(modifier = GlanceModifier.fillMaxWidth()) {
-            Text("${state.dateText} ${state.weekdayLabel}", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
+            Text("${datePrefix}${state.dateText} ${state.weekdayLabel}", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
             Text("第${state.weekNumber}周", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
         }
         Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_10))

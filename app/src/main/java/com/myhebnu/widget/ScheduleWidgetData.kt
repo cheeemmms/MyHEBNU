@@ -17,6 +17,7 @@ sealed interface DayScheduleState {
     data object Weekend : DayScheduleState
     data object NoData : DayScheduleState
     data object NoCoursesToday : DayScheduleState
+    data object AllDoneToday : DayScheduleState
     data class HasCourses(
         val dayOfWeek: Int,
         val dateText: String,             // "6月8日"
@@ -24,7 +25,9 @@ sealed interface DayScheduleState {
         val weekNumber: Int,
         val courses: List<WidgetCourse>,
         val nextCourseIndex: Int,         // index of first course after now, -1 if all done
-        val totalCount: Int
+        val totalCount: Int,
+        val isTomorrow: Boolean = false,  // true when showing tomorrow's schedule
+        val tomorrowDayOfWeek: Int = 0    // Mon=1..Fri=5, for "明天 周一" label
     ) : DayScheduleState
 }
 
@@ -58,86 +61,156 @@ private fun entryPoint(context: Context): ScheduleWidgetEntryPoint =
 suspend fun loadDaySchedule(context: Context): DayScheduleState {
     val tag = "MyHEBNU-Widget"
     return try {
-        android.util.Log.d(tag, "loadDaySchedule: START")
         val today = LocalDate.now()
+        val now = LocalTime.now()
         val dayOfWeek = today.dayOfWeek.value  // 1=Mon..7=Sun
-        android.util.Log.d(tag, "loadDaySchedule: today=$today, dayOfWeek=$dayOfWeek")
-        if (dayOfWeek >= 6) {
-            android.util.Log.d(tag, "loadDaySchedule: result=Weekend")
-            return DayScheduleState.Weekend
-        }
+        android.util.Log.d(tag, "loadDaySchedule: today=$today dayOfWeek=$dayOfWeek now=$now")
 
         val ep = entryPoint(context)
-        android.util.Log.d(tag, "loadDaySchedule: entryPoint OK, loading prefs")
         val prefs = ep.userPreferences()
         val year = prefs.currentSemesterYear.first()
         val term = prefs.currentSemesterTerm.first()
         val currentWeek = prefs.currentWeek.first()
-        android.util.Log.d(tag, "loadDaySchedule: year=$year, term=$term, currentWeek=$currentWeek")
-
         val dao = ep.appDatabase().scheduleDao()
-        val allCourses = dao.getCoursesByDay(year, term, dayOfWeek)
-        android.util.Log.d(tag, "loadDaySchedule: allCourses.size=${allCourses.size}")
-
-        if (allCourses.isEmpty()) {
-            val hasAny = dao.getCourseListBySemester(year, term).isNotEmpty()
-            val result = if (hasAny) DayScheduleState.NoCoursesToday else DayScheduleState.NoData
-            android.util.Log.d(tag, "loadDaySchedule: result=$result (hasAny=$hasAny)")
-            return result
-        }
-
-        // Filter by current week + oddEven
-        val filtered = filterByWeek(allCourses, currentWeek)
-            .sortedBy { it.startPeriod }
-        android.util.Log.d(tag, "loadDaySchedule: filtered.size=${filtered.size}")
-        if (filtered.isEmpty()) {
-            android.util.Log.d(tag, "loadDaySchedule: result=NoCoursesToday (after filter)")
-            return DayScheduleState.NoCoursesToday
-        }
-
-        // Load period times to enrich courses with clock times
         val periodTimes = loadPeriodTimes(ep, year, term)
 
-        val enriched = filtered.map { entity ->
-            val startTime = periodTimes.find { it.period == entity.startPeriod }?.startTime
-            val endTime = periodTimes.find { it.period == entity.endPeriod }?.endTime
-            WidgetCourse(
-                courseName = entity.courseName,
-                teacher = entity.teacher,
-                classroom = entity.classroom,
-                startPeriod = entity.startPeriod,
-                endPeriod = entity.endPeriod,
-                dayOfWeek = entity.dayOfWeek,
-                startTime = startTime,
-                endTime = endTime,
-                colorHue = entity.color,
-                category = entity.category
-            )
+        // ── Phase 1: Decide target day ──
+
+        if (dayOfWeek >= 6) {
+            // Weekend
+            if (now.isAfter(LocalTime.of(19, 0))) {
+                if (dayOfWeek == 6) {
+                    // Saturday >19:00 → tomorrow is Sunday → still weekend
+                    android.util.Log.d(tag, "loadDaySchedule: Sat>19:00 → Weekend")
+                    return DayScheduleState.Weekend
+                }
+                // Sunday >19:00 → tomorrow is Monday → cross-week
+                val targetWeek = currentWeek + 1
+                android.util.Log.d(tag, "loadDaySchedule: Sun>19:00 → load Monday week=$targetWeek")
+                return loadDayCourses(dao, periodTimes, tag, targetDay = 1, targetDate = today.plusDays(1),
+                    targetWeek = targetWeek, year = year, term = term,
+                    isTomorrow = true, tomorrowDayOfWeek = 1
+                )
+            }
+            android.util.Log.d(tag, "loadDaySchedule: weekend ≤19:00 → Weekend")
+            return DayScheduleState.Weekend
         }
 
-        // Find next course after current time
-        val now = LocalTime.now()
-        val nextIdx = enriched.indexOfFirst { c ->
-            c.endTime != null && try {
-                LocalTime.parse(c.endTime).isAfter(now)
-            } catch (_: Exception) { false }
-        }
-
-        val result = DayScheduleState.HasCourses(
-            dayOfWeek = dayOfWeek,
-            dateText = "${today.monthValue}月${today.dayOfMonth}日",
-            weekdayLabel = weekdayLabel(dayOfWeek),
-            weekNumber = currentWeek,
-            courses = enriched,
-            nextCourseIndex = nextIdx,
-            totalCount = enriched.size
+        // Weekday: load today's courses first
+        val todayState = loadDayCourses(dao, periodTimes, tag, targetDay = dayOfWeek, targetDate = today,
+            targetWeek = currentWeek, year = year, term = term
         )
-        android.util.Log.d(tag, "loadDaySchedule: result=HasCourses(count=${enriched.size}, nextIdx=$nextIdx)")
-        result
+
+        when (todayState) {
+            is DayScheduleState.Weekend, is DayScheduleState.NoData,
+            is DayScheduleState.NoCoursesToday, is DayScheduleState.AllDoneToday -> {
+                // These are non-HasCourses, just return as-is
+                return todayState
+            }
+            is DayScheduleState.HasCourses -> {
+                val hasRemaining = todayState.nextCourseIndex >= 0
+                if (hasRemaining) {
+                    // Courses remain today → show today
+                    android.util.Log.d(tag, "loadDaySchedule: today has remaining → show today")
+                    return todayState
+                }
+                // All courses done
+                if (now.isAfter(LocalTime.of(19, 0))) {
+                    // After 19:00 → load tomorrow
+                    if (dayOfWeek == 5) {
+                        // Friday → tomorrow is Saturday → weekend
+                        android.util.Log.d(tag, "loadDaySchedule: Fri all done >19:00 → Weekend")
+                        return DayScheduleState.Weekend
+                    }
+                    // Mon-Thu → load tomorrow
+                    val tomorrowDow = dayOfWeek + 1
+                    android.util.Log.d(tag, "loadDaySchedule: all done >19:00 → load tomorrow dayOfWeek=$tomorrowDow")
+                    return loadDayCourses(dao, periodTimes, tag, targetDay = tomorrowDow,
+                        targetDate = today.plusDays(1), targetWeek = currentWeek,
+                        year = year, term = term,
+                        isTomorrow = true, tomorrowDayOfWeek = tomorrowDow
+                    )
+                }
+                // All done but before 19:00
+                android.util.Log.d(tag, "loadDaySchedule: all done ≤19:00 → AllDoneToday")
+                return DayScheduleState.AllDoneToday
+            }
+            is DayScheduleState.Loading -> return todayState
+        }
     } catch (e: Throwable) {
         android.util.Log.e(tag, "loadDaySchedule: ERROR ${e.javaClass.simpleName}: ${e.message}", e)
         DayScheduleState.NoData
     }
+}
+
+/**
+ * Load courses for a specific target day and build the appropriate state.
+ * @return HasCourses if courses found, NoCoursesToday if no courses for this day,
+ *         NoData if no data at all in the semester
+ */
+private suspend fun loadDayCourses(
+    dao: com.myhebnu.data.local.db.dao.ScheduleDao,
+    periodTimes: List<PeriodTime>,
+    tag: String,
+    targetDay: Int,                // 1=Mon..7=Sun
+    targetDate: LocalDate,
+    targetWeek: Int,
+    year: String,
+    term: String,
+    isTomorrow: Boolean = false,
+    tomorrowDayOfWeek: Int = 0     // only meaningful when isTomorrow=true
+): DayScheduleState {
+    val allCourses = dao.getCoursesByDay(year, term, targetDay)
+    android.util.Log.d(tag, "loadDayCourses: targetDay=$targetDay targetWeek=$targetWeek isTomorrow=$isTomorrow courses.size=${allCourses.size}")
+
+    if (allCourses.isEmpty()) {
+        val hasAny = dao.getCourseListBySemester(year, term).isNotEmpty()
+        val result = if (hasAny) DayScheduleState.NoCoursesToday else DayScheduleState.NoData
+        android.util.Log.d(tag, "loadDayCourses: result=$result")
+        return result
+    }
+
+    val filtered = filterByWeek(allCourses, targetWeek).sortedBy { it.startPeriod }
+    if (filtered.isEmpty()) {
+        android.util.Log.d(tag, "loadDayCourses: result=NoCoursesToday (after week filter)")
+        return DayScheduleState.NoCoursesToday
+    }
+
+    val enriched = filtered.map { entity ->
+        val startTime = periodTimes.find { it.period == entity.startPeriod }?.startTime
+        val endTime = periodTimes.find { it.period == entity.endPeriod }?.endTime
+        WidgetCourse(
+            courseName = entity.courseName, teacher = entity.teacher,
+            classroom = entity.classroom, startPeriod = entity.startPeriod,
+            endPeriod = entity.endPeriod, dayOfWeek = entity.dayOfWeek,
+            startTime = startTime, endTime = endTime,
+            colorHue = entity.color, category = entity.category
+        )
+    }
+
+    // Find next course: for today use now; for tomorrow first course is always index 0
+    val nextIdx = if (isTomorrow) {
+        0  // all courses are in the future, show the first one
+    } else {
+        val now = LocalTime.now()
+        enriched.indexOfFirst { c ->
+            c.endTime != null && try { LocalTime.parse(c.endTime).isAfter(now) } catch (_: Exception) { false }
+        }
+    }
+
+    val result = DayScheduleState.HasCourses(
+        dayOfWeek = targetDay,
+        dateText = "${targetDate.monthValue}月${targetDate.dayOfMonth}日",
+        weekdayLabel = weekdayLabel(targetDay),
+        weekNumber = targetWeek,
+        courses = enriched,
+        nextCourseIndex = nextIdx,
+        totalCount = enriched.size,
+        isTomorrow = isTomorrow,
+        tomorrowDayOfWeek = tomorrowDayOfWeek
+    )
+    android.util.Log.d(tag, "loadDayCourses: result=HasCourses(count=${enriched.size}, nextIdx=$nextIdx, isTomorrow=$isTomorrow)")
+    return result
 }
 
 // ──────────────────────────────────────────────

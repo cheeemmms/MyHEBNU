@@ -60,6 +60,7 @@ private fun MicroWidgetContent(state: DayScheduleState, context: Context) {
             is DayScheduleState.Loading, is DayScheduleState.NoData -> MicroEmpty("暂无课表", "请打开应用同步", isDark)
             is DayScheduleState.Weekend -> MicroEmpty("周末愉快", "☀️ 好好休息吧", isDark)
             is DayScheduleState.NoCoursesToday -> MicroEmpty("今日无课", "📚 自由安排", isDark)
+            is DayScheduleState.AllDoneToday -> MicroEmpty("今日课程已结束", "📚 自由安排", isDark)
             is DayScheduleState.HasCourses -> MicroHasCourses(state, isDark)
         }
     }
@@ -67,14 +68,20 @@ private fun MicroWidgetContent(state: DayScheduleState, context: Context) {
 
 @Composable
 private fun MicroHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean) {
-    val course = if (state.nextCourseIndex >= 0) state.courses[state.nextCourseIndex] else state.courses.last()
-    val label = when { state.nextCourseIndex == 0 && state.courses.isNotEmpty() -> "正在上课"; state.nextCourseIndex > 0 -> "下节课"; else -> "" }
+    val course = state.courses[state.nextCourseIndex]
+    val label = when {
+        state.isTomorrow -> "明天"
+        state.nextCourseIndex == 0 && state.courses.isNotEmpty() -> "正在上课"
+        state.nextCourseIndex > 0 -> "下节课"
+        else -> ""
+    }
+    val weekdayShown = if (state.isTomorrow) "明天 ${weekdayLabel(state.tomorrowDayOfWeek)}" else state.weekdayLabel
     Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_12)) {
         Spacer(modifier = GlanceModifier.defaultWeight())
         Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
             Text(label, style = TextStyle(color = widgetPrimary(isDark), fontSize = 11.sp, fontWeight = FontWeight.Medium))
             Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_8))
-            Text(state.weekdayLabel, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
+            Text(weekdayShown, style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
         }
         Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_6))
         Text(course.courseName, modifier = GlanceModifier.fillMaxWidth(),

@@ -138,16 +138,14 @@
     <string name="auto_check_update">自动检查更新</string>
     <string name="auto_check_update_desc">开启后每次启动 App 自动检查 GitHub 新版本</string>
     <string name="changelog">更新日志</string>
-    <string name="changelog_content">v1.1.0
+    <string name="changelog_content">v1.2.0
 主要更新
-• 修复了多级页面导航返回失效问题
-• 修复了系统返回手势直接退出应用问题 
-• 修复了深色模式页面切换闪屏问题
-• 修复了app过于流畅的问题
-• 空教室查询支持分页加载，且不再只显示 10 个结果 
-• 启动时自动检测 GitHub 更新并推送通知
-• 新增关于页面
-•其他没有提到的更新</string>
+• 震撼推出桌面课表小组件
+• 新增上课提醒通知（BETA）
+• 新增考试提醒通知（BETA）
+• 修复多处深色模式下的视觉效果问题
+• 修正欢迎页 GitHub 项目链接
+其他没有提到的更新</string>
 
     <!-- Login -->
     <string name="login_title">统一身份认证</string>

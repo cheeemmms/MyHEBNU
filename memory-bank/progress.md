@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-10 | 状态: Widget 前端精修全部完成 ✅。HS-9 深色模式已修复 (values-night/colors.xml)。
+> 最后更新: 2026-06-10 | 状态: Widget 全部完成 ✅。6 个 batch 覆盖样式→对标→逻辑→深色→预览图。
 
 ---
 
@@ -346,7 +346,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **17** | Widget 色彩不跟随 App 主题 | ⚪ 暂不处理 | Widget-FE | 管理员决定不扩颜色桶, 保持现有 6 色 |
 | **18** | Widget 课程色桶仅 6 个, App 支持 HSL 连续色相 | ⚪ 暂不处理 | Widget-FE | 与 #17 同, 保持现状 |
 | **19** | Widget 1 小时系统刷新周期 | ⚪ 已接受 | Widget-FE | 管理员决定放弃分钟更新, 维持 XML 1 小时间隔 |
-| **20** | Widget 预览图是 XML Shape 纯色块 | 🟡 已知 | Widget-FE | 延后到 HyperOS 适配阶段处理 (HS-3) |
+| **20** | ~~Widget 预览图是 XML Shape 纯色块~~ | 🟢 已修复 | Widget-FE | 真机截图经 ffmpeg 缩放为 220×220/440×220/440×440 PNG |
 | **21** | App 内调起 Widget 不可用 | ⚪ 已放弃 | Widget-FE | `requestPinAppWidget` 需小米审核，放弃此功能 |
 
 ---
@@ -596,6 +596,10 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-10** | **HS-3: Widget 预览图替换** | **资源替换** |
+| → | 3 张真机截图 → ffmpeg 缩放至 220×220/440×220/440×440 PNG | |
+| → | 删除 3 个 XML Shape 占位 drawable | |
+| → | 编译零错误. 验收通过. | |
 | **2026-06-10** | **HS-9: Widget 深色模式** | **1 新文件** |
 | → | 新建 `res/values-night/colors.xml` — 15 色 MD3 Dark Scheme | |
 | → | 零代码改动: `ResourceColorProvider` 自动按系统深/浅模式切换资源 | |

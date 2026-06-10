@@ -60,7 +60,6 @@ suspend fun updateAllWidgets(context: Context) {
     listOf(
         "Micro" to ScheduleMicroWidget(),
         "Medium" to ScheduleMediumWidget(),
-        "LargeGrid" to ScheduleLargeGridWidget(),
         "LargeList" to ScheduleLargeListWidget()
     ).forEach { (name, widget) ->
         try {

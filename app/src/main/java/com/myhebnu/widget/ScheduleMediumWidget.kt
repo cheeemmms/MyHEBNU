@@ -67,7 +67,7 @@ private fun MediumHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean
             Text("${state.dateText} ${state.weekdayLabel}", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
             Text("第${state.weekNumber}周", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp))
         }
-        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_6))
+        Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_10))
         val d = state.courses.take(2)
         d.forEachIndexed { i, c -> MediumCourseRow(c, isDark); if (i < d.size - 1) Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_6)) }
         Spacer(modifier = GlanceModifier.height(R.dimen.widget_dp_4))
@@ -86,7 +86,7 @@ private fun MediumHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean
 @Composable
 private fun MediumCourseRow(course: WidgetCourse, isDark: Boolean) {
     Row(modifier = GlanceModifier.fillMaxWidth()) {
-        Column(modifier = GlanceModifier.width(R.dimen.widget_dp_32), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(modifier = GlanceModifier.width(R.dimen.widget_dp_42), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(course.startTime ?: "", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp, fontWeight = FontWeight.Medium))
             Text(course.endTime ?: "", style = TextStyle(color = widgetOnSurfaceVariant(isDark), fontSize = 11.sp, fontWeight = FontWeight.Medium))
         }

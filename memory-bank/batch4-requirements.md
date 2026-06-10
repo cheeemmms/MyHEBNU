@@ -61,3 +61,96 @@
 - [[教务系统逆向分析]] — API 端点文档
 - [[design-document]] — v1.1 单首页原始设计
 - [[progress]] — 当前进度 Batch 3 完成
+
+---
+
+## 8. Widget 前端改进需求（2026-06-10）
+
+### 8.1 LargeGrid Widget 已删除
+
+原来 4 种 Widget 精简为 3 种：Micro (2×2)、Medium (4×2)、LargeList (4×4)。
+
+### 8.2 跨日显示明日课程
+
+**规则**：
+
+| 场景 | 条件 | Widget 显示 |
+|------|------|-------------|
+| 今日课程已全部结束 | `nextCourseIndex < 0` 且 `now > 19:00` | 明日课程 |
+| 今日周日 | `dayOfWeek == 7` 且 `now > 19:00` | 明日周一课程 |
+| 今日周六 | 时间 > 19:00 | 明日周日 → 显示"周末愉快" |
+| 今日周五+课程结束 | 时间 > 19:00 | 明日周六 → 显示"周末愉快" |
+
+**实现要点**：
+- `loadDaySchedule()` 需支持 `targetDayOfWeek` 参数
+- Widget 标题行需显示 "明天 周一" 区分当天和次日
+
+### 8.3 深色模式
+
+- `res/values-night/colors.xml` — 深色版 9 surface/text + 6 course 色彩
+- Widget Composable 从 `Configuration.uiMode` 读取真实 `isDark`
+- 更新 3 个 `*WidgetContent()` Composable 传递真实 `isDark`
+
+### 8.4 分钟级更新（已放弃）
+
+管理员决定保持 XML `updatePeriodMillis=3600000`（1 小时），不引入 AlarmManager。
+
+### 8.5 Widget 复用 App 主题色（已放弃）
+
+管理员决定不扩颜色桶，保持现有 `colors.xml` 9 基础色 + 6 课程色。
+
+### 8.6 Widget 前端精修 — Session 执行计划
+
+> 决议日期: 2026-06-10 | 路线: Widget 样式精修 → HyperOS 适配 → 深色模式
+
+#### 开发路线
+
+```
+Session 1           Session 2           Session 3           后续
+Micro 居中          Medium 时间列        HyperOS 对标检查   深色模式
++ Medium 初修       + 间距调整           + 逐个调整          + 明日课程逻辑
+                                        (可能多 session)
+```
+
+#### Session 1: Micro 居中 + Medium 紧急修复 ✅ 已完成 (2026-06-10)
+
+| # | 任务 | 文件 | 改动 | 实施 |
+|---|------|------|------|------|
+| S1-1 | Micro HasCourses 内容下移 | `ScheduleMicroWidget.kt` | Column 顶部+底部各加 `Spacer(Modifier.defaultWeight())` 实现垂直居中 | 双 `defaultWeight()` 方案 (自适应 widget 缩放) |
+| S1-2 | Medium 时间列宽度修复 (09:45→09:\\n45) | `ScheduleMediumWidget.kt` | `width(32)` → `width(42)` (`R.dimen.widget_dp_42` 已存在) | 1 行改 |
+| S1-3 | Medium 标题与课程间距加大 | `ScheduleMediumWidget.kt` | `Spacer(height=6)` → `Spacer(height=10)` | 1 行改 |
+| S1-4 | LargeList 确认无需改动 | `ScheduleLargeListWidget.kt` | 目视审计: 36dp 时间列 + 12sp 字号 + 8dp 间距均合适 | 零改动 |
+
+**实际改动量**: 2 files, 4 lines. 编译零错误通过.
+
+#### Session 2: Medium 信息层级 + 间距
+
+| # | 任务 | 文件 | 改动 |
+|---|------|------|------|
+| S2-1 | Medium 课程行间距增大 | `ScheduleMediumWidget.kt` | 课程行间 `Spacer(height=6)` → `8dp` |
+| S2-2 | Medium 课程卡片内间距微调 | `ScheduleMediumWidget.kt` | 时间列+色条+课程名水平间距审视 |
+| S2-3 | Medium 剩余课程提示行间距 | `ScheduleMediumWidget.kt` | 与最后一行课程统一间距 |
+
+**改动量**: ~1 file, ~5 lines
+
+#### Session 3+: HyperOS 对标检查
+
+| # | 任务 | 参考文档 |
+|---|------|----------|
+| HS-1 | 3 种 Widget 对照 HyperOS 规范逐项检查 | `widget/HyperOS-Widget-Adaptation-Plan.md` |
+| HS-2 | 圆角、字号层级、色彩对比度验证 | 55px 圆角(28dp), 2~10汉字命名 |
+| HS-3 | `previewImage` 真实预览图（替换 XML Shape 占位） | 220×220 / 440×220 / 440×440 px |
+| HS-4 | `initialLayout` 加载态布局 | 新建 `res/layout/widget_loading.xml` |
+| HS-5 | `miuiWidgetVersion` meta-data | `AndroidManifest.xml` |
+| HS-6 | Widget 命名符合 `应用名称·小部件名称` 格式 | `res/values/strings.xml` |
+| HS-7 | App 内调起 Widget (`requestPinAppWidget`) | 设置页新增入口 |
+| HS-8 | `contentDescription` 无障碍标签 | 全部交互元素 |
+| HS-9 | 深色模式 Widget（独立 batch） | `res/values-night/colors.xml` |
+
+---
+
+## 相关记忆
+
+- [[design-document]] — v1.1 单首页原始设计
+- [[progress]] — 当前进度 Widget 前端精修阶段
+- [[glance-api-research]] — MIUI RemoteViews 资源解析机制

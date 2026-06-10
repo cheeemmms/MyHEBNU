@@ -70,6 +70,7 @@ private fun MicroHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean)
     val course = if (state.nextCourseIndex >= 0) state.courses[state.nextCourseIndex] else state.courses.last()
     val label = when { state.nextCourseIndex == 0 && state.courses.isNotEmpty() -> "正在上课"; state.nextCourseIndex > 0 -> "下节课"; else -> "" }
     Column(modifier = GlanceModifier.fillMaxSize().padding(all = R.dimen.widget_dp_12)) {
+        Spacer(modifier = GlanceModifier.defaultWeight())
         Row(modifier = GlanceModifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
             Text(label, style = TextStyle(color = widgetPrimary(isDark), fontSize = 11.sp, fontWeight = FontWeight.Medium))
             Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_8))
@@ -94,6 +95,7 @@ private fun MicroHasCourses(state: DayScheduleState.HasCourses, isDark: Boolean)
                 Spacer(modifier = GlanceModifier.width(R.dimen.widget_dp_2))
             }
         }
+        Spacer(modifier = GlanceModifier.defaultWeight())
     }
 }
 

@@ -14,10 +14,6 @@ class MediumWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = ScheduleMediumWidget()
 }
 
-class LargeGridReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget = ScheduleLargeGridWidget()
-}
-
 class LargeListReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget = ScheduleLargeListWidget()
 }

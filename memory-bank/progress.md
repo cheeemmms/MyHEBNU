@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-09 | 状态: Phase 7.1 Widget ✅ 已修复。真机显示+跳转均正常（MIUI兼容性解决，详见 [[glance-api-research]]）
+> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 Session 1 ✅。Micro 居中 + Medium 时间列/间距 已修复。
 
 ---
 
@@ -339,6 +339,14 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **5** | 课表需横向滑动才能看完整 | 🟡 已知 | — | 设计取舍：周视图需滚动 5 天列 |
 | **8** | ~~成绩页数据显示后过一段时间消失~~ | 🟢 已修复 | Batch 2.5 | getAllGrades() fold + ViewModel 内存缓存 + LaunchedEffect 主动刷新 |
 | **14** | ~~登录后一段时间访问考试/成绩报 HTTP 302~~ | 🟢 已修复 | Batch 5 | autoLogin() 用加密凭证自动重登 |
+| **15** | Widget 深色模式未实现 | 🔴 待开始 | Widget-FE | `isDark` 硬编码 false; colors.xml 仅浅色; 需 `res/values-night/colors.xml` + 读取 Configuration.uiMode |
+| **15.1** | ~~Widget Micro 内容视觉偏上~~ | 🟢 已修复 | Widget-FE-S1 | MicroHasCourses Column 内加双 `defaultWeight()` Spacer 垂直居中 |
+| **15.2** | ~~Widget Medium 时间列换行 (09:45→09:\n45)~~ | 🟢 已修复 | Widget-FE-S1 | 时间列 `width(32→42)` + 标题→课程间距 `height(6→10)` |
+| **16** | Widget 今日课程结束后不显示明日课程 | 🔴 待开始 | Widget-FE | 新逻辑: 今日课程已上完 OR 周末 → 且时间 >19:00 → 显示明日课表 |
+| **17** | Widget 色彩不跟随 App 主题 | ⚪ 暂不处理 | Widget-FE | 管理员决定不扩颜色桶, 保持现有 6 色 |
+| **18** | Widget 课程色桶仅 6 个, App 支持 HSL 连续色相 | ⚪ 暂不处理 | Widget-FE | 与 #17 同, 保持现状 |
+| **19** | Widget 1 小时系统刷新周期 | ⚪ 已接受 | Widget-FE | 管理员决定放弃分钟更新, 维持 XML 1 小时间隔 |
+| **20** | Widget 预览图是 XML Shape 纯色块 | 🟡 已知 | Widget-FE | 延后到 HyperOS 适配阶段处理 |
 
 ---
 
@@ -587,6 +595,12 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-10** | **Widget 前端精修 Session 1: Micro 居中 + Medium 时间列 + 间距** | **样式修复** |
+| → S1-1 | `ScheduleMicroWidget.kt`: MicroHasCourses Column 内加双 `defaultWeight()` Spacer, 垂直居中 | |
+| → S1-2 | `ScheduleMediumWidget.kt`: MediumCourseRow 时间列 `width(32→42)`, 修复 `09:45` 冒号断行 | |
+| → S1-3 | `ScheduleMediumWidget.kt`: MediumHasCourses 标题→课程间距 `height(6→10)` | |
+| → S1-4 | `ScheduleLargeListWidget.kt`: 目视确认无需改动 (36dp 时间列 + 12sp 字号比例合适) | |
+| → | 共 2 files, 4 lines. 编译零错误通过. | |
 | **2026-06-09** | **Phase 7.1 Widget 修复 — MIUI 兼容性** | **里程碑** |
 | → 诊断 | 此前 `provideContent` 等误判全部推翻：javap 反编译确认 Glance 1.1.1 API 完整可用，代码可编译 | |
 | → 根因 | MIUI RemoteViews 膨胀器把所有 Int 参数当 `@DimenRes`/`@ColorRes` 资源 ID 查表（非 Glance API 问题） | |

@@ -2,6 +2,7 @@ package com.myhebnu.ui.welcome
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,7 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private const val GITHUB_URL = "https://github.com/cheeemmms/My-University"
+private const val GITHUB_URL = "https://github.com/cheeemmms/MyHEBNU"
 
 @Composable
 fun WelcomeScreen(
@@ -27,6 +28,7 @@ fun WelcomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 32.dp)

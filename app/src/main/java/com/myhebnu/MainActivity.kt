@@ -175,7 +175,11 @@ fun MyHEBNUApp(
         }
 
         AppScreen.Login -> {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
                 LoginScreen(
                     viewModel = loginViewModel,
                     onLoginSuccess = { currentScreen = AppScreen.Main }

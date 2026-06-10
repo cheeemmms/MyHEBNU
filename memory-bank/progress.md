@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 S1+S2+S3 ✅ + #16 跨日 ✅。跨日逻辑 + Micro 课程轮换 + AllDoneToday 已修复。
+> 最后更新: 2026-06-10 | 状态: Widget 前端精修全部完成 ✅。HS-9 深色模式已修复 (values-night/colors.xml)。
 
 ---
 
@@ -339,7 +339,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **5** | 课表需横向滑动才能看完整 | 🟡 已知 | — | 设计取舍：周视图需滚动 5 天列 |
 | **8** | ~~成绩页数据显示后过一段时间消失~~ | 🟢 已修复 | Batch 2.5 | getAllGrades() fold + ViewModel 内存缓存 + LaunchedEffect 主动刷新 |
 | **14** | ~~登录后一段时间访问考试/成绩报 HTTP 302~~ | 🟢 已修复 | Batch 5 | autoLogin() 用加密凭证自动重登 |
-| **15** | Widget 深色模式未实现 | 🔴 待开始 | Widget-FE | `isDark` 硬编码 false; 需 `res/values-night/colors.xml` + 读取 Configuration.uiMode — 延后 |
+| **15** | ~~Widget 深色模式未实现~~ | 🟢 已修复 | Widget-FE | 新建 `res/values-night/colors.xml` (MD3 Dark Scheme) + `ResourceColorProvider` 自动切换 |
 | **15.1** | ~~Widget Micro 内容视觉偏上~~ | 🟢 已修复 | Widget-FE-S1 | MicroHasCourses Column 内加双 `defaultWeight()` Spacer 垂直居中 |
 | **15.2** | ~~Widget Medium 时间列换行 (09:45→09:\n45)~~ | 🟢 已修复 | Widget-FE-S1 | 时间列 `width(32→42)` + 标题→课程间距 `height(6→10)` |
 | **16** | ~~Widget 今日课程结束后不显示明日课程~~ | 🟢 已修复 | Widget-FE | 跨日逻辑: 全部结束>19:00→明日; 周五>19:00→Weekend; 周日>19:00→周一(跨周); 新增 AllDoneToday 状态 |
@@ -596,6 +596,10 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-10** | **HS-9: Widget 深色模式** | **1 新文件** |
+| → | 新建 `res/values-night/colors.xml` — 15 色 MD3 Dark Scheme | |
+| → | 零代码改动: `ResourceColorProvider` 自动按系统深/浅模式切换资源 | |
+| → | 编译零错误. | |
 | **2026-06-10** | **#16 + Micro 课程轮换: 跨日逻辑 + AllDoneToday** | **核心逻辑** |
 | → 根因 | `loadDayCourses()` 中 `nextCourseIndex = if (nextIdx >= 0) nextIdx else 0` 全天结束时误判为有课 | |
 | → 修复 | `nextCourseIndex = nextIdx` 直接透传; `loadDaySchedule()` 重构两阶段决策 | |

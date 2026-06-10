@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget surface/background colors (dark theme — MD3 Dark Scheme) -->
+    <color name="widget_surface">#FF1C1B1F</color>
+    <color name="widget_surface_container_lowest">#FF0F0D13</color>
+    <color name="widget_surface_container">#FF211F26</color>
+    <color name="widget_surface_container_high">#FF2B2930</color>
+
+    <!-- Widget on-surface / text colors (dark theme) -->
+    <color name="widget_on_surface">#FFE6E1E5</color>
+    <color name="widget_on_surface_variant">#FFCAC4D0</color>
+
+    <!-- Widget primary / accent colors (dark theme) -->
+    <color name="widget_primary">#FFD0BCFF</color>
+    <color name="widget_primary_container">#FF4F378B</color>
+    <color name="widget_on_primary_container">#FFEADDFF</color>
+
+    <!-- Course color dots (6 hue buckets, dark theme — brightened for dark bg) -->
+    <color name="widget_course_red">#FFFF5252</color>
+    <color name="widget_course_orange">#FFFF9800</color>
+    <color name="widget_course_yellow">#FFFFD600</color>
+    <color name="widget_course_green">#FF69F0AE</color>
+    <color name="widget_course_blue">#FF448AFF</color>
+    <color name="widget_course_purple">#FFB388FF</color>
+</resources>

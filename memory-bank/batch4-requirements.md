@@ -85,11 +85,11 @@
 - `loadDaySchedule()` 需支持 `targetDayOfWeek` 参数
 - Widget 标题行需显示 "明天 周一" 区分当天和次日
 
-### 8.3 深色模式
+### 8.3 深色模式 ✅ 已完成 (2026-06-10)
 
-- `res/values-night/colors.xml` — 深色版 9 surface/text + 6 course 色彩
-- Widget Composable 从 `Configuration.uiMode` 读取真实 `isDark`
-- 更新 3 个 `*WidgetContent()` Composable 传递真实 `isDark`
+- `res/values-night/colors.xml` — 新建, 15 色 MD3 Dark Scheme
+- `ResourceColorProvider` 自动按系统深/浅模式切换
+- 零代码改动. 编译通过.
 
 ### 8.4 分钟级更新（已放弃）
 

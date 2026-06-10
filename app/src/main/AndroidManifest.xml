@@ -21,6 +21,11 @@
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config">
 
+        <!-- HyperOS 小部件版本号 -->
+        <meta-data
+            android:name="miuiWidgetVersion"
+            android:value="1" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

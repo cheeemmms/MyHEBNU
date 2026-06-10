@@ -138,12 +138,13 @@
     <string name="login_hint">请使用学校统一认证账号登录</string>
 
     <!-- Widgets -->
-    <string name="widget_micro_label">课表·微型</string>
+    <string name="widget_micro_label">MyHEBNU·课表</string>
     <string name="widget_micro_desc">紧凑信息卡：快速查看下节课或明天课程</string>
-    <string name="widget_medium_label">课表·横条</string>
+    <string name="widget_medium_label">MyHEBNU·课表</string>
     <string name="widget_medium_desc">横向双行：时间轴+色彩指示条+两节近期课程</string>
     <string name="widget_large_grid_label">课表·日历</string>
     <string name="widget_large_grid_desc">网格视图：三天课表概览+导航按钮</string>
-    <string name="widget_large_list_label">课表·列表</string>
+    <string name="widget_large_list_label">MyHEBNU·课表</string>
     <string name="widget_large_list_desc">卡片流：当天全部课程详细展示</string>
+
 </resources>

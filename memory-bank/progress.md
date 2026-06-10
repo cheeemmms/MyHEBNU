@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 S1+S2 ✅。Medium 垂直节奏 10→8→8 统一。
+> 最后更新: 2026-06-10 | 状态: Phase 7.1 Widget ✅ + 前端精修 S1+S2+S3 ✅。HyperOS 对标: initialLayout + miuiWidgetVersion + 命名规范。
 
 ---
 
@@ -339,14 +339,15 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **5** | 课表需横向滑动才能看完整 | 🟡 已知 | — | 设计取舍：周视图需滚动 5 天列 |
 | **8** | ~~成绩页数据显示后过一段时间消失~~ | 🟢 已修复 | Batch 2.5 | getAllGrades() fold + ViewModel 内存缓存 + LaunchedEffect 主动刷新 |
 | **14** | ~~登录后一段时间访问考试/成绩报 HTTP 302~~ | 🟢 已修复 | Batch 5 | autoLogin() 用加密凭证自动重登 |
-| **15** | Widget 深色模式未实现 | 🔴 待开始 | Widget-FE | `isDark` 硬编码 false; colors.xml 仅浅色; 需 `res/values-night/colors.xml` + 读取 Configuration.uiMode |
+| **15** | Widget 深色模式未实现 | 🔴 待开始 | Widget-FE | `isDark` 硬编码 false; 需 `res/values-night/colors.xml` + 读取 Configuration.uiMode — 延后 |
 | **15.1** | ~~Widget Micro 内容视觉偏上~~ | 🟢 已修复 | Widget-FE-S1 | MicroHasCourses Column 内加双 `defaultWeight()` Spacer 垂直居中 |
 | **15.2** | ~~Widget Medium 时间列换行 (09:45→09:\n45)~~ | 🟢 已修复 | Widget-FE-S1 | 时间列 `width(32→42)` + 标题→课程间距 `height(6→10)` |
-| **16** | Widget 今日课程结束后不显示明日课程 | 🔴 待开始 | Widget-FE | 新逻辑: 今日课程已上完 OR 周末 → 且时间 >19:00 → 显示明日课表 |
+| **16** | Widget 今日课程结束后不显示明日课程 | 🔴 待开始 | Widget-FE | 新逻辑: 今日课程已上完 OR 周末 → 且时间 >19:00 → 显示明日课表 — 延后 |
 | **17** | Widget 色彩不跟随 App 主题 | ⚪ 暂不处理 | Widget-FE | 管理员决定不扩颜色桶, 保持现有 6 色 |
 | **18** | Widget 课程色桶仅 6 个, App 支持 HSL 连续色相 | ⚪ 暂不处理 | Widget-FE | 与 #17 同, 保持现状 |
 | **19** | Widget 1 小时系统刷新周期 | ⚪ 已接受 | Widget-FE | 管理员决定放弃分钟更新, 维持 XML 1 小时间隔 |
-| **20** | Widget 预览图是 XML Shape 纯色块 | 🟡 已知 | Widget-FE | 延后到 HyperOS 适配阶段处理 |
+| **20** | Widget 预览图是 XML Shape 纯色块 | 🟡 已知 | Widget-FE | 延后到 HyperOS 适配阶段处理 (HS-3) |
+| **21** | App 内调起 Widget 不可用 | ⚪ 已放弃 | Widget-FE | `requestPinAppWidget` 需小米审核，放弃此功能 |
 
 ---
 
@@ -595,6 +596,14 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → | 流动渐变背景动画 → 放弃, 改用纯色背景 | |
 | → | 第三方开源证书: AlertDialog 内联展示 (OSS Licenses 插件不可用) | |
 | → | APP 图标: 使用自定义 app_icon.png | |
+| **2026-06-10** | **Widget 前端精修 Session 3: HyperOS 对标检查** | **配置补全** |
+| → HS-4 | 新建 `res/layout/widget_loading.xml` + 3 Widget XML 加 `initialLayout` | |
+| → HS-5 | `AndroidManifest.xml` 加 `miuiWidgetVersion=1` meta-data | |
+| → HS-6 | `strings.xml` 3 Widget 标签改为 `MyHEBNU·课表` (HyperOS 命名规范) | |
+| → HS-7 | App 内调起 Widget `requestPinAppWidget` — 放弃 (需小米审核) | |
+| → HS-1+2 | 设计审计: 圆角28dp/字号层级/对比度/触摸区 全合规 | |
+| → HS-8 | 无障碍评估: Glance 1.1.1 无 contentDescription API，已穷尽 | |
+| → | 共 1 new + 4 modified files. 编译零错误. | |
 | **2026-06-10** | **Widget 前端精修 Session 2: Medium 信息层级 + 间距统一** | **样式修复** |
 | → S2-1 | `ScheduleMediumWidget.kt`: 课程行间距 `height(6→8)` 增强卡片呼吸感 | |
 | → S2-2 | `ScheduleMediumWidget.kt`: 水平间距审计 — 非对称 6dp/8dp 保持 (色条靠近时间是有意设计) | |

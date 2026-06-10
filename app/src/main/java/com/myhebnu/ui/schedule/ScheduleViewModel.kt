@@ -81,7 +81,19 @@ class ScheduleViewModel @Inject constructor(
         val seedHue = if (useCustom && presetId != null) {
             findPresetById(presetId, parsePresetsJson(presetsJson))?.seedHue
         } else null
-        ColorPrefs(seedHue = seedHue, isDark = themeMode == "dark")
+        val isDark = when (themeMode) {
+            "dark" -> true
+            "light" -> false
+            else -> _systemIsDark.value  // "system" → follow device setting
+        }
+        ColorPrefs(seedHue = seedHue, isDark = isDark)
+    }
+
+    // System dark mode state — updated from composable layer
+    private val _systemIsDark = MutableStateFlow(false)
+
+    fun updateSystemDarkMode(isDark: Boolean) {
+        _systemIsDark.value = isDark
     }
 
     private val today: LocalDate = LocalDate.now()

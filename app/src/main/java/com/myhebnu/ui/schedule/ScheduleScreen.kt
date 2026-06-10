@@ -1,5 +1,6 @@
 package com.myhebnu.ui.schedule
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -25,6 +26,7 @@ fun ScheduleScreen(
     onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    viewModel.updateSystemDarkMode(isSystemInDarkTheme())  // sync system dark mode for course card palettes
     val today = LocalDate.now()
     val todayDayOfWeek = today.dayOfWeek.value // Mon=1 ... Sun=7
     val snackbarHostState = remember { SnackbarHostState() }

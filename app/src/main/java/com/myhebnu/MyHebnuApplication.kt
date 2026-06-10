@@ -9,6 +9,8 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.myhebnu.widget.ScheduleWidgetWorker
+import com.myhebnu.worker.ClassReminderWorker
+import com.myhebnu.worker.ExamReminderWorker
 import dagger.hilt.android.HiltAndroidApp
 import java.time.LocalTime
 import java.time.temporal.ChronoUnit
@@ -21,6 +23,8 @@ class MyHebnuApplication : Application() {
         super.onCreate()
         createNotificationChannels()
         scheduleWidgetMidnightRefresh()
+        scheduleClassReminder()
+        scheduleExamReminder()
     }
 
     private fun createNotificationChannels() {
@@ -77,6 +81,55 @@ class MyHebnuApplication : Application() {
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "schedule_widget_midnight",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    /**
+     * Schedule a 15-minute periodic check for upcoming classes.
+     * Initial delay aligns to the next 15-minute clock boundary.
+     */
+    private fun scheduleClassReminder() {
+        val now = LocalTime.now()
+        val minute = now.minute
+        val next15 = ((minute / 15) + 1) * 15
+        val nextCheck = now.withMinute(0).withSecond(0).withNano(0).plusMinutes(next15.toLong())
+        var delayMs = ChronoUnit.MILLIS.between(now, nextCheck)
+        if (delayMs <= 0) delayMs += 15 * 60 * 1000L
+
+        val request = PeriodicWorkRequestBuilder<ClassReminderWorker>(15, TimeUnit.MINUTES)
+            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .build()
+            )
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "class_reminder_periodic",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+    }
+
+    /**
+     * Schedule a 60-minute periodic check for upcoming exams.
+     * First check fires after a 5-minute initial delay.
+     */
+    private fun scheduleExamReminder() {
+        val request = PeriodicWorkRequestBuilder<ExamReminderWorker>(60, TimeUnit.MINUTES)
+            .setInitialDelay(5, TimeUnit.MINUTES)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .build()
+            )
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "exam_reminder_periodic",
             ExistingPeriodicWorkPolicy.KEEP,
             request
         )

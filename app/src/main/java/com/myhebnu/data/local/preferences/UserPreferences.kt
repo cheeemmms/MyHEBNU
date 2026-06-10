@@ -1,12 +1,15 @@
 package com.myhebnu.data.local.preferences
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,6 +37,7 @@ class UserPreferences @Inject constructor(
         val CUSTOM_PRESETS_JSON = stringPreferencesKey("custom_presets_json")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
         val AUTO_CHECK_UPDATE = booleanPreferencesKey("auto_check_update")
+        val SENT_REMINDERS = stringPreferencesKey("sent_reminders")
     }
 
     val currentSemesterYear: Flow<String> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_YEAR] ?: "2025" }
@@ -52,6 +56,15 @@ class UserPreferences @Inject constructor(
     val customPresetsJson: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PRESETS_JSON] ?: "[]" }
     val dismissedUpdateVersion: Flow<String> = context.dataStore.data.map { it[Keys.DISMISSED_UPDATE_VERSION] ?: "" }
     val autoCheckUpdate: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CHECK_UPDATE] ?: true }
+
+    /** Notification dedup set. Each line is "type|id|yyyy-MM-dd". */
+    val sentReminders: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        (prefs[Keys.SENT_REMINDERS] ?: "")
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+    }
 
     suspend fun setCurrentSemester(year: String, term: String) {
         context.dataStore.edit {
@@ -114,5 +127,45 @@ class UserPreferences @Inject constructor(
 
     suspend fun setAutoCheckUpdate(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_CHECK_UPDATE] = enabled }
+    }
+
+    /**
+     * Record a sent reminder key to prevent duplicate notifications.
+     * Automatically triggers expiry cleanup of old entries.
+     */
+    suspend fun addSentReminder(key: String) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[Keys.SENT_REMINDERS] ?: "")
+                .lines()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toMutableList()
+            if (key !in current) {
+                current.add(key)
+            }
+            // Cleanup: remove expired entries and cap at 500
+            val today = LocalDate.now()
+            val cleaned = cleanExpiredReminders(current, today)
+            prefs[Keys.SENT_REMINDERS] = cleaned.joinToString("\n")
+        }
+    }
+
+    /**
+     * Remove entries whose date (last segment of the key) is before [today],
+     * then cap at 500 entries (keep the newest).
+     */
+    private fun cleanExpiredReminders(keys: List<String>, today: LocalDate): List<String> {
+        val valid = keys.filter { key ->
+            val parts = key.split("|")
+            if (parts.size < 3) return@filter true // malformed — keep
+            val dateStr = parts.last()
+            try {
+                val date = LocalDate.parse(dateStr)
+                date >= today
+            } catch (_: Exception) {
+                true // unparseable — keep
+            }
+        }
+        return if (valid.size > 500) valid.takeLast(500) else valid
     }
 }

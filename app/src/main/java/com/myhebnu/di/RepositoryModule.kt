@@ -1,6 +1,7 @@
 package com.myhebnu.di
 
 import android.content.Context
+import com.myhebnu.data.local.db.dao.ExamDao
 import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.preferences.CredentialManager
 import com.myhebnu.data.local.preferences.UserPreferences
@@ -69,8 +70,9 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideExamRepository(
-        api: EASystemApi
-    ): ExamRepository = ExamRepository(api)
+        api: EASystemApi,
+        dao: ExamDao
+    ): ExamRepository = ExamRepository(api, dao)
 
     @Provides
     @Singleton

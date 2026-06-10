@@ -104,6 +104,22 @@
     <string name="notification_update_title">New version %s available</string>
     <string name="notification_update_body">Tap to view update details</string>
     <string name="notification_update_dismiss">Ignore this version</string>
+
+    <!-- Class Reminder Notification -->
+    <string name="notification_class_title">Class Reminder</string>
+    <string name="notification_class_body">%1$s | %2$s | %3$s</string>
+    <string name="notification_class_body_big">Course: %1$s\nClassroom: %2$s\nTeacher: %3$s\nTime: %4$s - %5$s</string>
+
+    <!-- Exam Reminder Notification - Day Before -->
+    <string name="notification_exam_day_title">📝 Exam Tomorrow</string>
+    <string name="notification_exam_day_body">%1$s | %2$s | %3$s</string>
+    <string name="notification_exam_day_body_big">Exam: %1$s\nTime: %2$s\nLocation: %3$s\nSeat: %4$s</string>
+
+    <!-- Exam Reminder Notification - Hour Before -->
+    <string name="notification_exam_hour_title">⏰ Exam Starting Soon</string>
+    <string name="notification_exam_hour_body">%1$s | %2$s | %3$s</string>
+    <string name="notification_exam_hour_body_big">Exam: %1$s\nTime: %2$s\nLocation: %3$s\nSeat: %4$s</string>
+
     <string name="version_placeholder">yonglin200608@163.com</string>
     <string name="qq_placeholder">682677205</string>
 

@@ -100,6 +100,22 @@
     <string name="notification_update_title">发现新版本 %s</string>
     <string name="notification_update_body">点击查看更新详情</string>
     <string name="notification_update_dismiss">忽略此版本</string>
+
+    <!-- Class Reminder Notification -->
+    <string name="notification_class_title">上课提醒</string>
+    <string name="notification_class_body">%1$s | %2$s | %3$s</string>
+    <string name="notification_class_body_big">课程: %1$s\n教室: %2$s\n教师: %3$s\n时间: %4$s - %5$s</string>
+
+    <!-- Exam Reminder Notification - Day Before -->
+    <string name="notification_exam_day_title">📝 明天有考试</string>
+    <string name="notification_exam_day_body">%1$s | %2$s | %3$s</string>
+    <string name="notification_exam_day_body_big">考试: %1$s\n时间: %2$s\n地点: %3$s\n座位号: %4$s</string>
+
+    <!-- Exam Reminder Notification - Hour Before -->
+    <string name="notification_exam_hour_title">⏰ 考试即将开始</string>
+    <string name="notification_exam_hour_body">%1$s | %2$s | %3$s</string>
+    <string name="notification_exam_hour_body_big">考试: %1$s\n时间: %2$s\n地点: %3$s\n座位号: %4$s</string>
+
     <string name="version_placeholder">yonglin200608@163.com</string>
     <string name="qq_placeholder">682677205</string>
 

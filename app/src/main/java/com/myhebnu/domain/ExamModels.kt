@@ -12,6 +12,7 @@ import java.time.temporal.ChronoUnit
  * which has the format: "2026-07-15(08:30-10:30)".
  */
 data class Exam(
+    val id: String,              // 考试安排编号 sjbh (含学年学期，跨学期唯一)
     val courseName: String,
     val examDate: LocalDate,
     val startTime: LocalTime?,

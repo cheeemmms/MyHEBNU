@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-06-10 | 状态: Widget 全部完成 ✅。6 个 batch 覆盖样式→对标→逻辑→深色→预览图。
+> 最后更新: 2026-06-10 | 状态: Phase 7 全部完成 ✅。Widget + 上课提醒 + 考试提醒全部就位。
 
 ---
 
@@ -9,7 +9,7 @@
 ```
 Phase 0         Phase 1        Phase 2        Phase 3        Phase 4        Phase 5        Phase 6        Phase 7        Phase 8
  侦察            骨架           认证           课表           成绩           空教室         考试           Widget+通知     打磨
-[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [🔄 进行中]    [⏳ 待开始]
+[✅ 已完成]     [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已完成]    [✅ 已验收]    [✅ 已完成]    [✅ 已验收]    [⏳ 待开始]
 
 → 课表 + 成绩 + 空教室 在真机（小米15 / Android 16）上验证通过
 → Batch 1 (P0) 完成：空教室查询闪退修复 + 登录数据丢失修复
@@ -294,8 +294,8 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | # | 任务 | 状态 | 备注 |
 |----|------|------|------|
 | 7.1 | 课表 Widget (Glance) | ✅ 已完成 | 4 种尺寸全通过 — 根因是 MIUI RemoteViews 膨胀器把 Int 当资源 ID（非 API 问题），全量改 `R.dimen.*`/`R.color.*` 解决，详见 [[glance-api-research]] |
-| 7.2 | 上课提醒通知 | ⏳ 待开始 | — |
-| 7.3 | 考试提醒通知 | ⏳ 待开始 | — |
+| 7.2 | 上课提醒通知 | ✅ 已完成 | ClassReminderWorker (15min周期) + ReminderManager — 读Room课程+内存节次表→15分钟窗口检测→通知+DataStore去重 |
+| 7.3 | 考试提醒通知 | ✅ 已完成 | ExamReminderWorker (60min周期) + ExamEntity Room缓存 — 读Room考试缓存→前一天/前1小时检测→通知+去重 |
 
 ### 7.1 交付物
 
@@ -303,6 +303,13 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 - **核心修复**：所有 Glance 维度值 (size/width/height/padding/cornerRadius) 改用 `@DimenRes` 资源引用；所有颜色改用 `ResourceColorProvider(R.color.xxx)`；加 `previewImage` 防止 MIUI 桌面超时
 - **真机验证**：小米15/Android 16/MIUI 桌面 — Widget 显示课表数据、点击跳转 App 均正常
 - **错诊纠正**：此前 `provideContent` 不存在等判断均为误判，代码在 Glance 1.1.1 上完全可编译
+
+### 7.2 + 7.3 交付物
+
+- **新文件 (6)**：ExamEntity.kt + ExamDao.kt + ReminderEntryPoint.kt + ReminderManager.kt + ClassReminderWorker.kt + ExamReminderWorker.kt
+- **修改文件 (9)**：ExamModels.kt (id字段) + AppDatabase.kt (v3+ExamEntity) + Migrations.kt (2→3) + DatabaseModule.kt (ExamDao) + ExamRepository.kt (write-through+转换) + RepositoryModule.kt + UserPreferences.kt (sentReminders去重) + MyHebnuApplication.kt (2个schedule方法) + strings.xml (zh+en)
+- **核心架构**：考试数据 Room 持久化（主键=`$year-$term-$sjbh`，索引 semesterYear+semesterTerm）；通知模块纯只读（Worker→Room→判断→通知，零API、零同步）；DataStore 去重+自动过期清理；Worker 所有异常内部消化→始终返回 Result.success() 保持周期存活
+- **编译状态**：BUILD SUCCESSFUL，零错误
 
 ---
 
@@ -631,6 +638,13 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → S1-3 | `ScheduleMediumWidget.kt`: MediumHasCourses 标题→课程间距 `height(6→10)` | |
 | → S1-4 | `ScheduleLargeListWidget.kt`: 目视确认无需改动 (36dp 时间列 + 12sp 字号比例合适) | |
 | → | 共 2 files, 4 lines. 编译零错误通过. | |
+| **2026-06-09** | **| **2026-06-10** | **Phase 7.2 + 7.3: 上课提醒 + 考试提醒通知** | **里程碑** |
+| → | 考试 Room 持久化: ExamEntity + ExamDao + MIGRATION_2_3 + ExamRepository write-through | 数据层 |
+| → | 上课提醒: ClassReminderWorker (15min) → Room课程+内存节次表 → 15min窗口 → 通知+DataStore去重 | 功能 |
+| → | 考试提醒: ExamReminderWorker (60min) → Room考试缓存 → 前一天/前1h → 通知+去重 | 功能 |
+| → | 通知去重: UserPreferences sentReminders + 过期清理 + 上限500 | 基础设施 |
+| → | Worker: 所有异常内部消化 → Result.success() 保持 PeriodicWork 存活 | 可靠性 |
+| → | 共 6 new + 9 modified files. 编译 BUILD SUCCESSFUL. | |
 | **2026-06-09** | **Phase 7.1 Widget 修复 — MIUI 兼容性** | **里程碑** |
 | → 诊断 | 此前 `provideContent` 等误判全部推翻：javap 反编译确认 Glance 1.1.1 API 完整可用，代码可编译 | |
 | → 根因 | MIUI RemoteViews 膨胀器把所有 Int 参数当 `@DimenRes`/`@ColorRes` 资源 ID 查表（非 Glance API 问题） | |

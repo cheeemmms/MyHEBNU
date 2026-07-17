@@ -77,11 +77,19 @@ class MainActivity : ComponentActivity() {
                 useCustomColors = useCustomColors,
                 seedHue = seedHue
             ) {
-                MyHEBNUApp(
-                    authRepository = authRepository,
-                    preferences = preferences,
-                    pendingNavigation = pendingNavigation
-                )
+                // Opaque backdrop prevents the system window background from
+                // bleeding through during the loading/welcome/login phases.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background)
+                ) {
+                    MyHEBNUApp(
+                        authRepository = authRepository,
+                        preferences = preferences,
+                        pendingNavigation = pendingNavigation
+                    )
+                }
             }
         }
     }

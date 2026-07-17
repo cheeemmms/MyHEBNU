@@ -22,4 +22,7 @@
     <color name="widget_course_green">#FF69F0AE</color>
     <color name="widget_course_blue">#FF448AFF</color>
     <color name="widget_course_purple">#FFB388FF</color>
+
+    <!-- Cold-start window background — matches MD3 dark background to avoid white flash -->
+    <color name="launch_bg">#FF1C1B1F</color>
 </resources>

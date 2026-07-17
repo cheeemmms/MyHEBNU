@@ -35,7 +35,7 @@ class GradeRepository @Inject constructor(
             }
 
             // Step 3: 获取成绩数据
-            val response = api.getGradeList(year = year, semester = term)
+            val response = api.getGradeList(year = year, semester = term, showCount = "1000")
             if (!response.isSuccessful) {
                 return Result.failure(Exception("HTTP ${response.code()}"))
             }

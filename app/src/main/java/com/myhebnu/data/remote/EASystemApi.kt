@@ -62,6 +62,8 @@ interface EASystemApi {
     suspend fun getGradeList(
         @Field("xnm") year: String,
         @Field("xqm") semester: String,
+        @Field("queryModel.showCount") showCount: String = "1000",
+        @Field("queryModel.currentPage") currentPage: String = "1",
         @Query("gnmkdm") moduleCode: String = "N305007"
     ): Response<JsonObject>
 

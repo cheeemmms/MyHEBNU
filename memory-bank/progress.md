@@ -360,7 +360,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **24** | 欢迎页 GitHub 链接错误 | 🟢 已修复 | 欢迎页 | 管理员核实 `cheeemmms/MyHEBNU` 链接正确（与 About 页一致），无需改动 |
 | **25** | 首页预览需等待 1-2 秒才出现 | 🔴 已定位 | 首页/性能 | **机制确认：每次开 App `HomeViewModel.loadHomeData()` 均重拉服务器**——`fetchPeriods`(API) + `getExams`(API) + `getAllGrades`(连查 4 学期 API)；`isLoading` 门控显示，须等全部网络往返完成。本地缓存未被首页利用：课表读 Room✅、考试有 Room 缓存但首页用网络 `getExams`❌、成绩**无任何 Room 缓存**❌（GradeRepository 无 DAO）。详见下方「#25 加载机制与消除等待方案」 |
 | **26** | 欢迎页/登录页未适配深色模式 | 🟢 已修复 | 启动/主题 | 管理员真机核实两页已正确适配深色模式（均用 `MaterialTheme.colorScheme`），原现象与 #22 同源于冷启动白闪 |
-| **27** | 成绩页只显示约 10 门课程 | 🔴 已定位 | 成绩 | `EASystemApi.getGradeList` 缺 `queryModel.showCount` 分页参数（空教室 #7a 同因）；教务系统默认仅返回首页 ≈10 条 |
+| **27** | 成绩页只显示约 10 门课程 | 🟡 已实施待验收 | 成绩 | `EASystemApi.getGradeList` 缺 `queryModel.showCount`（空教室 #7a 同因）；已补 `showCount="1000"` 全取 + `GradeRepository` 显式传入；UI 不改。**待用户在 Android Studio 编译 + 真机验收** |
 | **28** | 小组件课程时间有误 | 🔴 已定位 | 小组件 | 小组件 `loadPeriodTimes` 用硬编码节次表；App 主程序 `fetchPeriods()` 拉真实节次仅存内存，Glance 独立进程取不到 → 永远用错表 |
 | **29** | （新功能）查看已公布的下学期课表 | 🟢 已定案 | 课表/新功能 | 管理员否决"选择器"与"自动切全局"；**已定案临时预览(Peek)方案**（见「#29 修订」）。下学期推算：`[3,12,16]` 顺序取下一项（见 #30 学期枚举）|
 | **30** | 课表数据驱动化 / 小学期适配 | 🟢 已立项 | 课表/结构性 | HAR 查明：学期下拉=HTML `<select>`、**无独立 JSON 列表接口**；且 **term 码 `16`=第三学期/小学期已内置**。据此改为：学期枚举 `[3,12,16]`(含小学期) + 天数数据驱动(max xqj) + 节次持久化共用 + 周数动态。详见「硬编码清单 & 小学期适配评估(修订)」|
@@ -682,7 +682,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 
 | # | 问题 | 根因置信度 | 根因定位 | 关键文件 |
 |---|------|-----------|---------|---------|
-| 27 | 成绩只显示约 10 门 | 🔴 高 | `getGradeList` 缺 `queryModel.showCount`（与空教室 #7a 同因，教务系统默认仅返首页） | `EASystemApi.kt:62` |
+| 27 | 成绩只显示约 10 门 | 🟡 已实施 | `getGradeList` 缺 `queryModel.showCount`（与空教室 #7a 同因）；已补 `showCount="1000"` 全取 + `GradeRepository` 显式传入；UI 不改。**待用户 AS 编译 + 真机验收** | `EASystemApi.kt:62` |
 | 28 | 小组件课程时间有误 | 🔴 高 | 小组件 `loadPeriodTimes` 硬编码节次表；App `fetchPeriods()` 真实节次仅存内存，Glance 独立进程取不到 | `ScheduleWidgetData.kt:236` |
 | 24 | 欢迎页 GitHub 链接错误 | 🟢 已修复 | 管理员核实链接正确（与 About 一致），无需改动 | `WelcomeScreen.kt:20` |
 | 25 | 首页预览需等 1-2s 才出现 | 🔴 已定位 | 每次开 App `loadHomeData` 重拉服务器（fetchPeriods+getExams+getAllGrades[×4 学期]）；`isLoading` 门控；本地缓存未被首页利用（考试 Room 缓存未用、成绩无 Room 缓存） | `HomeViewModel.kt:76` |

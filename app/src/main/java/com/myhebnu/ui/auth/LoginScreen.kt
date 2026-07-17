@@ -1,12 +1,6 @@
 package com.myhebnu.ui.auth
 
 import android.annotation.SuppressLint
-import android.webkit.ConsoleMessage
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.InfiniteRepeatableSpec
@@ -64,14 +58,6 @@ fun LoginScreen(
         if (uiState.isLoggedIn) {
             onLoginSuccess()
         }
-    }
-
-    if (uiState.showWebViewFallback) {
-        WebViewFallbackScreen(
-            loginUrl = uiState.loginUrl,
-            viewModel = viewModel
-        )
-        return
     }
 
     val focusManager = LocalFocusManager.current
@@ -432,128 +418,3 @@ private fun PasswordCapsuleField(
     )
 }
 
-// ============================================================
-// WebView fallback (used from Settings → 浏览器登录)
-// ============================================================
-
-@SuppressLint("SetJavaScriptEnabled")
-@Suppress("DEPRECATION")
-@Composable
-fun WebViewFallbackScreen(
-    loginUrl: String,
-    viewModel: LoginViewModel
-) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = viewModel::hideWebViewFallback) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "返回")
-                }
-                Text(
-                    text = "浏览器登录",
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-        }
-
-        AndroidView(
-            factory = { context ->
-                WebView(context).apply {
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.databaseEnabled = true
-                    settings.allowContentAccess = true
-                    settings.allowFileAccess = true
-                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                    settings.blockNetworkLoads = false
-                    settings.blockNetworkImage = false
-
-                    @Suppress("DEPRECATION")
-                    settings.safeBrowsingEnabled = false
-                    settings.cacheMode = WebSettings.LOAD_DEFAULT
-                    settings.setGeolocationEnabled(false)
-                    settings.mediaPlaybackRequiresUserGesture = false
-                    settings.setSupportZoom(true)
-                    settings.builtInZoomControls = true
-                    settings.displayZoomControls = false
-                    settings.loadWithOverviewMode = true
-                    settings.useWideViewPort = true
-                    settings.textZoom = 100
-
-                    settings.userAgentString =
-                        "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-
-                    webChromeClient = object : WebChromeClient() {
-                        override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
-                            android.util.Log.e(
-                                "MyHEBNU",
-                                "JS [${msg.messageLevel()}] ${msg.sourceId()}:${msg.lineNumber()} — ${msg.message()}"
-                            )
-                            return true
-                        }
-                    }
-
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageStarted(
-                            view: WebView?, url: String?,
-                            favicon: android.graphics.Bitmap?
-                        ) {
-                            android.util.Log.w("MyHEBNU", "onPageStarted: $url")
-                        }
-
-                        override fun shouldOverrideUrlLoading(
-                            view: WebView?,
-                            request: WebResourceRequest?
-                        ): Boolean {
-                            request?.url?.toString()?.let { url ->
-                                android.util.Log.w("MyHEBNU", "shouldOverrideUrlLoading: $url")
-                                viewModel.onWebViewUrlChanged(url)
-                            }
-                            return false
-                        }
-
-                        @Suppress("DEPRECATION")
-                        @Deprecated("Deprecated in Java")
-                        override fun shouldOverrideUrlLoading(
-                            view: WebView?, url: String?
-                        ): Boolean {
-                            android.util.Log.w("MyHEBNU", "shouldOverrideUrlLoading(dep): $url")
-                            url?.let { viewModel.onWebViewUrlChanged(it) }
-                            return false
-                        }
-
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            android.util.Log.w("MyHEBNU", "onPageFinished: $url")
-                            url?.let { viewModel.onWebViewUrlChanged(it) }
-                        }
-
-                        override fun onReceivedError(
-                            view: WebView?,
-                            request: WebResourceRequest?,
-                            error: android.webkit.WebResourceError?
-                        ) {
-                            val desc = error?.description?.toString()
-                            val errUrl = request?.url?.toString()
-                            android.util.Log.e("MyHEBNU", "onReceivedError: $desc url=$errUrl")
-                            viewModel.onWebViewError(desc)
-                        }
-                    }
-
-                    loadUrl(loginUrl)
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}

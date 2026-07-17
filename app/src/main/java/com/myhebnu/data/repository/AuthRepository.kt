@@ -22,7 +22,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Handles SSO authentication — both WebView-based (fallback) and custom login.
+ * Handles SSO authentication for the custom login flow.
  *
  * Custom login flow (from HAR reverse-engineering):
  *   1. GET  login_slogin.html          → parse csrftoken from HTML
@@ -43,11 +43,6 @@ class AuthRepository @Inject constructor(
     companion object {
         // Mobile-friendly login page
         const val LOGIN_URL = "http://jwgl.hebtu.edu.cn/xtgl/login_slogin.html?ydType=0"
-
-        // Success indicator URL after login completes
-        const val LOGIN_SUCCESS_PATH = "/xtgl/index_initMenu.html"
-
-        val LOGIN_SUCCESS_INDICATORS = listOf(LOGIN_SUCCESS_PATH)
 
         // Domain for cookie transfer
         const val JWGL_DOMAIN = "jwgl.hebtu.edu.cn"
@@ -386,46 +381,6 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    // ============================================================
-    // WebView login (existing — fallback)
-    // ============================================================
-
-    suspend fun onWebViewLoginSuccess() {
-        android.util.Log.w("MyHEBNU", "=== onWebViewLoginSuccess 开始 ===")
-        val cookieManager = CookieManager.getInstance()
-
-        val jwglCookies = cookieManager.getCookie("http://$JWGL_DOMAIN/") ?: ""
-        val casCookies = cookieManager.getCookie("http://$CAS_DOMAIN/") ?: ""
-
-        android.util.Log.w("MyHEBNU", "从WebView获取的cookies:")
-        android.util.Log.w("MyHEBNU", "  jwglCookies=$jwglCookies")
-        android.util.Log.w("MyHEBNU", "  casCookies=$casCookies")
-
-        transferCookies(casCookies, CAS_DOMAIN)
-        transferCookies(jwglCookies, JWGL_DOMAIN)
-
-        val allCookies = mutableMapOf<String, String>()
-        parseCookieString(jwglCookies).forEach { (name, value) ->
-            allCookies["${JWGL_DOMAIN}_$name"] = value
-        }
-        parseCookieString(casCookies).forEach { (name, value) ->
-            allCookies["${CAS_DOMAIN}_$name"] = value
-        }
-
-        android.util.Log.w("MyHEBNU", "准备保存到SessionManager的cookies: $allCookies")
-        sessionManager.saveCookies(allCookies)
-
-        preferences.setLoggedIn(true)
-        authInterceptor.resetExpiredFlag()
-        android.util.Log.w("MyHEBNU", "=== onWebViewLoginSuccess 完成 ===")
-    }
-
-    fun isLoginSuccessUrl(url: String): Boolean {
-        return LOGIN_SUCCESS_INDICATORS.any { url.contains(it) }
-    }
-
-    fun getLoginUrl(): String = LOGIN_URL
-
     suspend fun logout() {
         credentialManager.clearCredentials()
         val cookieManager = CookieManager.getInstance()
@@ -463,35 +418,6 @@ class AuthRepository @Inject constructor(
         val endQuote = json.indexOf('"', startQuote + 1)
         if (endQuote < 0) return null
         return json.substring(startQuote + 1, endQuote)
-    }
-
-    private fun transferCookies(cookieString: String, domain: String) {
-        val cookies = parseCookieString(cookieString)
-        val url = "http://$domain/".toHttpUrl()
-        for ((name, value) in cookies) {
-            val cookie = Cookie.Builder()
-                .name(name)
-                .value(value)
-                .domain(domain)
-                .path("/")
-                .build()
-            cookieJar.saveFromResponse(url, listOf(cookie))
-        }
-    }
-
-    private fun parseCookieString(cookieString: String): Map<String, String> {
-        if (cookieString.isBlank()) return emptyMap()
-        val result = mutableMapOf<String, String>()
-        cookieString.split(";").forEach { part ->
-            val trimmed = part.trim()
-            val eqIndex = trimmed.indexOf('=')
-            if (eqIndex > 0) {
-                val name = trimmed.substring(0, eqIndex)
-                val value = trimmed.substring(eqIndex + 1)
-                result[name] = value
-            }
-        }
-        return result
     }
 }
 

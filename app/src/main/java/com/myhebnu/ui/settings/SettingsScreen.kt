@@ -23,7 +23,6 @@ import com.myhebnu.R
 fun SettingsScreen(
     onBack: () -> Unit,
     onNavigateToAdvanced: () -> Unit,
-    onNavigateToWebViewLogin: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel()
@@ -123,15 +122,6 @@ fun SettingsScreen(
                 SettingsNavigateItem(
                     title = stringResource(R.string.settings_advanced),
                     onClick = onNavigateToAdvanced
-                )
-            }
-
-            // ═══ Account ═══
-            SettingsSectionHeader(title = "账号")
-            SettingsCard {
-                SettingsNavigateItem(
-                    title = "浏览器登录",
-                    onClick = onNavigateToWebViewLogin
                 )
             }
 

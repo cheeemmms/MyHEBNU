@@ -24,7 +24,6 @@ import com.myhebnu.ui.about.AboutScreen
 import com.myhebnu.ui.about.SystemUpdateScreen
 import com.myhebnu.ui.auth.LoginScreen
 import com.myhebnu.ui.auth.LoginViewModel
-import com.myhebnu.ui.auth.WebViewFallbackScreen
 import com.myhebnu.ui.exam.ExamScreen
 import com.myhebnu.ui.grade.GradeScreen
 import com.myhebnu.ui.home.HomeScreen
@@ -279,7 +278,6 @@ fun MainAppContent(
                 TopLevelRoute.SettingsRoute.route -> SettingsScreen(
                     onBack = { goBack() },
                     onNavigateToAdvanced = { navigateTo("advanced_settings") },
-                    onNavigateToWebViewLogin = { navigateTo("webview_login") },
                     onNavigateToAbout = { navigateTo("about") }
                 )
 
@@ -291,39 +289,6 @@ fun MainAppContent(
                 "color_theme" -> ColorThemeScreen(
                     onBack = { goBack() }
                 )
-
-                "webview_login" -> {
-                    val loginVm: LoginViewModel = hiltViewModel()
-                    val webViewLoginState by loginVm.uiState.collectAsState()
-
-                    LaunchedEffect(Unit) {
-                        loginVm.setupWebViewLogin()
-                    }
-
-                    // When WebView login succeeds, clear stack and go home
-                    LaunchedEffect(webViewLoginState.isLoggedIn) {
-                        if (webViewLoginState.isLoggedIn) {
-                            backStack.clear()
-                            currentRoute = TopLevelRoute.Home.route
-                        }
-                    }
-
-                    // WebView toolbar back arrow → hideWebViewFallback() → observe and goBack()
-                    var webViewReady by remember { mutableStateOf(false) }
-                    LaunchedEffect(webViewLoginState.showWebViewFallback) {
-                        if (webViewReady && !webViewLoginState.showWebViewFallback) {
-                            goBack()
-                        }
-                        if (webViewLoginState.showWebViewFallback) {
-                            webViewReady = true
-                        }
-                    }
-
-                    WebViewFallbackScreen(
-                        loginUrl = webViewLoginState.loginUrl,
-                        viewModel = loginVm
-                    )
-                }
 
                 "about" -> AboutScreen(
                     onBack = { goBack() },

@@ -25,8 +25,7 @@ data class LoginUiState(
     val loginUrl: String = "",
     val errorMessage: String? = null,
     val showCaptcha: Boolean = false,
-    val captchaBitmap: ImageBitmap? = null,
-    val showWebViewFallback: Boolean = false
+    val captchaBitmap: ImageBitmap? = null
 )
 
 @HiltViewModel
@@ -53,10 +52,9 @@ class LoginViewModel @Inject constructor(
             val hasSession = authRepository.hasValidSession()
             _uiState.update {
                 it.copy(
-                    isLoading = false,
-                    isLoggedIn = hasSession,
-                    loginUrl = if (!hasSession) authRepository.getLoginUrl() else ""
-                )
+                isLoading = false,
+                isLoggedIn = hasSession
+            )
             }
             // Pre-fill saved credentials if available
             if (!hasSession) {
@@ -147,58 +145,6 @@ class LoginViewModel @Inject constructor(
                 val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                 _uiState.update { it.copy(captchaBitmap = bmp?.asImageBitmap()) }
             }
-        }
-    }
-
-    fun showWebViewFallback() {
-        _uiState.update {
-            it.copy(
-                showWebViewFallback = true,
-                loginUrl = authRepository.getLoginUrl()
-            )
-        }
-    }
-
-    fun hideWebViewFallback() {
-        _uiState.update { it.copy(showWebViewFallback = false) }
-    }
-
-    fun setupWebViewLogin() {
-        _uiState.update {
-            it.copy(
-                showWebViewFallback = true,
-                loginUrl = authRepository.getLoginUrl()
-            )
-        }
-    }
-
-    // === WebView callbacks (for fallback) ===
-
-    fun onWebViewUrlChanged(url: String) {
-        if (authRepository.isLoginSuccessUrl(url)) {
-            viewModelScope.launch {
-                try {
-                    authRepository.onWebViewLoginSuccess()
-                    // Also save credentials from the custom login fields if available
-                    val state = _uiState.value
-                    if (state.username.isNotBlank() && state.password.isNotBlank()) {
-                        credentialManager.saveCredentials(state.username, state.password)
-                    }
-                    _uiState.update {
-                        it.copy(isLoggedIn = true, showWebViewFallback = false)
-                    }
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(errorMessage = e.message ?: "登录失败")
-                    }
-                }
-            }
-        }
-    }
-
-    fun onWebViewError(errorDescription: String?) {
-        _uiState.update {
-            it.copy(errorMessage = errorDescription ?: "登录失败")
         }
     }
 

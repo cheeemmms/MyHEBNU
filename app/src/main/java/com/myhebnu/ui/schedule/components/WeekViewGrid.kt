@@ -46,7 +46,9 @@ fun WeekViewGrid(
     modifier: Modifier = Modifier
 ) {
     val columns = dayLabels.size
-    val timeColumnWidth = 40.dp
+    // Narrower time column when 7 columns are shown (weekend toggle on) to keep
+    // course cells wide; 36.dp for the default 5-column layout stays readable.
+    val timeColumnWidth = if (columns >= 7) 28.dp else 36.dp
     val gridLineAlpha = 0.2f
     val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = gridLineAlpha)
     val totalPeriods = periodLabels.size
@@ -139,7 +141,7 @@ fun WeekViewGrid(
                                         Text(
                                             periodLabels[periodIdx].startTime,
                                             style = MaterialTheme.typography.labelSmall,
-                                            fontSize = 9.sp,
+                                            fontSize = 8.5.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }

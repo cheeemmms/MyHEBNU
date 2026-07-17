@@ -366,8 +366,8 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **30** | 课表数据驱动化 / 小学期适配 | 🟢 已立项 | 课表/结构性 | HAR 查明：学期下拉=HTML `<select>`、**无独立 JSON 列表接口**；且 **term 码 `16`=第三学期/小学期已内置**。据此改为：学期枚举 `[3,12,16]`(含小学期) + 天数数据驱动(max xqj) + 节次持久化共用 + 周数动态。详见「硬编码清单 & 小学期适配评估(修订)」|
 
 | **31** | 设置→高级功能：显示周末列开关 | 🟢 已验收通过 | 设置/UI/课表 | **实施完成（2026-07-17）**：默认隐藏周末（5 列，保持现状）；高级功能加「显示周末列」开关，勾选后网格展开 7 列（周一~周日），周末课（dayOfWeek 6/7）自动跟随教务显示。改动 4 文件：UserPreferences（showWeekendColumns 键/Flow/setter）、ScheduleViewModel（dayLabels 默认 7 + combine 据偏好折叠 5/7）、SettingsViewModel（暴露状态+setter）、AdvancedSettingsScreen（高级菜单加 Switch）。周末列整体一起隐藏/显示以保高亮映射正确。Widget 周末不在范围。验证：AS 编译 + 课表页开关 OFF 5 列 / ON 7 列 |
-| **32** | 课表页面布局优化（收窄节次列） | 🟢 已实施待验收 | 课表/UI | 用户提：7 列会拥挤，需**收窄节次(时间)列**获得更大课程区；顺带优化现有 5 列布局（节次列过宽）。与 #30 7 列方案协同，缓解拥挤。**2026-07-17(7) 实施**：`timeColumnWidth` 由固定 40dp 改为动态——`columns>=7 → 28dp`、否则 `36dp`；节次时间字号 `9sp→8.5sp` 防换行。仅改 `WeekViewGrid.kt` 1 文件，课程卡片区随之变宽。**待 AS 编译 + 课表页验收（5列/7列各看）** |
-| **33** | 课表卡片内容自适应（取消课名2行硬限） | 🟡 已定方案·待#32验收后实施 | 课表/UI/卡片 | 用户反馈：课名 `maxLines=2` 硬限致周末跨节课"拉成长条"、空间浪费。方案（测量驱动，已定）：`CourseCard` 用 `BoxWithConstraints` 读卡片真实高度，减教室/老师固定占用+padding 得课名可用高，动态决课名行数/字号；仅当（课名+位置+老师）总和快超卡片才压缩课名；极紧时教室降级1行。 |
+| **32** | 课表页面布局优化（收窄节次列） | 🟢 已验收通过·已合入main | 课表/UI | 用户提：7 列会拥挤，需**收窄节次(时间)列**获得更大课程区；顺带优化现有 5 列布局（节次列过宽）。与 #30 7 列方案协同，缓解拥挤。**2026-07-17(7) 实施**：`timeColumnWidth` 由固定 40dp 改为动态——`columns>=7 → 28dp`、否则 `36dp`；节次时间字号 `9sp→8.5sp` 防换行。仅改 `WeekViewGrid.kt` 1 文件，课程卡片区随之变宽。**2026-07-17(8) 验收通过 + push(9b83f44)；5列36dp/7列28dp均正常** |
+| **33** | 课表卡片内容自适应（取消课名2行硬限） | 🟢 已实施·agent自编译通过·待用户视觉验收 | 课表/UI/卡片 | 用户反馈：课名 `maxLines=2` 硬限致周末跨节课"拉成长条"、空间浪费。**实施（2026-07-17(9)）**：`CourseCard` 改用 `BoxWithConstraints` 读卡片真实内高 `maxHeight`；减教室(`innerH>=70dp`→2行否则1行)/老师固定占用+gap，得课名可用高→`nameMaxLines=max(1,(available/14dp).toInt())` 动态行数，长卡片自然填满、矮卡片仍紧凑；仅当总和快超才限行，单行仍溢出则 `overflow=Ellipsis`；极矮(`innerH<40dp`)课名10sp略缩。取消原硬限 `maxLines=2`。仅改 `CourseCard.kt`。**修订（2026-07-17(10)）**：初版用 `BoxWithConstraints` 致 `TextStyle` 在该作用域解析异常（报需 `spanStyle`/`paragraphStyle`）；改由父层 `WeekViewGrid` 传 `cardHeight: Dp`（= `rowHeight*spanCount-4.dp`）入参；并弃用 `TextStyle` 构造器、改用 `Text` 原生命名参数（`fontSize`/`fontWeight`/`lineHeight`/`color`，`lineHeight` 用 `sp`）。根因=误用 `LineBreak` 参数 + `lineHeight` 误传 `Dp`（应为 `TextUnit`），致 `TextStyle` 重载解析失败回退错误候选，产生一连串"无 fontWeight/fontSize/lineHeight"误导报错。agent 自行 `compileDebugKotlin` 通过（EXIT=0）。**待用户 AS 课表页视觉验收（重点：周末跨节长卡片课名填满不再空白拉条、单节矮卡片不溢出）** |
 
 ---
 
@@ -510,6 +510,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **2026-07-17 (6)** | **#22 + #31 推送 main：#22 冷启动白闪根治（`launch_bg`+night 主题，`MainActivity` 背景兜底），编译通过已合入；#31「显示周末列」开关（高级功能，默认隐藏周末/5列，开启展开7列）管理员 AS 编译 + 真机验收通过** | **用户验收 + push** |
 | **2026-07-17 (7)** | **#32 实施（待验收）：`WeekViewGrid` 节次列 `timeColumnWidth` 固定40dp→动态（≥7列28dp / 否则36dp），时间字号9sp→8.5sp；课程区随之变宽，与 #31 周末列协同** | **代码实施** |
 | **2026-07-17 (8)** | **#33 立项（待 #32 验收后实施）：课表卡片内容自适应——取消课名2行硬限，测量驱动动态压缩；回应"周末课拉成长条"** | **用户决策** |
+| **2026-07-17 (9)** | **#32 验收通过 + push(`9b83f44`)；#33 实施（待验收）：`CourseCard` 改 `BoxWithConstraints` 测真实内高，`nameMaxLines` 由可用高动态计算，长卡片填满/矮卡片紧凑，取消硬限 `maxLines=2`** | **用户验收 + push + 代码实施** |
 | **2026-06-08** | **Batch 6 扩展 + 新增 Batch 7/8 — 6 项真机反馈评估** | **计划更新** |
 | → | Batch 6 扩展: #6d 系统返回手势退出 + #6e 深色模式闪屏 | 新增 P0/P1 Bug |
 | → | Batch 7 新建: #7a 空教室分页 + #7b 首页上课中状态+倒计时 | 新增 P1 数据+体验 |

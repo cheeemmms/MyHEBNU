@@ -184,6 +184,7 @@ fun WeekViewGrid(
                             course = course,
                             isActive = course.id == activeCourseId,
                             palette = palette,
+                            cardHeight = rowHeight * spanCount - 4.dp,
                             onClick = { onCourseClick(course) },
                             modifier = Modifier
                                 .offset(

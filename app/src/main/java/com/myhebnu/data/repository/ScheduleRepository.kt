@@ -375,6 +375,9 @@ class ScheduleRepository @Inject constructor(
                 if (periods.isNotEmpty()) {
                     cachedPeriods = periods
                     cachedPeriodsSemester = year to term
+                    // Persist real period times so the Glance widget (separate process)
+                    // reads them instead of its hardcoded fallback. Fixes #28.
+                    preferences.setPeriodTimesJson(periodsToJson(periods))
                     android.util.Log.w("MyHEBNU", "fetchPeriods: loaded ${periods.size} periods from API")
                     periods
                 } else {
@@ -434,5 +437,20 @@ class ScheduleRepository @Inject constructor(
             PeriodTime(12, "19:45", "20:35"),
             PeriodTime(13, "20:35", "21:20")
         )
+    }
+
+    /**
+     * Serialize period times to a compact JSON array for cross-process sharing
+     * with the Glance widget (which cannot read this repository's in-memory cache).
+     * Format: [{"period":1,"startTime":"08:00","endTime":"08:45"}, ...]
+     */
+    private fun periodsToJson(periods: List<PeriodTime>): String {
+        val sb = StringBuilder("[")
+        periods.forEachIndexed { i, p ->
+            if (i > 0) sb.append(",")
+            sb.append("{\"period\":${p.period},\"startTime\":\"${p.startTime}\",\"endTime\":\"${p.endTime}\"}")
+        }
+        sb.append("]")
+        return sb.toString()
     }
 }

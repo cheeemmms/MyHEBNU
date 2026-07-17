@@ -3,6 +3,7 @@ package com.myhebnu.widget
 import android.content.Context
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.data.repository.PeriodTime
+import com.google.gson.JsonParser
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
@@ -230,32 +231,56 @@ private fun filterByWeek(courses: List<CourseEntity>, week: Int): List<CourseEnt
 }
 
 /**
- * Load period times from ScheduleRepository's in-memory cache (no API call).
- * Falls back to hardcoded Hebei Normal University 13-period schedule.
+ * Load period times for widget rendering.
+ * Prefers the real timetable persisted by [com.myhebnu.data.repository.ScheduleRepository]
+ * (shared cross-process via DataStore); falls back to the hardcoded Hebei Normal
+ * University 13-period schedule when no persisted data is available. Fixes #28
+ * (widget previously always used the hardcoded table, ignoring the real one).
  */
 private suspend fun loadPeriodTimes(
     ep: ScheduleWidgetEntryPoint,
     year: String,
     term: String
 ): List<PeriodTime> {
-    // Try ScheduleRepository for cached period data (it stores API result in memory)
-    // If unavailable, use the robust hardcoded fallback
-    return listOf(
-        PeriodTime(1, "08:00", "08:45"),
-        PeriodTime(2, "08:45", "09:45"),
-        PeriodTime(3, "09:45", "10:30"),
-        PeriodTime(4, "10:30", "11:20"),
-        PeriodTime(5, "11:20", "12:00"),
-        PeriodTime(6, "14:00", "14:45"),
-        PeriodTime(7, "14:45", "15:35"),
-        PeriodTime(8, "15:35", "16:35"),
-        PeriodTime(9, "16:35", "17:20"),
-        PeriodTime(10, "17:20", "18:05"),
-        PeriodTime(11, "19:00", "19:45"),
-        PeriodTime(12, "19:45", "20:35"),
-        PeriodTime(13, "20:35", "21:20")
-    )
+    val json = ep.userPreferences().periodTimesJson.first()
+    if (json.isNotBlank()) {
+        try {
+            val arr = JsonParser.parseString(json).asJsonArray
+            val list = mutableListOf<PeriodTime>()
+            for (item in arr) {
+                val o = item.asJsonObject
+                list.add(
+                    PeriodTime(
+                        o.get("period")?.asInt ?: 0,
+                        o.get("startTime")?.asString ?: "",
+                        o.get("endTime")?.asString ?: ""
+                    )
+                )
+            }
+            if (list.isNotEmpty()) return list
+        } catch (_: Exception) {
+            android.util.Log.w("MyHEBNU-Widget", "loadPeriodTimes: failed to parse persisted JSON, using fallback")
+        }
+    }
+    return hardcodedPeriods()
 }
+
+/** Hardcoded fallback matching the real河北师大 13-period schedule. */
+private fun hardcodedPeriods(): List<PeriodTime> = listOf(
+    PeriodTime(1, "08:00", "08:45"),
+    PeriodTime(2, "08:45", "09:45"),
+    PeriodTime(3, "09:45", "10:30"),
+    PeriodTime(4, "10:30", "11:20"),
+    PeriodTime(5, "11:20", "12:00"),
+    PeriodTime(6, "14:00", "14:45"),
+    PeriodTime(7, "14:45", "15:35"),
+    PeriodTime(8, "15:35", "16:35"),
+    PeriodTime(9, "16:35", "17:20"),
+    PeriodTime(10, "17:20", "18:05"),
+    PeriodTime(11, "19:00", "19:45"),
+    PeriodTime(12, "19:45", "20:35"),
+    PeriodTime(13, "20:35", "21:20")
+)
 
 fun weekdayLabel(dayOfWeek: Int): String = when (dayOfWeek) {
     1 -> "周一"

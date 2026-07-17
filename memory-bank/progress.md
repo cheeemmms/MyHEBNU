@@ -355,7 +355,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **19** | Widget 1 小时系统刷新周期 | ⚪ 已接受 | Widget-FE | 管理员决定放弃分钟更新, 维持 XML 1 小时间隔 |
 | **20** | ~~Widget 预览图是 XML Shape 纯色块~~ | 🟢 已修复 | Widget-FE | 真机截图经 ffmpeg 缩放为 220×220/440×220/440×440 PNG |
 | **21** | App 内调起 Widget 不可用 | ⚪ 已放弃 | Widget-FE | `requestPinAppWidget` 需小米审核，放弃此功能 |
-| **22** | 启动应用可能闪现欢迎页面 | 🟡 待查 | 启动/主题 | 疑似冷启动 `windowBackground` 非主题色（深色模式白闪），与 #26 同源；需真机复现确认是否 `isFirstLaunch` 持久化异常 |
+| **22** | 启动应用可能闪现欢迎页面 | 🟢 已修复·编译通过·已合入main | 启动/主题 | **根因确认**：冷启动 `windowBackground` 白闪——`themes.xml` 用 `Theme.Material.Light.NoActionBar` 且未设 `windowBackground`，缺 `values-night/themes.xml`；`MyHEBNUApp` 的 null/Loading 分支无背景透白。`isFirstLaunch` 逻辑正常（非根因）。修法=新增 night 主题深色 `windowBackground` + 浅色显式背景 + `MainActivity` 外层 Compose 背景兜底。**2026-07-17：lint 修复（launch_bg 合并为单色名），AS 编译通过；视觉验收（深色冷启动白闪）暂缓，待真机复核** |
 | **23** | 设置中选"浏览器登录"退回桌面 | 🟢 已修复 | 认证/移除功能 | 管理员决策：**直接删除浏览器登录（WebView fallback）功能**（初衷为兜底首页登录，实测首页登录无问题）。已移除 `webview_login` 路由、`WebViewFallbackScreen`、`LoginViewModel` 全部 WebView 回调、`AuthRepository.onWebViewLoginSuccess/isLoginSuccessUrl/getLoginUrl/transferCookies/parseCookieString`、`SettingsScreen` 浏览器登录入口；`LOGIN_URL`/`CookieManager` 保留供自定义登录与 `logout` 使用。编译验证通过 |
 | **24** | 欢迎页 GitHub 链接错误 | 🟢 已修复 | 欢迎页 | 管理员核实 `cheeemmms/MyHEBNU` 链接正确（与 About 页一致），无需改动 |
 | **25** | 首页预览需等待 1-2 秒才出现 | 🔴 已定位 | 首页/性能 | **机制确认：每次开 App `HomeViewModel.loadHomeData()` 均重拉服务器**——`fetchPeriods`(API) + `getExams`(API) + `getAllGrades`(连查 4 学期 API)；`isLoading` 门控显示，须等全部网络往返完成。本地缓存未被首页利用：课表读 Room✅、考试有 Room 缓存但首页用网络 `getExams`❌、成绩**无任何 Room 缓存**❌（GradeRepository 无 DAO）。详见下方「#25 加载机制与消除等待方案」 |
@@ -365,7 +365,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **29** | （新功能）查看已公布的下学期课表 | 🟢 已定案 | 课表/新功能 | 管理员否决"选择器"与"自动切全局"；**已定案临时预览(Peek)方案**（见「#29 修订」）。下学期推算：`[3,12,16]` 顺序取下一项（见 #30 学期枚举）|
 | **30** | 课表数据驱动化 / 小学期适配 | 🟢 已立项 | 课表/结构性 | HAR 查明：学期下拉=HTML `<select>`、**无独立 JSON 列表接口**；且 **term 码 `16`=第三学期/小学期已内置**。据此改为：学期枚举 `[3,12,16]`(含小学期) + 天数数据驱动(max xqj) + 节次持久化共用 + 周数动态。详见「硬编码清单 & 小学期适配评估(修订)」|
 
-| **31** | 设置→高级功能：隐藏周末列开关 | 🟢 已定案(位置) | 设置/UI | 用户决定在 **设置→高级功能** 加"隐藏周末列"开关；默认建议"隐藏**无课**的周末列"(数据安全，避免丢课)；与 #30 的 7 列方案协同（H1）|
+| **31** | 设置→高级功能：显示周末列开关 | 🟢 已验收通过 | 设置/UI/课表 | **实施完成（2026-07-17）**：默认隐藏周末（5 列，保持现状）；高级功能加「显示周末列」开关，勾选后网格展开 7 列（周一~周日），周末课（dayOfWeek 6/7）自动跟随教务显示。改动 4 文件：UserPreferences（showWeekendColumns 键/Flow/setter）、ScheduleViewModel（dayLabels 默认 7 + combine 据偏好折叠 5/7）、SettingsViewModel（暴露状态+setter）、AdvancedSettingsScreen（高级菜单加 Switch）。周末列整体一起隐藏/显示以保高亮映射正确。Widget 周末不在范围。验证：AS 编译 + 课表页开关 OFF 5 列 / ON 7 列 |
 | **32** | 课表页面布局优化（收窄节次列） | 🟡 规划 | 课表/UI | 用户提：7 列会拥挤，需**收窄节次(时间)列**获得更大课程区；顺带优化现有 5 列布局（节次列过宽）。与 #30 7 列方案协同，缓解拥挤 |
 
 ---
@@ -505,6 +505,8 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | **2026-07-17 (2)** | **#29 定案临时预览(Peek)；#30 立项。HAR 二次勘察：学期下拉=HTML `<select>` 无 JSON 接口；term `16`=小学期已内置 → #30 落地降级为"学期枚举[3,12,16]+数据驱动"，比原评估更轻。管理员新提"周末课表跟随教务"(=H1 既定方案)** | **用户决策 + HAR 解析** |
 | **2026-07-17 (4)** | **#23 修复：删除浏览器登录（WebView fallback）功能** — 移除 `webview_login` 路由、`WebViewFallbackScreen`、`LoginViewModel` 全部 WebView 回调、`AuthRepository` 的 `onWebViewLoginSuccess/isLoginSuccessUrl/getLoginUrl/transferCookies/parseCookieString`、`SettingsScreen` 浏览器登录入口；保留 `LOGIN_URL`/`CookieManager`（自定义登录与 `logout` 仍用）。消除退回桌面 bug，并消解 Batch 10 中唯一硬阻塞项 | **用户决策 + 代码删除** |
 | **2026-07-17 (3)** | **新增 UI 决策：① 设置→高级功能 加"隐藏周末列"开关(#31)；② 课表布局优化/收窄节次列缓解7列拥挤(#32)。用户要求给出整体把握与待讨论清单** | **用户决策** |
+| **2026-07-17 (5)** | **#27 推送(main `7775b35`)：成绩列表补 `queryModel.showCount='1000'` 全取；#22 实施(待验收)：冷启动 windowBackground 白闪根治——新增 `values-night/themes.xml` 深色窗口背景、`values/themes.xml` 显式浅色背景、颜色资源、`MainActivity` 外层 Compose 背景兜底** | **用户验收 + 代码实施** |
+| **2026-07-17 (6)** | **#22 + #31 推送 main：#22 冷启动白闪根治（`launch_bg`+night 主题，`MainActivity` 背景兜底），编译通过已合入；#31「显示周末列」开关（高级功能，默认隐藏周末/5列，开启展开7列）管理员 AS 编译 + 真机验收通过** | **用户验收 + push** |
 | **2026-06-08** | **Batch 6 扩展 + 新增 Batch 7/8 — 6 项真机反馈评估** | **计划更新** |
 | → | Batch 6 扩展: #6d 系统返回手势退出 + #6e 深色模式闪屏 | 新增 P0/P1 Bug |
 | → | Batch 7 新建: #7a 空教室分页 + #7b 首页上课中状态+倒计时 | 新增 P1 数据+体验 |
@@ -686,7 +688,7 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | 28 | 小组件课程时间有误 | 🔴 高 | 小组件 `loadPeriodTimes` 硬编码节次表；App `fetchPeriods()` 真实节次仅存内存，Glance 独立进程取不到 | `ScheduleWidgetData.kt:236` |
 | 24 | 欢迎页 GitHub 链接错误 | 🟢 已修复 | 管理员核实链接正确（与 About 一致），无需改动 | `WelcomeScreen.kt:20` |
 | 25 | 首页预览需等 1-2s 才出现 | 🔴 已定位 | 每次开 App `loadHomeData` 重拉服务器（fetchPeriods+getExams+getAllGrades[×4 学期]）；`isLoading` 门控；本地缓存未被首页利用（考试 Room 缓存未用、成绩无 Room 缓存） | `HomeViewModel.kt:76` |
-| 22 | 启动闪现欢迎页面 | 🟡 中 | 疑似冷启动 `windowBackground` 白闪（深色模式），或 `isFirstLaunch` 持久化异常 | `MainActivity.kt:114` |
+| 22 | 启动闪现欢迎页面 | 🟢 高 | **根因=冷启动 windowBackground 白闪**（非 `isFirstLaunch`）：`themes.xml` 用 Light 主题+无 windowBackground，缺 `values-night/themes.xml`；Loading/null 分支无背景透白。修法=night 主题深色 windowBackground + 浅色显式背景 + `MainActivity` 外层 Compose 背景兜底 | `themes.xml` / `MainActivity.kt:75` |
 | 26 | 欢迎/登录未适配深色模式 | 🟢 已修复 | 管理员真机核实已正确适配深色模式 | `Theme.kt` / `WelcomeScreen.kt` |
 | 23 | 浏览器登录退回桌面 | 🟡 低 | 疑似 CAS 重定向外跳系统浏览器 / WebView·cookie 迁移崩溃；`webview_login` 复用同一 LoginViewModel + 双 `isLoggedIn` LaunchedEffect 竞态 | `MainActivity.kt:295` / `AuthRepository.kt` |
 | 29 | 下学期课表（新功能） | 🟡 待决策 | 触发/提示规格已定；自动切学期逻辑待定（建议解耦"发现"与"全局切换"） | `ScheduleRepository.kt` |

@@ -24,6 +24,7 @@ data class SettingsUiState(
     val semesterYear: String = "2025",
     val semesterTerm: String = "12",
     val advancedEnabled: Boolean = false,
+    val showWeekendColumns: Boolean = false,
     val appVersion: String = BuildConfig.VERSION_NAME,
     // Update check
     val updateStatus: UpdateStatus = UpdateStatus.IDLE,
@@ -55,6 +56,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { preferences.currentSemesterYear.collect { v -> _uiState.update { it.copy(semesterYear = v) } } }
         viewModelScope.launch { preferences.currentSemesterTerm.collect { v -> _uiState.update { it.copy(semesterTerm = v) } } }
         viewModelScope.launch { preferences.advancedEnabled.collect { v -> _uiState.update { it.copy(advancedEnabled = v) } } }
+        viewModelScope.launch { preferences.showWeekendColumns.collect { v -> _uiState.update { it.copy(showWeekendColumns = v) } } }
         viewModelScope.launch { preferences.useCustomColors.collect { v -> _uiState.update { it.copy(useCustomColors = v) } } }
         viewModelScope.launch { preferences.activePresetId.collect { presetId ->
             val json = preferences.customPresetsJson.first()
@@ -80,6 +82,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setAdvancedEnabled(enabled: Boolean) {
         viewModelScope.launch { preferences.setAdvancedEnabled(enabled) }
+    }
+
+    fun setShowWeekendColumns(enabled: Boolean) {
+        viewModelScope.launch { preferences.setShowWeekendColumns(enabled) }
     }
 
     // ============================================================

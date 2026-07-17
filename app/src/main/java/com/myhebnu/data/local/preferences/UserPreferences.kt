@@ -37,6 +37,7 @@ class UserPreferences @Inject constructor(
         val CUSTOM_PRESETS_JSON = stringPreferencesKey("custom_presets_json")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
         val AUTO_CHECK_UPDATE = booleanPreferencesKey("auto_check_update")
+        val SHOW_WEEKEND_COLUMNS = booleanPreferencesKey("show_weekend_columns")
         val SENT_REMINDERS = stringPreferencesKey("sent_reminders")
     }
 
@@ -56,6 +57,7 @@ class UserPreferences @Inject constructor(
     val customPresetsJson: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PRESETS_JSON] ?: "[]" }
     val dismissedUpdateVersion: Flow<String> = context.dataStore.data.map { it[Keys.DISMISSED_UPDATE_VERSION] ?: "" }
     val autoCheckUpdate: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CHECK_UPDATE] ?: true }
+    val showWeekendColumns: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_WEEKEND_COLUMNS] ?: false }
 
     /** Notification dedup set. Each line is "type|id|yyyy-MM-dd". */
     val sentReminders: Flow<Set<String>> = context.dataStore.data.map { prefs ->
@@ -127,6 +129,10 @@ class UserPreferences @Inject constructor(
 
     suspend fun setAutoCheckUpdate(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_CHECK_UPDATE] = enabled }
+    }
+
+    suspend fun setShowWeekendColumns(enabled: Boolean) {
+        context.dataStore.edit { it[Keys.SHOW_WEEKEND_COLUMNS] = enabled }
     }
 
     /**

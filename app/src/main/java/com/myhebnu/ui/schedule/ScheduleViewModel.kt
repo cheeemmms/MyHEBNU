@@ -52,6 +52,11 @@ data class PeriodInfo(
     val timeRange: String      // "08:00-09:40" (kept for backward compat)
 )
 
+// Day labels for the schedule grid. Weekend columns are shown only when the
+// user enables "显示周末列"; otherwise only weekdays are displayed.
+private val WEEKDAY_DAY_LABELS = listOf("一", "二", "三", "四", "五")
+private val FULL_DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
+
 @HiltViewModel
 class ScheduleViewModel @Inject constructor(
     private val repository: ScheduleRepository,
@@ -70,6 +75,13 @@ class ScheduleViewModel @Inject constructor(
     private data class ColorPrefs(
         val seedHue: Float?,
         val isDark: Boolean
+    )
+
+    private data class CombinedSchedule(
+        val allCourses: List<CourseEntity>,
+        val filtered: List<CourseEntity>,
+        val colorPrefs: ColorPrefs,
+        val dayLabels: List<String>
     )
 
     private val colorPrefsFlow: Flow<ColorPrefs> = combine(
@@ -158,26 +170,33 @@ class ScheduleViewModel @Inject constructor(
             // ④ combine: Room 课程 + 独立的 displayWeek Flow → 自动过滤
             // 使用独立的 _displayWeek 而不是 _uiState.map{}，避免
             // StateFlow 合并更新时潜在的竞态导致 combine 错过触发信号
-            // ④ combine: Room 课程 + displayWeek + 色彩偏好 → 自动过滤 + 课程色相感知 seedHue
+            // ④ combine: Room 课程 + displayWeek + 色彩偏好 + 周末列开关 → 自动过滤 + 课程色相感知 seedHue
             viewModelScope.launch {
                 combine(
                     repository.observeSchedule(year, term),
                     _displayWeek,
-                    colorPrefsFlow
-                ) { allCourses, week, colorPrefs ->
-                    Triple(allCourses, filterCoursesByWeek(allCourses, week), colorPrefs)
-                }.collect { (allCourses, filtered, colorPrefs) ->
+                    colorPrefsFlow,
+                    preferences.showWeekendColumns
+                ) { allCourses, week, colorPrefs, showWeekend ->
+                    CombinedSchedule(
+                        allCourses = allCourses,
+                        filtered = filterCoursesByWeek(allCourses, week),
+                        colorPrefs = colorPrefs,
+                        dayLabels = if (showWeekend) FULL_DAY_LABELS else WEEKDAY_DAY_LABELS
+                    )
+                }.collect { combined ->
                     _uiState.update {
                         it.copy(
-                            courses = allCourses,
-                            filteredCourses = filtered,
+                            courses = combined.allCourses,
+                            filteredCourses = combined.filtered,
                             coursePalettes = buildCoursePalettes(
-                                allCourses,
-                                seedOffset = colorPrefs.seedHue ?: 0f,
-                                isDark = colorPrefs.isDark
+                                combined.allCourses,
+                                seedOffset = combined.colorPrefs.seedHue ?: 0f,
+                                isDark = combined.colorPrefs.isDark
                             ),
+                            dayLabels = combined.dayLabels,
                             isLoading = false,
-                            activeCourseId = findActiveCourse(filtered, it.displayWeek)
+                            activeCourseId = findActiveCourse(combined.filtered, it.displayWeek)
                         )
                     }
                 }

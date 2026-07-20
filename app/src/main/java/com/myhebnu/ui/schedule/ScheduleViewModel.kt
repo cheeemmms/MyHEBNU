@@ -294,7 +294,8 @@ class ScheduleViewModel @Inject constructor(
 
     fun goToNextWeek() {
         val current = _uiState.value.displayWeek
-        if (current < 20) {
+        val maxWeek = _uiState.value.lastWeek
+        if (current < maxWeek) {
             setDisplayWeek(current + 1)
         }
     }
@@ -505,19 +506,24 @@ class ScheduleViewModel @Inject constructor(
     }
 
     /**
-     * Guess the current semester based on the phone's date.
+     * 根据手机日期猜测当前学期。
      *
-     * Chinese academic year: fall (Sep) = first semester (xqm=3),
-     * spring (Feb) = second semester (xqm=12).
-     *   month ∈ [8, 12] → xqm="3",  xnm=currentYear
-     *   month ∈ [1, 7]  → xqm="12", xnm=currentYear-1
+     * 学年划分（河北师大）：秋(9–1月)=第一学期 xqm=3；春(2–7月)=第二学期 xqm=12；
+     * 小学期(6月下旬–7月)=第三学期 xqm=16。
+     *   month ∈ [8,12]        → xqm="3",  xnm=当年
+     *   month == 7 或 6月≥20  → xqm="16", xnm=当年-1
+     *   其余(1–6.19)          → xqm="12", xnm=当年-1
+     * 注：guess 仅作初猜，detectAndApplySemester 会用 N2154 接口校验，
+     * 若小学期无课表数据则自动回退到春学期，不会误切。
      */
     private fun guessCurrentSemester(): Pair<String, String> {
         val now = LocalDate.now()
-        return when (now.monthValue) {
-            in 8..12 -> now.year.toString() to "3"
-            in 1..7  -> (now.year - 1).toString() to "12"
-            else     -> "2025" to "12"
+        val m = now.monthValue
+        val d = now.dayOfMonth
+        return when {
+            m in 8..12 -> now.year.toString() to "3"
+            m == 7 || (m == 6 && d >= 20) -> (now.year - 1).toString() to "16"
+            else -> (now.year - 1).toString() to "12"
         }
     }
 

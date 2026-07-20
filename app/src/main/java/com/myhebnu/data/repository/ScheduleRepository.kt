@@ -364,7 +364,7 @@ class ScheduleRepository @Inject constructor(
             api.loadSchedulePage()
 
             // Step 3: 获取节次时间表
-            val response = api.getPeriodList(year = year, semester = term, campusId = "4")
+            val response = api.getPeriodList(year = year, semester = term, campusId = preferences.campusId.first())
             if (response.isSuccessful) {
                 val rawJson = response.body()?.string() ?: ""
                 if (rawJson.isBlank() || rawJson.contains("<!doctype") || rawJson.contains("<html")) {

@@ -5,6 +5,7 @@ import com.google.gson.JsonObject
 import com.myhebnu.data.remote.EASystemApi
 import com.myhebnu.domain.Grade
 import com.myhebnu.domain.GradeSubItem
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -81,26 +82,27 @@ class GradeRepository @Inject constructor(
      */
     suspend fun getAllGrades(): Result<Map<String, List<Grade>>> {
         return try {
-            // Query the common semesters (2024-1, 2024-2, 2025-1, 2025-2)
-            val semesterParams = listOf(
-                Triple("2024", "3", "2024-2025-1"),
-                Triple("2024", "12", "2024-2025-2"),
-                Triple("2025", "3", "2025-2026-1"),
-                Triple("2025", "12", "2025-2026-2")
-            )
+            // 动态生成近 3 学年 × 秋(3)/春(12)，避免写死年份跨年后失效。
+            val thisYear = LocalDate.now().year
+            val years = (thisYear - 2)..thisYear
+            val terms = listOf("3", "12")
             val allGrades = mutableMapOf<String, List<Grade>>()
             val errors = mutableListOf<Throwable>()
 
-            for ((year, term, name) in semesterParams) {
-                val result = getGrades(year, term)
-                result.fold(
-                    onSuccess = { grades ->
-                        if (grades.isNotEmpty()) {
-                            allGrades[name] = grades
-                        }
-                    },
-                    onFailure = { error -> errors.add(error) }
-                )
+            for (y in years) {
+                for (t in terms) {
+                    val result = getGrades(y.toString(), t)
+                    result.fold(
+                        onSuccess = { grades ->
+                            if (grades.isNotEmpty()) {
+                                // 用接口返回的真实学期名(如 "2025-2026-1")作分组 key
+                                val name = grades.first().semesterName.ifBlank { "${y}-${t}" }
+                                allGrades[name] = grades
+                            }
+                        },
+                        onFailure = { error -> errors.add(error) }
+                    )
+                }
             }
 
             // Only propagate error if ALL calls failed and we have no data

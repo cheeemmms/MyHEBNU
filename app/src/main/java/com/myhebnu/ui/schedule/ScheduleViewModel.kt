@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.data.local.preferences.UserPreferences
+import com.myhebnu.data.repository.PeriodTime
 import com.myhebnu.data.repository.ScheduleRepository
 import com.myhebnu.ui.theme.ColorPreset
 import com.myhebnu.ui.theme.builtInPresets
@@ -40,8 +41,24 @@ data class ScheduleUiState(
     // Course tonal palettes (name → palette)
     val coursePalettes: Map<String, com.myhebnu.ui.theme.CourseTonalPalette> = emptyMap(),
     // Course detail BottomSheet
-    val selectedCourse: CourseEntity? = null
+    val selectedCourse: CourseEntity? = null,
+    // #29 下学期课表悬浮面板（三态复用同一 MD3 卡片；不持久化，每次进页重算）
+    val panelMode: SemesterPanelMode = SemesterPanelMode.NONE,
+    val nextTermLabel: String = "",
+    val queryingNextSemester: Boolean = false,
+    val nextSemesterCoursesLoaded: Boolean = false,
+    val nextSemesterUnavailable: Boolean = false,
+    val lastWeek: Int = 20
 )
+
+/**
+ * #29 悬浮面板三态。同一 MD3 卡片组件按此切换文案与按钮，保持视觉一致：
+ * - [DISCOVERY]  学期末窗口内、下学期未缓存、看本学期 → 「本学期已结束」+ 暂时忽略 / 查询课表
+ * - [REENTRY]    下学期已缓存、看本学期            → 「下学期课表已公布，是否查看？」+ 暂时忽略 / 查看
+ * - [BACK]       正在查看下学期                   → 「正在查看下学期课表」+ 返回本学期
+ * - [NONE]       不显示
+ */
+enum class SemesterPanelMode { NONE, DISCOVERY, REENTRY, BACK }
 
 data class PeriodInfo(
     val label: String,         // "1-2", "3-4", etc.
@@ -70,6 +87,21 @@ class ScheduleViewModel @Inject constructor(
     // Separate Flow to drive combine — avoids potential races when _uiState
     // is updated concurrently from the outer coroutine and the combine collector.
     private val _displayWeek = MutableStateFlow(1)
+
+    // #29 展示学期驱动流——默认=detect 结果；查询/查看下学期时切换。
+    // 全程不碰全局 currentSemester（仅 detectAndApplySemester 写入）。
+    private val _viewYear = MutableStateFlow("2025")
+    private val _viewTerm = MutableStateFlow("12")
+
+    // #29 真实本学期（detect 结果）——与展示学期区分；viewingNext = 二者不一致。
+    private val _currentYear = MutableStateFlow("2025")
+    private val _currentTerm = MutableStateFlow("12")
+    // 真实当前周（切到下学期展示时用 0 占位，返回本学期时恢复）。
+    private var realCurrentWeek: Int = 1
+    // 学期末窗口是否处于活动状态（loadInitialData 依末周周日+估算开学日算好）。
+    private var endWindowActive: Boolean = false
+    // 「暂时忽略」为会话内内存态——每次进页 onScheduleEntered() 重置为 false。
+    private var panelDismissedThisSession: Boolean = false
 
     // Reactive color preferences for course card palettes
     private data class ColorPrefs(
@@ -121,6 +153,10 @@ class ScheduleViewModel @Inject constructor(
 
             // ① 探测/切换学期
             val (year, term) = detectAndApplySemester()
+            _viewYear.value = year
+            _viewTerm.value = term
+            _currentYear.value = year
+            _currentTerm.value = term
 
             // ② 从 N2154 API 获取周次日期映射
             val weekMappingResult = repository.fetchWeekDateMapping(year, term)
@@ -137,19 +173,17 @@ class ScheduleViewModel @Inject constructor(
                 onFailure = { preferences.currentWeek.first() }
             )
             preferences.setCurrentWeek(autoWeek)
+            realCurrentWeek = autoWeek
+
+            // 实际末周（用于触发"下学期"提示，稳健于硬编码20周）
+            val lastWeek = weekMappingResult.fold(
+                onSuccess = { mapping -> mapping.keys.maxOrNull() ?: 20 },
+                onFailure = { 20 }
+            )
 
             // Fetch real period time table from API (fallback = hardcoded 13-period table)
             val periods = repository.fetchPeriods(year, term)
-            val periodLabels = periods.map { pt ->
-                PeriodInfo(
-                    label = pt.period.toString(),
-                    startPeriod = pt.period,
-                    endPeriod = pt.period,
-                    startTime = pt.startTime,
-                    endTime = pt.endTime,
-                    timeRange = "${pt.startTime}-${pt.endTime}"
-                )
-            }
+            val periodLabels = toPeriodInfos(periods)
 
             // Sync both displayWeek sources
             _displayWeek.value = autoWeek
@@ -157,7 +191,8 @@ class ScheduleViewModel @Inject constructor(
                 it.copy(
                     semesterYear = year, semesterTerm = term,
                     currentWeek = autoWeek, displayWeek = autoWeek,
-                    periodLabels = periodLabels
+                    periodLabels = periodLabels,
+                    lastWeek = lastWeek
                 )
             }
 
@@ -173,7 +208,8 @@ class ScheduleViewModel @Inject constructor(
             // ④ combine: Room 课程 + displayWeek + 色彩偏好 + 周末列开关 → 自动过滤 + 课程色相感知 seedHue
             viewModelScope.launch {
                 combine(
-                    repository.observeSchedule(year, term),
+                    _viewYear.combine(_viewTerm) { y, t -> y to t }
+                        .flatMapLatest { (y, t) -> repository.observeSchedule(y, t) },
                     _displayWeek,
                     colorPrefsFlow,
                     preferences.showWeekendColumns
@@ -204,6 +240,20 @@ class ScheduleViewModel @Inject constructor(
 
             // ⑤ 刷新课表 (后台，不阻塞 UI)
             refreshSchedule()
+
+            // #29 学期末窗口：今天 ≥ 末周周日 且 今天 < 估算下学期开学日 → 窗口活动
+            // 面板可见性由 computeAndApplyPanelMode() 综合窗口态 + 下学期缓存 + 展示学期得出。
+            val lastWeekSunday: LocalDate = weekMappingResult.fold(
+                onSuccess = { mapping ->
+                    val rangeStr = mapping[lastWeek] ?: ""
+                    val parts = rangeStr.split("/")
+                    if (parts.size == 2) try { LocalDate.parse(parts[1]) } catch (_: Exception) { today } else today
+                },
+                onFailure = { today }
+            )
+            val nextTermStartEst = estimateNextTermStartDate(year, term)
+            endWindowActive = today >= lastWeekSunday && today < nextTermStartEst
+            computeAndApplyPanelMode()
         }
     }
 
@@ -250,7 +300,161 @@ class ScheduleViewModel @Inject constructor(
     }
 
     fun goToCurrentWeek() {
-        setDisplayWeek(_uiState.value.currentWeek)
+        val target = _uiState.value.currentWeek
+        // 看下学期时 currentWeek=0（无"本周"概念），回退到第 1 周。
+        setDisplayWeek(if (target > 0) target else 1)
+    }
+
+    // ---- #29 学期末悬浮面板方法 ----
+
+    private fun toPeriodInfos(periods: List<PeriodTime>): List<PeriodInfo> = periods.map { pt ->
+        PeriodInfo(
+            label = pt.period.toString(),
+            startPeriod = pt.period,
+            endPeriod = pt.period,
+            startTime = pt.startTime,
+            endTime = pt.endTime,
+            timeRange = "${pt.startTime}-${pt.endTime}"
+        )
+    }
+
+    /** 估算下一学期开学日期（用于自动收起面板）。 */
+    private fun estimateNextTermStartDate(year: String, term: String): LocalDate {
+        val y = year.toIntOrNull() ?: LocalDate.now().year
+        return when (term) {
+            "3"  -> LocalDate.of(y + 1, 2, 20)   // 秋→春，约2月下旬
+            "12" -> LocalDate.of(y + 1, 8, 25)   // 春→秋，约8月下旬
+            "16" -> LocalDate.of(y + 1, 8, 25)   // 小学期→秋
+            else -> LocalDate.of(y + 1, 2, 20)
+        }
+    }
+
+    /** 构建下学期可读标签，如 "2026年春季学期"。 */
+    private fun buildNextTermLabel(year: String, term: String): String {
+        val y = (year.toIntOrNull() ?: 0) + 1
+        return when (term) {
+            "3"  -> "${y}年春季学期"
+            "12" -> "${y}年秋季学期"
+            "16" -> "${y}年秋季学期"
+            else -> "${y}年新学期"
+        }
+    }
+
+    // ---- #29 下学期课表悬浮面板（三态，内存态，每次进页重算） ----
+
+    /** 每次进入课表页调用：重置「暂时忽略」会话态并重算面板（满足"本次忽略、下次仍弹"）。 */
+    fun onScheduleEntered() {
+        panelDismissedThisSession = false
+        computeAndApplyPanelMode()
+    }
+
+    /** Snackbar 消费「下学期未公布」标记，避免重复提示。 */
+    fun consumeNextSemesterUnavailable() {
+        _uiState.update { it.copy(nextSemesterUnavailable = false) }
+    }
+
+    /** 用户点击「暂时忽略」——仅隐藏本次进入（会话内存态，下次进页由 onScheduleEntered 重置）。 */
+    fun dismissSemesterEndPanel() {
+        panelDismissedThisSession = true
+        computeAndApplyPanelMode()
+    }
+
+    /** 用户点击「查询课表」(DISCOVERY) / 「查看」(REENTRY)——先联网探测，确认有课表再切到下学期展示。 */
+    fun queryNextSemesterSchedule() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(queryingNextSemester = true) }
+            val (ny, nt) = nextSemester(_viewYear.value, _viewTerm.value)
+            // 先探测：有课表才切换视图；无课表保持本学期，由 Snackbar 提示「暂无新课表」。
+            val result = repository.refreshSchedule(ny, nt)
+            val hasCourses = repository.observeSchedule(ny, nt).first().isNotEmpty()
+            _uiState.update {
+                it.copy(
+                    queryingNextSemester = false,
+                    nextSemesterCoursesLoaded = result.isSuccess && hasCourses,
+                    nextSemesterUnavailable = !(result.isSuccess && hasCourses)
+                )
+            }
+            if (result.isSuccess && hasCourses) {
+                switchDisplaySemester(ny, nt, isCurrent = false)
+            }
+            computeAndApplyPanelMode()
+        }
+    }
+
+    /** 用户点击「查看」(REENTRY)——下学期已缓存，仅切展示学期（不发网络请求）。 */
+    fun viewNextSemester() {
+        viewModelScope.launch {
+            val (ny, nt) = nextSemester(_currentYear.value, _currentTerm.value)
+            switchDisplaySemester(ny, nt, isCurrent = false)
+            computeAndApplyPanelMode()
+        }
+    }
+
+    /** 用户点击「返回本学期」(BACK)——切回真实本学期展示。 */
+    fun viewCurrentSemester() {
+        viewModelScope.launch {
+            switchDisplaySemester(_currentYear.value, _currentTerm.value, isCurrent = true)
+            computeAndApplyPanelMode()
+        }
+    }
+
+    /**
+     * 切换展示学期（不碰全局 currentSemester）。
+     * isCurrent=true 恢复真实当前周；=false（看下学期）置 currentWeek=0，
+     * 使 findActiveCourse 的 displayWeek≠currentWeek 守卫生效，避免误高亮下学期课程。
+     */
+    private suspend fun switchDisplaySemester(year: String, term: String, isCurrent: Boolean) {
+        _viewYear.value = year
+        _viewTerm.value = term
+        val periods = repository.fetchPeriods(year, term)
+        _displayWeek.value = 1
+        _uiState.update {
+            it.copy(
+                semesterYear = year,
+                semesterTerm = term,
+                displayWeek = 1,
+                currentWeek = if (isCurrent) realCurrentWeek else 0,
+                periodLabels = toPeriodInfos(periods)
+            )
+        }
+    }
+
+    /**
+     * 综合：窗口态 + 下学期是否已缓存 + 当前展示学期 → 决定面板 mode。
+     * 不持久化；每次进页 onScheduleEntered() 与学期切换后置位重算。
+     */
+    private fun computeAndApplyPanelMode() {
+        viewModelScope.launch {
+            val viewingNext = _viewYear.value != _currentYear.value
+                || _viewTerm.value != _currentTerm.value
+            val (ny, nt) = nextSemester(_currentYear.value, _currentTerm.value)
+            val nextCached = repository.hasCachedData(ny, nt)
+            val mode = if (panelDismissedThisSession) {
+                SemesterPanelMode.NONE
+            } else when {
+                viewingNext -> SemesterPanelMode.BACK
+                nextCached -> SemesterPanelMode.REENTRY
+                endWindowActive -> SemesterPanelMode.DISCOVERY
+                else -> SemesterPanelMode.NONE
+            }
+            _uiState.update {
+                it.copy(
+                    panelMode = mode,
+                    nextTermLabel = buildNextTermLabel(_currentYear.value, _currentTerm.value)
+                )
+            }
+        }
+    }
+
+    /** [3,12,16] 顺序取下一学期，16→次年3。 */
+    private fun nextSemester(year: String, term: String): Pair<String, String> {
+        val y = year.toIntOrNull() ?: LocalDate.now().year
+        return when (term) {
+            "3"  -> y.toString() to "12"
+            "12" -> (y + 1).toString() to "3"
+            "16" -> (y + 1).toString() to "3"
+            else -> y.toString() to "12"
+        }
     }
 
     private fun setDisplayWeek(week: Int) {

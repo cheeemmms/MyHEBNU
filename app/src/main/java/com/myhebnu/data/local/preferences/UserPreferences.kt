@@ -40,6 +40,8 @@ class UserPreferences @Inject constructor(
         val SHOW_WEEKEND_COLUMNS = booleanPreferencesKey("show_weekend_columns")
         val SENT_REMINDERS = stringPreferencesKey("sent_reminders")
         val PERIOD_TIMES_JSON = stringPreferencesKey("period_times_json")
+        val HOME_WEIGHTED_AVG = floatPreferencesKey("home_weighted_avg")
+        val HOME_WEIGHTED_AVG_SEMESTER = stringPreferencesKey("home_weighted_avg_semester")
     }
 
     val currentSemesterYear: Flow<String> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_YEAR] ?: "2025" }
@@ -60,6 +62,8 @@ class UserPreferences @Inject constructor(
     val autoCheckUpdate: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CHECK_UPDATE] ?: true }
     val showWeekendColumns: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_WEEKEND_COLUMNS] ?: false }
     val periodTimesJson: Flow<String> = context.dataStore.data.map { it[Keys.PERIOD_TIMES_JSON] ?: "" }
+    val homeWeightedAvg: Flow<Float> = context.dataStore.data.map { it[Keys.HOME_WEIGHTED_AVG] ?: 0f }
+    val homeWeightedAvgSemester: Flow<String> = context.dataStore.data.map { it[Keys.HOME_WEIGHTED_AVG_SEMESTER] ?: "" }
 
     /** Notification dedup set. Each line is "type|id|yyyy-MM-dd". */
     val sentReminders: Flow<Set<String>> = context.dataStore.data.map { prefs ->
@@ -131,6 +135,14 @@ class UserPreferences @Inject constructor(
 
     suspend fun setAutoCheckUpdate(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_CHECK_UPDATE] = enabled }
+    }
+
+    suspend fun setHomeWeightedAvg(value: Float) {
+        context.dataStore.edit { it[Keys.HOME_WEIGHTED_AVG] = value }
+    }
+
+    suspend fun setHomeWeightedAvgSemester(name: String) {
+        context.dataStore.edit { it[Keys.HOME_WEIGHTED_AVG_SEMESTER] = name }
     }
 
     suspend fun setShowWeekendColumns(enabled: Boolean) {

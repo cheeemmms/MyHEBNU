@@ -2,6 +2,7 @@ package com.myhebnu.ui.grade
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.GradeRepository
 import com.myhebnu.domain.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,8 @@ data class GradeUiState(
 
 @HiltViewModel
 class GradeViewModel @Inject constructor(
-    private val repository: GradeRepository
+    private val repository: GradeRepository,
+    private val preferences: UserPreferences
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GradeUiState())
@@ -37,6 +39,7 @@ class GradeViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             val result = repository.getAllGrades()
+            var homeNewest: SemesterGrades? = null
             result.fold(
                 onSuccess = { semesterMap ->
                     val strategy = _uiState.value.currentStrategy
@@ -55,6 +58,7 @@ class GradeViewModel @Inject constructor(
 
                     // Persist to in-memory cache before updating UI state
                     cachedSemesters = semesters
+                    homeNewest = semesters.firstOrNull()
 
                     _uiState.update {
                         it.copy(
@@ -89,6 +93,12 @@ class GradeViewModel @Inject constructor(
                     }
                 }
             )
+
+            // 写入本地缓存：最新学期加权均分，供首页 cache-first 展示（与成绩页同公式）。
+            homeNewest?.let { newest ->
+                preferences.setHomeWeightedAvg(newest.weightedAvg)
+                preferences.setHomeWeightedAvgSemester(newest.semesterName)
+            }
         }
     }
 

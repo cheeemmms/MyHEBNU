@@ -4,9 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.ExamRepository
-import com.myhebnu.data.repository.GradeRepository
 import com.myhebnu.data.repository.PeriodTime
 import com.myhebnu.data.repository.ScheduleRepository
+import com.myhebnu.data.repository.fallbackPeriods
+import com.myhebnu.data.repository.periodsFromJson
 import com.myhebnu.data.repository.UpdateRepository
 import com.myhebnu.domain.Exam
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -45,7 +46,6 @@ class HomeViewModel @Inject constructor(
     private val preferences: UserPreferences,
     private val scheduleRepository: ScheduleRepository,
     private val examRepository: ExamRepository,
-    private val gradeRepository: GradeRepository,
     private val updateRepository: UpdateRepository
 ) : ViewModel() {
 
@@ -54,6 +54,7 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadHomeData()
+        observeCache()
         checkForUpdateOnStart()
     }
 
@@ -73,10 +74,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Load the home screen from LOCAL CACHE only — zero network on app launch.
+     * Server pulls happen only when the user ENTERS the corresponding page
+     * (schedule / exam / grade), which keeps server load minimal.
+     */
     fun loadHomeData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
             val name = preferences.studentName.first()
             val hour = LocalTime.now().hour
             val greetingWord = when (hour) {
@@ -92,12 +96,14 @@ class HomeViewModel @Inject constructor(
             val currentWeek = preferences.currentWeek.first()
             val todayDayOfWeek = LocalDate.now().dayOfWeek.value
 
-            // Fetch real period times from API (used for accurate current-period detection)
-            val periods = scheduleRepository.fetchPeriods(year, term)
-
+            // 本地缓存：节次时间表（#30 已持久化到 DataStore），无网络。
+            val periods = periodsFromJson(preferences.periodTimesJson.first()).ifEmpty { fallbackPeriods() }
             val classInfo = computeNextClass(year, term, currentWeek, todayDayOfWeek, periods)
             val examInfo = computeNextExam(year, term)
-            val gradeInfo = computeGradeInfo()
+
+            // 本学期加权均分来自成绩页写入的本地缓存（用 GpaCalculator 计算，与成绩页一致）。
+            val avgSemester = preferences.homeWeightedAvgSemester.first()
+            val weightedAvg = if (avgSemester.isNotBlank()) preferences.homeWeightedAvg.first() else null
 
             _uiState.update {
                 it.copy(
@@ -116,8 +122,8 @@ class HomeViewModel @Inject constructor(
                     nextExamSeat = examInfo.seat,
                     nextExamDays = examInfo.days,
                     hasExam = examInfo.hasExam,
-                    weightedAvg = gradeInfo.avg,
-                    hasGrades = gradeInfo.hasGrades,
+                    weightedAvg = weightedAvg,
+                    hasGrades = avgSemester.isNotBlank(),
                     isLoading = false
                 )
             }
@@ -211,41 +217,37 @@ class HomeViewModel @Inject constructor(
         val seat: String, val days: Long, val hasExam: Boolean
     )
 
+    /**
+     * Next exam is read from the local Room cache (written when the exam page is entered).
+     * No network call on the home screen.
+     */
     private suspend fun computeNextExam(year: String, term: String): ExamInfo {
-        val result = examRepository.getExams(year, term)
-        return result.fold(
-            onSuccess = { exams ->
-                val next = exams.firstOrNull { it.daysRemaining >= 0 }
-                if (next != null) {
-                    ExamInfo(
-                        next.courseName, Exam.formatDate(next.examDate),
-                        next.location, next.seatNumber, next.daysRemaining, true
-                    )
-                } else ExamInfo("", "", "", "", 0, false)
-            },
-            onFailure = { ExamInfo("", "", "", "", 0, false) }
-        )
+        val exams = examRepository.getCachedExams(year, term)
+        val next = exams.firstOrNull { it.daysRemaining >= 0 }
+        return if (next != null) {
+            ExamInfo(
+                next.courseName, Exam.formatDate(next.examDate),
+                next.location, next.seatNumber, next.daysRemaining, true
+            )
+        } else ExamInfo("", "", "", "", 0, false)
     }
 
-    private data class GradeInfo(val avg: Float?, val hasGrades: Boolean)
-
-    private suspend fun computeGradeInfo(): GradeInfo {
-        val result = gradeRepository.getAllGrades()
-        return result.fold(
-            onSuccess = { semesterMap ->
-                if (semesterMap.isEmpty()) return@fold GradeInfo(null, false)
-                // 取最新非空学期（key 如 "2025-2026-2" 降序 = 最新在前）
-                val newest = semesterMap.entries
-                    .sortedByDescending { it.key }
-                    .firstOrNull { it.value.isNotEmpty() }
-                    ?: return@fold GradeInfo(null, false)
-                val grades = newest.value
-                val totalW = grades.sumOf { (it.scoreValue?.toDouble() ?: 0.0) * it.credit.toDouble() }
-                val totalC = grades.sumOf { it.credit.toDouble() }
-                if (totalC > 0) GradeInfo((totalW / totalC).toFloat(), true)
-                else GradeInfo(null, false)
-            },
-            onFailure = { GradeInfo(null, false) }
-        )
+    /**
+     * Keep the home weighted-average card live: re-read the local cache whenever
+     * the grades page writes a fresh value (so returning from the grades page updates the card).
+     */
+    private fun observeCache() {
+        viewModelScope.launch {
+            combine(preferences.homeWeightedAvg, preferences.homeWeightedAvgSemester) { avg, sem ->
+                sem to avg
+            }.collect { (sem, avg) ->
+                _uiState.update {
+                    it.copy(
+                        weightedAvg = if (sem.isNotBlank()) avg else null,
+                        hasGrades = sem.isNotBlank()
+                    )
+                }
+            }
+        }
     }
 }

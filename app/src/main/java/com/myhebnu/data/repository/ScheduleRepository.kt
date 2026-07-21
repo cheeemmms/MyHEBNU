@@ -417,27 +417,8 @@ class ScheduleRepository @Inject constructor(
         return result.sortedBy { it.period }
     }
 
-    /**
-     * Hardcoded fallback matching the real河北师大 13-period schedule.
-     * Used only when the API is unreachable.
-     */
-    private fun fallbackPeriods(): List<PeriodTime> {
-        return listOf(
-            PeriodTime(1, "08:00", "08:45"),
-            PeriodTime(2, "08:45", "09:45"),
-            PeriodTime(3, "09:45", "10:30"),
-            PeriodTime(4, "10:30", "11:20"),
-            PeriodTime(5, "11:20", "12:00"),    // 第5节结束时间按下一节开始
-            PeriodTime(6, "14:00", "14:45"),
-            PeriodTime(7, "14:45", "15:35"),
-            PeriodTime(8, "15:35", "16:35"),
-            PeriodTime(9, "16:35", "17:20"),
-            PeriodTime(10, "17:20", "18:05"),   // 第10节结束时间按下一节开始
-            PeriodTime(11, "19:00", "19:45"),
-            PeriodTime(12, "19:45", "20:35"),
-            PeriodTime(13, "20:35", "21:20")
-        )
-    }
+    // Fallback period table moved to the file-level [fallbackPeriods] function so the
+    // Home screen (which reads it without a repository instance) shares one source.
 
     /**
      * Serialize period times to a compact JSON array for cross-process sharing
@@ -453,4 +434,51 @@ class ScheduleRepository @Inject constructor(
         sb.append("]")
         return sb.toString()
     }
+}
+
+/**
+ * Parse period times from the JSON produced by [ScheduleRepository.periodsToJson].
+ * Returns an empty list if the JSON is blank or cannot be parsed.
+ */
+internal fun periodsFromJson(json: String): List<PeriodTime> {
+    if (json.isBlank()) return emptyList()
+    return try {
+        val arr = com.google.gson.JsonParser.parseString(json).asJsonArray
+        val list = mutableListOf<PeriodTime>()
+        for (item in arr) {
+            val o = item.asJsonObject
+            list.add(
+                PeriodTime(
+                    o.get("period")?.asInt ?: 0,
+                    o.get("startTime")?.asString ?: "",
+                    o.get("endTime")?.asString ?: ""
+                )
+            )
+        }
+        list
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
+
+/**
+ * Hardcoded fallback matching the real 河北师大 13-period schedule.
+ * Used only when no real period times are available.
+ */
+internal fun fallbackPeriods(): List<PeriodTime> {
+    return listOf(
+        PeriodTime(1, "08:00", "08:45"),
+        PeriodTime(2, "08:45", "09:45"),
+        PeriodTime(3, "09:45", "10:30"),
+        PeriodTime(4, "10:30", "11:20"),
+        PeriodTime(5, "11:20", "12:00"),
+        PeriodTime(6, "14:00", "14:45"),
+        PeriodTime(7, "14:45", "15:35"),
+        PeriodTime(8, "15:35", "16:35"),
+        PeriodTime(9, "16:35", "17:20"),
+        PeriodTime(10, "17:20", "18:05"),
+        PeriodTime(11, "19:00", "19:45"),
+        PeriodTime(12, "19:45", "20:35"),
+        PeriodTime(13, "20:35", "21:20")
+    )
 }

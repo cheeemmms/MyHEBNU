@@ -70,6 +70,8 @@
     <string name="home_class_done">今日课程已结束</string>
     <string name="home_weekend">今天周末，好好休息吧~</string>
     <string name="home_holiday">放假中~</string>
+    <string name="vacation_label">放假中</string>
+    <string name="schedule_vacation_banner">当前为假期，无进行中的教学周</string>
     <string name="home_empty_room_hint">快速查找空闲教室</string>
     <string name="home_no_exam">暂无考试安排</string>
     <string name="home_no_grade">暂无成绩数据</string>

@@ -17,6 +17,7 @@ import com.myhebnu.R
 fun WeekSelector(
     displayWeek: Int,
     currentWeek: Int,
+    isVacation: Boolean = false,
     onPreviousWeek: () -> Unit,
     onNextWeek: () -> Unit,
     onGoToCurrentWeek: () -> Unit,
@@ -57,7 +58,14 @@ fun WeekSelector(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                if (!isCurrentWeek) {
+                if (isVacation) {
+                    // 假期：无“当前周”概念，明确提示放假中
+                    Text(
+                        text = stringResource(R.string.vacation_label),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (!isCurrentWeek) {
                     TextButton(
                         onClick = onGoToCurrentWeek,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)

@@ -48,7 +48,9 @@ data class ScheduleUiState(
     val queryingNextSemester: Boolean = false,
     val nextSemesterCoursesLoaded: Boolean = false,
     val nextSemesterUnavailable: Boolean = false,
-    val lastWeek: Int = 20
+    val lastWeek: Int = 20,
+    // 假期标记：今天不在任何教学周（如暑假）→ 页面明确提示“放假中”，不把第1周当当前周
+    val isVacation: Boolean = false
 )
 
 /**
@@ -163,17 +165,17 @@ class ScheduleViewModel @Inject constructor(
 
             // ③ 自动计算当前周
             val today = LocalDate.now()
-            val autoWeek = weekMappingResult.fold(
-                onSuccess = { mapping ->
-                    mapping.entries.find { (_, dateRange) ->
-                        val (start, end) = parseDateRange(dateRange)
-                        today in start..end
-                    }?.key ?: preferences.currentWeek.first()
-                },
-                onFailure = { preferences.currentWeek.first() }
-            )
+            val weekMapping = weekMappingResult.getOrNull()
+            val matchedWeek = weekMapping?.entries?.find { (_, dateRange) ->
+                val (start, end) = parseDateRange(dateRange)
+                today in start..end
+            }?.key
+            // 接口成功但“今天不在任何教学周”→ 假期/休息（如暑假）。
+            // 此时不把第 1 周当成当前周：currentWeek 置 0，避免误高亮。
+            val vacation = weekMappingResult.isSuccess && matchedWeek == null
+            val autoWeek = matchedWeek ?: preferences.currentWeek.first()
             preferences.setCurrentWeek(autoWeek)
-            realCurrentWeek = autoWeek
+            realCurrentWeek = if (vacation) 0 else autoWeek
 
             // 实际末周（用于触发"下学期"提示，稳健于硬编码20周）
             val lastWeek = weekMappingResult.fold(
@@ -190,9 +192,11 @@ class ScheduleViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     semesterYear = year, semesterTerm = term,
-                    currentWeek = autoWeek, displayWeek = autoWeek,
+                    currentWeek = if (vacation) 0 else autoWeek,
+                    displayWeek = autoWeek,
                     periodLabels = periodLabels,
-                    lastWeek = lastWeek
+                    lastWeek = lastWeek,
+                    isVacation = vacation
                 )
             }
 

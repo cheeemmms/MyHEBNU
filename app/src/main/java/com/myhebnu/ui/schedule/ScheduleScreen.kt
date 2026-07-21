@@ -4,6 +4,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -162,10 +163,43 @@ fun ScheduleScreen(
                 }
             } // End Box(modifier.weight(1f))
 
+            // 假期提示：今天不在任何教学周时明确告知，避免把第1周误当前周
+            if (uiState.isVacation) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tonalElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Info,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = stringResource(R.string.schedule_vacation_banner),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+            }
+
             // Week selector at bottom
             WeekSelector(
                 displayWeek = uiState.displayWeek,
                 currentWeek = uiState.currentWeek,
+                isVacation = uiState.isVacation,
                 onPreviousWeek = viewModel::goToPreviousWeek,
                 onNextWeek = viewModel::goToNextWeek,
                 onGoToCurrentWeek = viewModel::goToCurrentWeek

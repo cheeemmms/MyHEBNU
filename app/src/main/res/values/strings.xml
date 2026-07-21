@@ -138,14 +138,13 @@
     <string name="auto_check_update">自动检查更新</string>
     <string name="auto_check_update_desc">开启后每次启动 App 自动检查 GitHub 新版本</string>
     <string name="changelog">更新日志</string>
-    <string name="changelog_content">v1.2.0
+    <string name="changelog_content">v1.3.0
 主要更新
-• 震撼推出桌面课表小组件
-• 新增上课提醒通知（BETA）
-• 新增考试提醒通知（BETA）
-• 修复多处深色模式下的视觉效果问题
-• 修正欢迎页 GitHub 项目链接
-其他没有提到的更新</string>
+• 下学期课表悬浮预览（首页/课表页可提前看下学期）
+• 小学期自动适配（学期识别/周数/成绩年份/校区数据驱动）
+• 课表「显示周末列」开关（设置→高级功能，可开 7 列）
+• 首页启动零联网，进入页面才刷新，更快更省服务端
+• 修复启动白屏、成绩只显示约10门、小组件节次时间不准、首页加权均分与成绩页不一致等问题</string>
 
     <!-- Login -->
     <string name="login_title">统一身份认证</string>

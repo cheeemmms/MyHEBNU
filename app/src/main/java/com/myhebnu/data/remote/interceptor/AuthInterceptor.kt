@@ -11,7 +11,7 @@ import javax.inject.Singleton
 /**
  * OkHttp Interceptor that:
  * 1. Masks OkHttp requests as browser AJAX calls (教务系统 blocks non-browser requests)
- * 2. Detects session expiry (302 → CAS login / 401 / 403)
+ * 2. Detects session expiry (302 → CAS login / 401 / 403 / 901)
  */
 @Singleton
 class AuthInterceptor @Inject constructor() : Interceptor {
@@ -74,6 +74,11 @@ class AuthInterceptor @Inject constructor() : Interceptor {
             return true
         }
         if (response.code == 401 || response.code == 403) {
+            return true
+        }
+        // 901 = 教务系统对 AJAX 接口返回的自定义「会话失效」状态码：服务端不返回 302
+        // 跳转，而是直接返回 901。与 302/401/403 同等视为会话过期，触发 autoLogin 自愈。
+        if (response.code == 901) {
             return true
         }
         return false

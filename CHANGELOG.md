@@ -1,3 +1,18 @@
+# MyHEBNU v1.3.1
+
+发布日期：2026-08-30
+
+> 基于 v1.3.0 的紧急修复版本（仅含稳定性修复，无新功能）。
+
+## 修复
+- 修复考试页 / 成绩页偶发「HTTP 901」会话失效问题：AuthInterceptor 现识别教务 ZFSOFT 返回的 901 自定义码并触发 autoLogin 自愈，无需手动清除数据重登（#14 相关）。
+
+## 校验信息
+- 包名：`com.myhebnu`
+- versionCode：5
+- versionName：1.3.1
+- 输出包：`MyHEBNU-v1.3.1-release.apk`
+
 # MyHEBNU v1.3.0
 
 发布日期：2026-07-21

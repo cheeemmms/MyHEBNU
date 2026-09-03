@@ -33,6 +33,7 @@ import com.myhebnu.ui.schedule.ScheduleScreen
 import com.myhebnu.ui.settings.AdvancedSettingsScreen
 import com.myhebnu.ui.settings.ColorThemeScreen
 import com.myhebnu.ui.settings.SettingsScreen
+import com.myhebnu.ui.settings.SemesterSetupScreen
 import com.myhebnu.ui.theme.MyHEBNUTheme
 import com.myhebnu.ui.theme.findPresetById
 import com.myhebnu.ui.welcome.WelcomeScreen
@@ -304,6 +305,10 @@ fun MainAppContent(
                 )
 
                 "system_update" -> SystemUpdateScreen(
+                    onBack = { goBack() }
+                )
+
+                "semester_setup" -> SemesterSetupScreen(
                     onBack = { goBack() }
                 )
             }

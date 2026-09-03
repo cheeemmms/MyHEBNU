@@ -53,6 +53,11 @@ fun HomeScreen(
             GreetingSection(fullGreeting = uiState.greeting)
             Spacer(Modifier.weight(0.35f))
 
+            if (uiState.needsSemesterSetup) {
+                SemesterSetupBanner(onClick = { onNavigate("semester_setup") })
+                Spacer(Modifier.height(12.dp))
+            }
+
             if (uiState.availableUpdateVersion.isNotBlank()) {
                 UpdateBanner(onClick = { onNavigate("system_update") })
                 Spacer(Modifier.height(12.dp))
@@ -60,6 +65,54 @@ fun HomeScreen(
 
             HomeCardPanel(uiState = uiState, onNavigate = onNavigate)
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun SemesterSetupBanner(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Info,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.home_semester_setup_banner),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

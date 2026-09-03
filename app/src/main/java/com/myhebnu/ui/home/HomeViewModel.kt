@@ -40,7 +40,9 @@ data class HomeUiState(
     val hasGrades: Boolean = false,
     val isLoading: Boolean = true,
     /** Latest available version found by the auto launch check (drives the Home update banner). */
-    val availableUpdateVersion: String = ""
+    val availableUpdateVersion: String = "",
+    /** True when the user hasn't completed semester setup (or it expired) → show the setup banner. */
+    val needsSemesterSetup: Boolean = false
 )
 
 @HiltViewModel
@@ -58,6 +60,7 @@ class HomeViewModel @Inject constructor(
         loadHomeData()
         observeCache()
         observeUpdateBanner()
+        observeSemesterSetup()
         checkForUpdateOnStart()
     }
 
@@ -247,6 +250,22 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             preferences.availableUpdateVersion.collect { version ->
                 _uiState.update { it.copy(availableUpdateVersion = version) }
+            }
+        }
+    }
+
+    /**
+     * 学期设置提醒：未手动设置（含老版本升级用户）或设置已过期（今天 > 放假日）→ 提示设置。
+     * 与更新横幅同源的轻量观察，进入设置页保存后立即消除。
+     */
+    private fun observeSemesterSetup() {
+        viewModelScope.launch {
+            combine(preferences.semesterManuallySet, preferences.semesterEndDate) { manual, endStr ->
+                val expired = endStr.isNotBlank() &&
+                    runCatching { LocalDate.now() > LocalDate.parse(endStr) }.getOrDefault(false)
+                !manual || expired
+            }.collect { needs ->
+                _uiState.update { it.copy(needsSemesterSetup = needs) }
             }
         }
     }

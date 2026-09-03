@@ -149,4 +149,16 @@
     <string name="widget_large_grid_desc">Calendar grid: 3-day overview with navigation buttons</string>
     <string name="widget_large_list_label">Schedule·List</string>
     <string name="widget_large_list_desc">Card stream: full course list for today</string>
+
+    <!-- Semester setup -->
+    <string name="current_semester">Current semester</string>
+    <string name="semester_format">%1$s-%2$s %3$s</string>
+    <string name="term_first">Semester 1</string>
+    <string name="term_second">Semester 2</string>
+    <string name="term_third">Semester 3</string>
+    <string name="home_semester_setup_banner">Complete semester setup</string>
+    <string name="semester_setup_title">Complete semester setup</string>
+    <string name="semester_setup_year">Academic year</string>
+    <string name="semester_setup_term">Term</string>
+    <string name="semester_setup_save">Save</string>
 </resources>

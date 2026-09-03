@@ -135,6 +135,7 @@ fun ScheduleScreen(
                             activeCourseId = uiState.activeCourseId,
                             coursePalettes = uiState.coursePalettes,
                             onCourseClick = { course -> viewModel.selectCourse(course) },
+                            dayDateLabels = uiState.dayDateLabels,
                             modifier = Modifier.fillMaxSize()
                         )
                     }

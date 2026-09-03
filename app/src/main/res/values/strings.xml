@@ -163,4 +163,16 @@
     <string name="widget_large_list_label">MyHEBNU·课表</string>
     <string name="widget_large_list_desc">卡片流：当天全部课程详细展示</string>
 
+    <!-- Semester setup -->
+    <string name="current_semester">当前学期</string>
+    <string name="semester_format">%1$s-%2$s %3$s</string>
+    <string name="term_first">第一学期</string>
+    <string name="term_second">第二学期</string>
+    <string name="term_third">第三学期</string>
+    <string name="home_semester_setup_banner">完成学期设置</string>
+    <string name="semester_setup_title">完成学期设置</string>
+    <string name="semester_setup_year">学年</string>
+    <string name="semester_setup_term">学期</string>
+    <string name="semester_setup_save">保存</string>
+
 </resources>

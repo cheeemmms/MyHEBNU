@@ -9,6 +9,8 @@ import com.myhebnu.data.repository.ScheduleRepository
 import com.myhebnu.ui.theme.ColorPreset
 import com.myhebnu.ui.theme.builtInPresets
 import com.myhebnu.ui.theme.findPresetById
+import com.myhebnu.util.buildDayDateLabels
+import com.myhebnu.util.computeCurrentWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -36,6 +38,8 @@ data class ScheduleUiState(
     val activeCourseId: String? = null,
     // Day labels
     val dayLabels: List<String> = listOf("一", "二", "三", "四", "五"),
+    // 表头月日标签（与 dayLabels 对齐；开学日前为空）
+    val dayDateLabels: List<String> = emptyList(),
     // Period labels and time ranges
     val periodLabels: List<PeriodInfo> = emptyList(),
     // Course tonal palettes (name → palette)
@@ -98,6 +102,9 @@ class ScheduleViewModel @Inject constructor(
     // #29 真实本学期（detect 结果）——与展示学期区分；viewingNext = 二者不一致。
     private val _currentYear = MutableStateFlow("2025")
     private val _currentTerm = MutableStateFlow("12")
+    // 开学日（week 1 周一）权威数据源：手动设置优先；未设置时由 N2154 周1起始日预填。
+    // 用于当前周计算与课表表头月日显示；看下学期时切换为下学期映射起始日。
+    private val _semesterStartDate = MutableStateFlow<LocalDate?>(null)
     // 真实当前周（切到下学期展示时用 0 占位，返回本学期时恢复）。
     private var realCurrentWeek: Int = 1
     // 学期末窗口是否处于活动状态（loadInitialData 依末周周日+估算开学日算好）。
@@ -163,19 +170,36 @@ class ScheduleViewModel @Inject constructor(
             // ② 从 N2154 API 获取周次日期映射
             val weekMappingResult = repository.fetchWeekDateMapping(year, term)
 
-            // ③ 自动计算当前周
+            // ③ 自动计算当前周（开学日权威；未设置时由 N2154 周1起始日预填）
             val today = LocalDate.now()
             val weekMapping = weekMappingResult.getOrNull()
+
+            // 开学日：手动设置优先；未设置时由 N2154 周1起始日预填（兼容老版本升级用户）。
+            val n2154Start = weekMapping?.get(1)?.let { parseDateRange(it).first }
+            val storedStart = preferences.semesterStartDate.first()
+            val startDate = if (storedStart.isNotBlank()) {
+                runCatching { LocalDate.parse(storedStart) }.getOrNull()
+            } else {
+                n2154Start?.also { preferences.setSemesterStartDate(it.toString()) }
+            }
+            _semesterStartDate.value = startDate
+
+            val storedEnd = preferences.semesterEndDate.first()
+            val endDate = if (storedEnd.isNotBlank()) {
+                runCatching { LocalDate.parse(storedEnd) }.getOrNull()
+            } else null
+
             val matchedWeek = weekMapping?.entries?.find { (_, dateRange) ->
                 val (start, end) = parseDateRange(dateRange)
                 today in start..end
             }?.key
-            // 接口成功但“今天不在任何教学周”→ 假期/休息（如暑假）。
-            // 此时不把第 1 周当成当前周：currentWeek 置 0，避免误高亮。
-            val vacation = weekMappingResult.isSuccess && matchedWeek == null
-            val autoWeek = matchedWeek ?: preferences.currentWeek.first()
+            // 开学日已设置 → 以开学日为准计算当前周；否则回落 N2154 matchedWeek。
+            val computedWeek = if (startDate != null) computeCurrentWeek(startDate, endDate, today) else -1
+            val autoWeek = if (computedWeek >= 0) computedWeek else (matchedWeek ?: preferences.currentWeek.first())
+            // 假期中（开学前 / 放假日之后）→ currentWeek 置 0，避免把第 1 周误当当前周。
+            val vacation = if (startDate != null) autoWeek == 0 else (weekMappingResult.isSuccess && matchedWeek == null)
             preferences.setCurrentWeek(autoWeek)
-            realCurrentWeek = if (vacation) 0 else autoWeek
+            realCurrentWeek = autoWeek
 
             // 实际末周（用于触发"下学期"提示，稳健于硬编码20周）
             val lastWeek = weekMappingResult.fold(
@@ -235,6 +259,7 @@ class ScheduleViewModel @Inject constructor(
                                 isDark = combined.colorPrefs.isDark
                             ),
                             dayLabels = combined.dayLabels,
+                            dayDateLabels = buildDayDateLabels(_displayWeek.value, _semesterStartDate.value, combined.dayLabels.size),
                             isLoading = false,
                             activeCourseId = findActiveCourse(combined.filtered, it.displayWeek)
                         )
@@ -412,6 +437,9 @@ class ScheduleViewModel @Inject constructor(
         _viewYear.value = year
         _viewTerm.value = term
         val periods = repository.fetchPeriods(year, term)
+        // 表头月日随展示学期切换：取该学期 N2154 周1起始日（无数据时回落空）。
+        val mappingStart = repository.fetchWeekDateMapping(year, term).getOrNull()?.get(1)?.let { parseDateRange(it).first }
+        _semesterStartDate.value = mappingStart
         _displayWeek.value = 1
         _uiState.update {
             it.copy(
@@ -539,6 +567,12 @@ class ScheduleViewModel @Inject constructor(
     private suspend fun detectAndApplySemester(): Pair<String, String> {
         val storedYear = preferences.currentSemesterYear.first()
         val storedTerm = preferences.currentSemesterTerm.first()
+
+        // 用户已手动完成学期设置 → 不再被 N2154 自动探测覆盖。
+        if (preferences.semesterManuallySet.first()) {
+            return storedYear to storedTerm
+        }
+
         val guessed = guessCurrentSemester()
 
         // Same → no switch needed

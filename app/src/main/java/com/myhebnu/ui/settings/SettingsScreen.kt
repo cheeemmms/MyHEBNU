@@ -28,6 +28,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showSemesterSetup by remember { mutableStateOf(false) }
 
     var themeDropdownExpanded by remember { mutableStateOf(false) }
     val themeOptions = listOf(
@@ -107,12 +108,31 @@ fun SettingsScreen(
             SettingsCard {
                 SettingsInfoItem(
                     title = stringResource(R.string.current_week),
-                    value = "第 ${uiState.currentWeek} 周"
+                    value = if (uiState.currentWeek <= 0) stringResource(R.string.vacation_label)
+                    else stringResource(R.string.week_selector, uiState.currentWeek)
                 )
                 HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsInfoItem(
-                    title = "当前学期",
-                    value = "${uiState.semesterYear}-${uiState.semesterTerm}"
+                    title = stringResource(R.string.current_semester),
+                    value = run {
+                        val termName = when (uiState.semesterTerm) {
+                            "3" -> stringResource(R.string.term_first)
+                            "12" -> stringResource(R.string.term_second)
+                            "16" -> stringResource(R.string.term_third)
+                            else -> uiState.semesterTerm
+                        }
+                        val y = uiState.semesterYear
+                        val next = y.toIntOrNull()?.plus(1)?.toString() ?: y
+                        stringResource(R.string.semester_format, y, next, termName)
+                    },
+                    modifier = Modifier.clickable { showSemesterSetup = true }
+                )
+            }
+
+            if (showSemesterSetup) {
+                SemesterSetupBottomSheet(
+                    onDismiss = { showSemesterSetup = false },
+                    onSaved = { showSemesterSetup = false }
                 )
             }
 
@@ -171,9 +191,9 @@ private fun SettingsCard(
 }
 
 @Composable
-private fun SettingsInfoItem(title: String, value: String) {
+private fun SettingsInfoItem(title: String, value: String, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

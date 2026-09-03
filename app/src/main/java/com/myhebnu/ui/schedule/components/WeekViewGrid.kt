@@ -43,6 +43,7 @@ fun WeekViewGrid(
     activeCourseId: String?,
     coursePalettes: Map<String, CourseTonalPalette>,
     onCourseClick: (CourseEntity) -> Unit,
+    dayDateLabels: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val columns = dayLabels.size
@@ -52,7 +53,7 @@ fun WeekViewGrid(
     val gridLineAlpha = 0.2f
     val gridLineColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = gridLineAlpha)
     val totalPeriods = periodLabels.size
-    val headerHeight = 32.dp
+    val headerHeight = 48.dp
     val rowHeight = 55.dp // Fixed per-period height — scrolls when content overflows
     val isDark = isSystemInDarkTheme()
     val scrollState = rememberScrollState()
@@ -79,6 +80,7 @@ fun WeekViewGrid(
                 }
                 dayLabels.forEachIndexed { idx, label ->
                     val isToday = (displayWeek == currentWeek) && (idx + 1 == todayDayOfWeek)
+                    val dateLabel = dayDateLabels.getOrNull(idx)
                     Box(
                         modifier = Modifier
                             .width(cellWidth)
@@ -88,15 +90,26 @@ fun WeekViewGrid(
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                 else Modifier
                             )
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "周$label", style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "周$label", style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (dateLabel != null) {
+                                Spacer(Modifier.height(1.dp))
+                                Text(
+                                    dateLabel, style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
+                                    color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }

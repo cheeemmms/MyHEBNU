@@ -24,6 +24,8 @@ class UserPreferences @Inject constructor(
         val CURRENT_SEMESTER_TERM = stringPreferencesKey("current_semester_term")
         val CURRENT_WEEK = intPreferencesKey("current_week")
         val SEMESTER_START_DATE = stringPreferencesKey("semester_start_date")
+        val SEMESTER_END_DATE = stringPreferencesKey("semester_end_date")
+        val SEMESTER_MANUALLY_SET = booleanPreferencesKey("semester_manually_set")
         val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
         val SELECTED_LANGUAGE = stringPreferencesKey("selected_language")
         val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
@@ -47,6 +49,9 @@ class UserPreferences @Inject constructor(
     val currentSemesterYear: Flow<String> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_YEAR] ?: "2025" }
     val currentSemesterTerm: Flow<String> = context.dataStore.data.map { it[Keys.CURRENT_SEMESTER_TERM] ?: "12" }
     val currentWeek: Flow<Int> = context.dataStore.data.map { it[Keys.CURRENT_WEEK] ?: 1 }
+    val semesterStartDate: Flow<String> = context.dataStore.data.map { it[Keys.SEMESTER_START_DATE] ?: "" }
+    val semesterEndDate: Flow<String> = context.dataStore.data.map { it[Keys.SEMESTER_END_DATE] ?: "" }
+    val semesterManuallySet: Flow<Boolean> = context.dataStore.data.map { it[Keys.SEMESTER_MANUALLY_SET] ?: false }
     val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { it[Keys.IS_LOGGED_IN] ?: false }
     val selectedLanguage: Flow<String> = context.dataStore.data.map { it[Keys.SELECTED_LANGUAGE] ?: "zh" }
     val isDarkMode: Flow<Boolean> = context.dataStore.data.map { it[Keys.IS_DARK_MODE] ?: false }
@@ -83,6 +88,18 @@ class UserPreferences @Inject constructor(
 
     suspend fun setCurrentWeek(week: Int) {
         context.dataStore.edit { it[Keys.CURRENT_WEEK] = week }
+    }
+
+    suspend fun setSemesterStartDate(date: String) {
+        context.dataStore.edit { it[Keys.SEMESTER_START_DATE] = date }
+    }
+
+    suspend fun setSemesterEndDate(date: String) {
+        context.dataStore.edit { it[Keys.SEMESTER_END_DATE] = date }
+    }
+
+    suspend fun setSemesterManuallySet(value: Boolean) {
+        context.dataStore.edit { it[Keys.SEMESTER_MANUALLY_SET] = value }
     }
 
     suspend fun setLoggedIn(value: Boolean) {

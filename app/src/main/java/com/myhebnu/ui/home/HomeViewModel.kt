@@ -38,7 +38,9 @@ data class HomeUiState(
     val hasExam: Boolean = false,
     val weightedAvg: Float? = null,
     val hasGrades: Boolean = false,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    /** Latest available version found by the auto launch check (drives the Home update banner). */
+    val availableUpdateVersion: String = ""
 )
 
 @HiltViewModel
@@ -55,6 +57,7 @@ class HomeViewModel @Inject constructor(
     init {
         loadHomeData()
         observeCache()
+        observeUpdateBanner()
         checkForUpdateOnStart()
     }
 
@@ -236,6 +239,18 @@ class HomeViewModel @Inject constructor(
      * Keep the home weighted-average card live: re-read the local cache whenever
      * the grades page writes a fresh value (so returning from the grades page updates the card).
      */
+    /**
+     * Mirror the auto-check result into UI state so the Home screen can render an
+     * in-app update banner whenever a newer version is available.
+     */
+    private fun observeUpdateBanner() {
+        viewModelScope.launch {
+            preferences.availableUpdateVersion.collect { version ->
+                _uiState.update { it.copy(availableUpdateVersion = version) }
+            }
+        }
+    }
+
     private fun observeCache() {
         viewModelScope.launch {
             combine(preferences.homeWeightedAvg, preferences.homeWeightedAvgSemester) { avg, sem ->

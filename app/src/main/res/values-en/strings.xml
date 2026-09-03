@@ -104,6 +104,7 @@
     <string name="notification_update_title">New version %s available</string>
     <string name="notification_update_body">Tap to view update details</string>
     <string name="notification_update_dismiss">Ignore this version</string>
+    <string name="home_update_banner">New version available!</string>
 
     <!-- Class Reminder Notification -->
     <string name="notification_class_title">Class Reminder</string>

@@ -35,8 +35,8 @@ class UserPreferences @Inject constructor(
         val USE_CUSTOM_COLORS = booleanPreferencesKey("use_custom_colors")
         val ACTIVE_PRESET_ID = stringPreferencesKey("active_preset_id")
         val CUSTOM_PRESETS_JSON = stringPreferencesKey("custom_presets_json")
-        val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
         val AUTO_CHECK_UPDATE = booleanPreferencesKey("auto_check_update")
+        val AVAILABLE_UPDATE_VERSION = stringPreferencesKey("available_update_version")
         val SHOW_WEEKEND_COLUMNS = booleanPreferencesKey("show_weekend_columns")
         val SENT_REMINDERS = stringPreferencesKey("sent_reminders")
         val PERIOD_TIMES_JSON = stringPreferencesKey("period_times_json")
@@ -58,8 +58,8 @@ class UserPreferences @Inject constructor(
     val useCustomColors: Flow<Boolean> = context.dataStore.data.map { it[Keys.USE_CUSTOM_COLORS] ?: false }
     val activePresetId: Flow<String?> = context.dataStore.data.map { it[Keys.ACTIVE_PRESET_ID] }
     val customPresetsJson: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PRESETS_JSON] ?: "[]" }
-    val dismissedUpdateVersion: Flow<String> = context.dataStore.data.map { it[Keys.DISMISSED_UPDATE_VERSION] ?: "" }
     val autoCheckUpdate: Flow<Boolean> = context.dataStore.data.map { it[Keys.AUTO_CHECK_UPDATE] ?: true }
+    val availableUpdateVersion: Flow<String> = context.dataStore.data.map { it[Keys.AVAILABLE_UPDATE_VERSION] ?: "" }
     val showWeekendColumns: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_WEEKEND_COLUMNS] ?: false }
     val periodTimesJson: Flow<String> = context.dataStore.data.map { it[Keys.PERIOD_TIMES_JSON] ?: "" }
     val homeWeightedAvg: Flow<Float> = context.dataStore.data.map { it[Keys.HOME_WEIGHTED_AVG] ?: 0f }
@@ -129,12 +129,12 @@ class UserPreferences @Inject constructor(
         context.dataStore.edit { it[Keys.CUSTOM_PRESETS_JSON] = json }
     }
 
-    suspend fun setDismissedUpdateVersion(version: String) {
-        context.dataStore.edit { it[Keys.DISMISSED_UPDATE_VERSION] = version }
-    }
-
     suspend fun setAutoCheckUpdate(enabled: Boolean) {
         context.dataStore.edit { it[Keys.AUTO_CHECK_UPDATE] = enabled }
+    }
+
+    suspend fun setAvailableUpdateVersion(version: String) {
+        context.dataStore.edit { it[Keys.AVAILABLE_UPDATE_VERSION] = version }
     }
 
     suspend fun setHomeWeightedAvg(value: Float) {

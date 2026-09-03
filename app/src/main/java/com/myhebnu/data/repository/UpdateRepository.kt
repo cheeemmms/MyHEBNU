@@ -1,17 +1,8 @@
 package com.myhebnu.data.repository
 
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import com.myhebnu.BuildConfig
-import com.myhebnu.MyHebnuApplication
-import com.myhebnu.R
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.remote.GitHubApi
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,18 +18,15 @@ data class UpdateCheckResult(
 @Singleton
 class UpdateRepository @Inject constructor(
     private val githubApi: GitHubApi,
-    private val preferences: UserPreferences,
-    @ApplicationContext private val context: Context
+    private val preferences: UserPreferences
 ) {
-    companion object {
-        private const val NOTIFICATION_ID_UPDATE = 1001
-    }
-
     /**
      * Check GitHub Releases for a newer version.
      *
-     * @param isManual true = user tapped "检查更新" → always returns result
-     *                 false = auto check on app launch → only notifies if new + not dismissed
+     * @param isManual true = user tapped "检查更新" → always returns result for UI display
+     *                 false = auto check on app launch → persists the available version to
+     *                         DataStore so the Home screen can show an in-app banner (no
+     *                         notification permission required).
      */
     suspend fun checkForUpdate(isManual: Boolean): UpdateCheckResult {
         return try {
@@ -47,7 +35,8 @@ class UpdateRepository @Inject constructor(
                 if (isManual) {
                     return UpdateCheckResult(UpdateStatus.ERROR)
                 }
-                return UpdateCheckResult(UpdateStatus.UP_TO_DATE) // silent for auto
+                // Auto mode: stay silent, keep any previously shown banner as-is.
+                return UpdateCheckResult(UpdateStatus.UP_TO_DATE)
             }
 
             val release = response.body() ?: return UpdateCheckResult(UpdateStatus.UP_TO_DATE)
@@ -55,31 +44,26 @@ class UpdateRepository @Inject constructor(
             val currentVersion = BuildConfig.VERSION_NAME
 
             if (!isNewer(latestVersion, currentVersion)) {
+                // Confirmed up to date → clear any stale banner.
+                preferences.setAvailableUpdateVersion("")
                 return UpdateCheckResult(UpdateStatus.UP_TO_DATE)
             }
 
-            // New version available
-            val dismissedVersion = preferences.dismissedUpdateVersion.first()
-
-            if (!isManual && latestVersion == dismissedVersion) {
-                // User already dismissed this version — don't notify again
-                return UpdateCheckResult(UpdateStatus.UP_TO_DATE)
+            // Newer version available.
+            if (isManual) {
+                preferences.setAvailableUpdateVersion(latestVersion)
+                return UpdateCheckResult(UpdateStatus.UPDATE_AVAILABLE, release.tagName, release.htmlUrl)
             }
 
-            if (!isManual) {
-                // Auto mode: show notification + record dismissal
-                showUpdateNotification(release.tagName, release.htmlUrl)
-                preferences.setDismissedUpdateVersion(latestVersion)
-                return UpdateCheckResult(UpdateStatus.UP_TO_DATE) // UI doesn't need to show
-            }
-
-            // Manual mode: return result for UI display
-            UpdateCheckResult(UpdateStatus.UPDATE_AVAILABLE, release.tagName, release.htmlUrl)
+            // Auto mode: persist so the Home banner can surface it without a notification.
+            preferences.setAvailableUpdateVersion(latestVersion)
+            UpdateCheckResult(UpdateStatus.UP_TO_DATE)
         } catch (e: Exception) {
             if (isManual) {
                 UpdateCheckResult(UpdateStatus.ERROR)
             } else {
-                UpdateCheckResult(UpdateStatus.UP_TO_DATE) // silent for auto
+                // Auto mode: stay silent on transient errors, keep any existing banner.
+                UpdateCheckResult(UpdateStatus.UP_TO_DATE)
             }
         }
     }
@@ -101,36 +85,5 @@ class UpdateRepository @Inject constructor(
             if (l < c) return false
         }
         return false // equal versions
-    }
-
-    /**
-     * Show a notification informing the user about a new version.
-     * Tapping the notification opens the GitHub release page in the browser.
-     */
-    private fun showUpdateNotification(tagName: String, htmlUrl: String) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(htmlUrl)).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, MyHebnuApplication.CHANNEL_APP_UPDATE)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(context.getString(R.string.notification_update_title, tagName))
-            .setContentText(context.getString(R.string.notification_update_body))
-            .setStyle(NotificationCompat.BigTextStyle()
-                .bigText(context.getString(R.string.notification_update_body)))
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-
-        try {
-            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_UPDATE, notification)
-        } catch (e: SecurityException) {
-            // Notification permission not granted — silently skip
-        }
     }
 }

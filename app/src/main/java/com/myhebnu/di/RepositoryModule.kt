@@ -1,6 +1,5 @@
 package com.myhebnu.di
 
-import android.content.Context
 import com.myhebnu.data.local.db.dao.ExamDao
 import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.preferences.CredentialManager
@@ -15,7 +14,6 @@ import com.myhebnu.data.repository.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import retrofit2.Retrofit
 import javax.inject.Singleton
@@ -84,7 +82,6 @@ object RepositoryModule {
     @Singleton
     fun provideUpdateRepository(
         githubApi: GitHubApi,
-        preferences: UserPreferences,
-        @ApplicationContext context: Context
-    ): UpdateRepository = UpdateRepository(githubApi, preferences, context)
+        preferences: UserPreferences
+    ): UpdateRepository = UpdateRepository(githubApi, preferences)
 }

@@ -1,6 +1,6 @@
 # MyHEBNU — 进度追踪
 
-> 最后更新: 2026-07-17 | 状态: Phase 7 完成 ✅；Phase 8 打磨中 — Batch 10（8 项 Bug/新需求）已记录待修复。
+> 最后更新: 2026-09-13 | 状态: Phase 7 完成 ✅；Phase 8 打磨中 — Batch 10 主要项已修复，**v1.5.0 已发布**（缓存优先加载 + 悬浮刷新 + 节次起止时间）。
 
 ---
 
@@ -687,6 +687,15 @@ Batch 6 + 7 ──→ Batch 8 (应用生态) → Phase 7 (Widget+通知) → Pha
 | → 修复5 | `previewImage` + XML Shape drawable 占位 — 防止 MIUI 桌面 Glance WorkManager 延迟触发超时 | |
 | → | 共 14 files: res/values/colors.xml (新), res/values/dimens.xml (新), 3 drawable (新), 4 widget XML, ScheduleWidgetCommon.kt, ScheduleWidgetData.kt, 4 widget KT files | |
 | → | 真机验证: 小米15/Android 16 — 4 种 Widget 显示+跳转正常 | |
+| **2026-09-13** | **v1.5.0 发布: 成绩/课表缓存优先 + 悬浮刷新 + 节次起止时间** | **里程碑** |
+| → | 成绩页/课表页改为缓存优先: 再次进入零联网秒显; 课表仅在本地判定过期(末周+14天)时自动校准 | 加载策略 |
+| → | 成绩新增 Room 持久化 (`GradeEntity`/`GradeDao`, DB v3→v4 + `MIGRATION_3_4`, `@Transaction replaceSemester`) | 数据层 |
+| → | 新增 `ui/components/RefreshFab.kt`: MD3 FAB 形态悬浮刷新, 短按刷最新有成绩学期/课表, 长按强制全量 | 新组件 |
+| → | 长按生效时 `LocalHapticFeedback` 触发马达震动; 刷新结果 Toast 反馈(`notify` 参数保证仅手动刷新提示) | 交互 |
+| → | 课表节次列补全结束时间(节次/开始/结束 三行); 修正课表与小组件节次时间表为教务真实 13 节 | UI |
+| → | `fetchPeriods()` 失败时改为优先读已持久化 `periodTimesJson`; 课表周次上限改为数据驱动(替换硬编码 20) | 健壮性 |
+| → | versionCode 6→7, versionName 1.4.0→1.5.0; CHANGELOG 与应用内 `changelog_content` 同步至 v1.5.0 | 发布 |
+| → | 发布校验: 签名 v2 scheme, 证书 SHA-256 与 v1.4.0 完全一致(升级安装兼容); APK 7,367,150 B | 发布校验 |
 
 ---
 

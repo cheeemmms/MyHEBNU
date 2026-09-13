@@ -36,6 +36,8 @@ data class ScheduleUiState(
     val semesterYear: String = "2025",
     val semesterTerm: String = "12",
     val error: String? = null,
+    /** 一次性提示：手动刷新课表的成功 / 失败。 */
+    val toastMessage: String? = null,
     // Current active course (highlighted)
     val activeCourseId: String? = null,
     // Day labels
@@ -198,8 +200,8 @@ class ScheduleViewModel @Inject constructor(
             val weekMappingResult = repository.fetchWeekDateMapping(year, term)
             val lastWeek = refreshCalendarState(year, term, today, weekMappingResult)
 
-            // ③ 刷新课表数据 (后台，不阻塞 UI)
-            refreshCourses(year, term)
+            // ③ 刷新课表数据 (后台，不阻塞 UI；首次加载不弹刷新提示)
+            refreshCourses(year, term, notify = false)
 
             // #29 学期末窗口：今天 ≥ 末周周日 且 今天 < 估算下学期开学日 → 窗口活动
             // 面板可见性由 computeAndApplyPanelMode() 综合窗口态 + 下学期缓存 + 展示学期得出。
@@ -214,12 +216,19 @@ class ScheduleViewModel @Inject constructor(
      * 与首次加载同一条链路——重新探测学期、拉周次映射与节次时间表、再拉课程数据，
      * 结果全部持久化，保证下次进入课表页仍可零网络。
      */
-    fun refreshSchedule() {
+    fun refreshSchedule() = refreshAll(notify = true)
+
+    /** 手动刷新结果通过一次性提示回传（成功 / 失败 Toast）。 */
+    fun consumeToast() {
+        _uiState.update { it.copy(toastMessage = null) }
+    }
+
+    private fun refreshAll(notify: Boolean) {
         viewModelScope.launch {
             if (_uiState.value.isCached) {
-                _uiState.update { it.copy(isRefreshing = true, error = null) }
+                _uiState.update { it.copy(isRefreshing = true, error = null, toastMessage = null) }
             } else {
-                _uiState.update { it.copy(isLoading = true, error = null) }
+                _uiState.update { it.copy(isLoading = true, error = null, toastMessage = null) }
             }
 
             // ① 探测/切换学期
@@ -235,7 +244,7 @@ class ScheduleViewModel @Inject constructor(
             val lastWeek = refreshCalendarState(year, term, today, weekMappingResult)
 
             // ③ 课程数据
-            refreshCourses(year, term)
+            refreshCourses(year, term, notify)
 
             // ④ 学期末窗口 + 浮层
             applyEndWindow(today, weekMappingResult.getOrNull(), year, term, lastWeek, fallbackToToday = true)
@@ -408,14 +417,22 @@ class ScheduleViewModel @Inject constructor(
 
     /**
      * 只拉课程数据（学期信息与节次表已就绪时使用），成功后同步刷新小组件。
+     *
+     * @param notify 是否回传刷新结果提示（仅用户手动刷新时为 true，首次自动加载不打扰）
      */
-    private suspend fun refreshCourses(year: String, term: String) {
+    private suspend fun refreshCourses(year: String, term: String, notify: Boolean) {
         val result = repository.refreshSchedule(year, term)
         result.fold(
             onSuccess = {
                 // Room Flow will automatically emit updated data
                 _uiState.update {
-                    it.copy(isRefreshing = false, isLoading = false, isCached = true, error = null)
+                    it.copy(
+                        isRefreshing = false,
+                        isLoading = false,
+                        isCached = true,
+                        error = null,
+                        toastMessage = if (notify) "刷新成功" else it.toastMessage
+                    )
                 }
                 // Refresh all widget instances
                 widgetUpdateManager.updateAll()
@@ -429,7 +446,8 @@ class ScheduleViewModel @Inject constructor(
                             null // Don't show error if we have cached data
                         } else {
                             e.message ?: "Failed to load schedule"
-                        }
+                        },
+                        toastMessage = if (notify) "刷新失败" else it.toastMessage
                     )
                 }
             }
@@ -570,7 +588,8 @@ class ScheduleViewModel @Inject constructor(
         panelDismissedThisSession = false
         if (_uiState.value.isCached) {
             viewModelScope.launch {
-                if (isLocalSemesterExpired()) refreshSchedule()
+                // 这是自动触发的过期补刷，不弹刷新提示
+                if (isLocalSemesterExpired()) refreshAll(notify = false)
             }
         }
         computeAndApplyPanelMode()

@@ -1,5 +1,6 @@
 package com.myhebnu.ui.schedule
 
+import android.widget.Toast
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -32,11 +34,20 @@ fun ScheduleScreen(
     val today = LocalDate.now()
     val todayDayOfWeek = today.dayOfWeek.value // Mon=1 ... Sun=7
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // Show error in snackbar
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
+        }
+    }
+
+    // 手动刷新结果：成功 / 失败各弹一次 Toast
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToast()
         }
     }
 

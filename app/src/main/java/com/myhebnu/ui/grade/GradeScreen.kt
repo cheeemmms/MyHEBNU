@@ -1,5 +1,6 @@
 package com.myhebnu.ui.grade
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -25,18 +27,18 @@ fun GradeScreen(
     onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // Auto-load grades on every composition entry (tab switch, first launch, etc.)
     LaunchedEffect(Unit) {
         viewModel.loadAllGrades()
     }
 
-    // Show warning in snackbar when refresh fails but cached data is displayed
-    LaunchedEffect(uiState.warningMessage) {
-        uiState.warningMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.clearWarning()
+    // 手动刷新结果：成功 / 失败各弹一次 Toast
+    LaunchedEffect(uiState.toastMessage) {
+        uiState.toastMessage?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToast()
         }
     }
 
@@ -51,7 +53,6 @@ fun GradeScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {

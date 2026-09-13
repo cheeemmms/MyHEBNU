@@ -15,7 +15,7 @@ data class GradeUiState(
     val isRefreshing: Boolean = false,          // 手动刷新中（悬浮图标转圈）
     val hasCache: Boolean = false,              // 本地已有成绩 → 显示悬浮刷新图标
     val error: String? = null,
-    val warningMessage: String? = null,         // snackbar warning when refresh fails but cache exists
+    val toastMessage: String? = null,           // 一次性提示：手动刷新的成功 / 失败
     val semesters: List<SemesterGrades> = emptyList(),
     val currentStrategy: GpaStrategy = GpaStrategy.WEIGHTED_PERCENTAGE,
     val expandedSemester: String? = null,       // semesterName to expand
@@ -104,30 +104,42 @@ class GradeViewModel @Inject constructor(
         viewModelScope.launch {
             if (repository.hasCache()) return@launch
             _uiState.update { it.copy(isLoading = true, error = null) }
-            runRefresh { repository.refreshAllSemesters() }
+            // 首次自动加载不弹刷新提示，只有用户手动刷新才提示
+            runRefresh(notify = false) { repository.refreshAllSemesters() }
         }
     }
 
     /** 短按悬浮刷新图标：刷新最近一个有成绩的学期 + 当前学期。 */
     fun refreshLatestGrades() {
         viewModelScope.launch {
-            runRefresh { repository.refreshLatestSemester() }
+            runRefresh(notify = true) { repository.refreshLatestSemester() }
         }
     }
 
     /** 长按悬浮刷新图标：强制拉取所有学期。 */
     fun forceRefreshAllGrades() {
         viewModelScope.launch {
-            runRefresh { repository.refreshAllSemesters() }
+            runRefresh(notify = true) { repository.refreshAllSemesters() }
         }
     }
 
-    private suspend fun runRefresh(block: suspend () -> Result<Unit>) {
-        _uiState.update { it.copy(isRefreshing = true, error = null, warningMessage = null) }
+    /** 手动刷新结果通过一次性提示回传（成功 / 失败 Toast）。 */
+    fun consumeToast() {
+        _uiState.update { it.copy(toastMessage = null) }
+    }
+
+    private suspend fun runRefresh(notify: Boolean, block: suspend () -> Result<Unit>) {
+        _uiState.update { it.copy(isRefreshing = true, error = null, toastMessage = null) }
         block().fold(
             onSuccess = {
                 // Room Flow 会自动发射新数据
-                _uiState.update { it.copy(isRefreshing = false, isLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        isRefreshing = false,
+                        isLoading = false,
+                        toastMessage = if (notify) "刷新成功" else it.toastMessage
+                    )
+                }
             },
             onFailure = { e ->
                 val hasData = _uiState.value.semesters.isNotEmpty()
@@ -136,17 +148,11 @@ class GradeViewModel @Inject constructor(
                         isRefreshing = false,
                         isLoading = false,
                         error = if (hasData) null else (e.message ?: "加载成绩失败"),
-                        warningMessage = if (hasData) {
-                            e.message ?: "刷新失败，显示的是上次的数据"
-                        } else null
+                        toastMessage = if (notify) "刷新失败" else it.toastMessage
                     )
                 }
             }
         )
-    }
-
-    fun clearWarning() {
-        _uiState.update { it.copy(warningMessage = null) }
     }
 
     fun toggleSemesterExpanded(semesterName: String) {

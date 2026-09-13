@@ -368,8 +368,8 @@ class ScheduleRepository @Inject constructor(
             if (response.isSuccessful) {
                 val rawJson = response.body()?.string() ?: ""
                 if (rawJson.isBlank() || rawJson.contains("<!doctype") || rawJson.contains("<html")) {
-                    android.util.Log.w("MyHEBNU", "fetchPeriods: server returned HTML, using fallback")
-                    return fallbackPeriods()
+                    android.util.Log.w("MyHEBNU", "fetchPeriods: server returned HTML, using persisted/fallback")
+                    return persistedOrFallbackPeriods()
                 }
                 val periods = parsePeriodListResponse(rawJson)
                 if (periods.isNotEmpty()) {
@@ -381,16 +381,27 @@ class ScheduleRepository @Inject constructor(
                     android.util.Log.w("MyHEBNU", "fetchPeriods: loaded ${periods.size} periods from API")
                     periods
                 } else {
-                    fallbackPeriods()
+                    persistedOrFallbackPeriods()
                 }
             } else {
-                android.util.Log.w("MyHEBNU", "fetchPeriods: HTTP ${response.code()}, using fallback")
-                fallbackPeriods()
+                android.util.Log.w("MyHEBNU", "fetchPeriods: HTTP ${response.code()}, using persisted/fallback")
+                persistedOrFallbackPeriods()
             }
         } catch (e: Exception) {
             android.util.Log.e("MyHEBNU", "fetchPeriods error: ${e.message}", e)
-            fallbackPeriods()
+            persistedOrFallbackPeriods()
         }
+    }
+
+    /**
+     * 节次时间表回退顺序：先读上次成功联网后持久化的真实节次表（DataStore），
+     * 只有在本地也没有真实节次时才退回硬编码兜底表。
+     *
+     * 此前接口失败即直接退回硬编码表，导致错误时间覆盖掉本已正确的本地数据。
+     */
+    private suspend fun persistedOrFallbackPeriods(): List<PeriodTime> {
+        val persisted = periodsFromJson(preferences.periodTimesJson.first())
+        return if (persisted.isNotEmpty()) persisted else fallbackPeriods()
     }
 
     /**
@@ -462,23 +473,24 @@ internal fun periodsFromJson(json: String): List<PeriodTime> {
 }
 
 /**
- * Hardcoded fallback matching the real 河北师大 13-period schedule.
- * Used only when no real period times are available.
+ * Hardcoded fallback matching the real 河北师大 13-period schedule
+ * (教务 `/kbcx/xskbcx_cxRjc.html`，裕华校区)。
+ * Used only when neither the API nor a previously persisted table is available.
  */
 internal fun fallbackPeriods(): List<PeriodTime> {
     return listOf(
-        PeriodTime(1, "08:00", "08:45"),
-        PeriodTime(2, "08:45", "09:45"),
-        PeriodTime(3, "09:45", "10:30"),
-        PeriodTime(4, "10:30", "11:20"),
-        PeriodTime(5, "11:20", "12:00"),
-        PeriodTime(6, "14:00", "14:45"),
-        PeriodTime(7, "14:45", "15:35"),
-        PeriodTime(8, "15:35", "16:35"),
-        PeriodTime(9, "16:35", "17:20"),
-        PeriodTime(10, "17:20", "18:05"),
-        PeriodTime(11, "19:00", "19:45"),
-        PeriodTime(12, "19:45", "20:35"),
+        PeriodTime(1, "08:00", "08:40"),
+        PeriodTime(2, "08:50", "09:30"),
+        PeriodTime(3, "09:45", "10:25"),
+        PeriodTime(4, "10:35", "11:15"),
+        PeriodTime(5, "11:20", "12:05"),
+        PeriodTime(6, "14:00", "14:40"),
+        PeriodTime(7, "14:50", "15:30"),
+        PeriodTime(8, "15:35", "16:20"),
+        PeriodTime(9, "16:35", "17:15"),
+        PeriodTime(10, "17:25", "18:05"),
+        PeriodTime(11, "19:00", "19:40"),
+        PeriodTime(12, "19:50", "20:30"),
         PeriodTime(13, "20:35", "21:20")
     )
 }

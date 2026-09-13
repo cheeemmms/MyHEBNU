@@ -18,6 +18,7 @@ fun WeekSelector(
     displayWeek: Int,
     currentWeek: Int,
     isVacation: Boolean = false,
+    lastWeek: Int = 20,
     onPreviousWeek: () -> Unit,
     onNextWeek: () -> Unit,
     onGoToCurrentWeek: () -> Unit,
@@ -81,7 +82,7 @@ fun WeekSelector(
             // Next week button
             IconButton(
                 onClick = onNextWeek,
-                enabled = displayWeek < 20
+                enabled = displayWeek < lastWeek
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,

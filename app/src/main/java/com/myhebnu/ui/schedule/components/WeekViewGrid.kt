@@ -137,7 +137,8 @@ fun WeekViewGrid(
                                     .fillMaxWidth()
                                     .height(rowHeight)
                             ) {
-                                // Time label cell
+                                // Time label cell — 节次号 / 开始时间 / 结束时间（三行竖排）
+                                val periodInfo = periodLabels[periodIdx]
                                 Box(
                                     modifier = Modifier
                                         .width(timeColumnWidth).fillMaxHeight()
@@ -145,18 +146,33 @@ fun WeekViewGrid(
                                         .border(0.5.dp, gridLineColor),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
                                         Text(
-                                            periodLabels[periodIdx].startPeriod.toString(),
+                                            periodInfo.startPeriod.toString(),
                                             style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Medium, fontSize = 11.sp
+                                            fontWeight = FontWeight.Medium,
+                                            fontSize = 11.sp,
+                                            lineHeight = 13.sp
                                         )
                                         Text(
-                                            periodLabels[periodIdx].startTime,
+                                            periodInfo.startTime,
                                             style = MaterialTheme.typography.labelSmall,
                                             fontSize = 8.5.sp,
+                                            lineHeight = 10.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
+                                        if (periodInfo.endTime.isNotBlank()) {
+                                            Text(
+                                                periodInfo.endTime,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontSize = 8.5.sp,
+                                                lineHeight = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                            )
+                                        }
                                     }
                                 }
 

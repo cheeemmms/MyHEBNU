@@ -14,6 +14,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
+import com.myhebnu.ui.components.FloatingRefreshButton
 import com.myhebnu.ui.schedule.components.CourseDetailSheet
 import com.myhebnu.ui.schedule.components.WeekSelector
 import com.myhebnu.ui.schedule.components.WeekViewGrid
@@ -162,6 +163,22 @@ fun ScheduleScreen(
                             .padding(bottom = 56.dp)
                     )
                 }
+
+                // 悬浮刷新图标：本地已有课表时常驻；点一下完整刷新
+                // （重新探测学期 + 周次映射 + 节次时间表 + 课程数据）
+                if (uiState.isCached) {
+                    FloatingRefreshButton(
+                        isRefreshing = uiState.isRefreshing,
+                        onClick = viewModel::refreshSchedule,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(
+                                end = 16.dp,
+                                // #29 浮层浮在网格下半区 → 图标上移避让，避免被遮挡
+                                bottom = if (uiState.panelMode != SemesterPanelMode.NONE) 200.dp else 16.dp
+                            )
+                    )
+                }
             } // End Box(modifier.weight(1f))
 
             // 假期提示：今天不在任何教学周时明确告知，避免把第1周误当前周
@@ -201,6 +218,7 @@ fun ScheduleScreen(
                 displayWeek = uiState.displayWeek,
                 currentWeek = uiState.currentWeek,
                 isVacation = uiState.isVacation,
+                lastWeek = uiState.lastWeek,
                 onPreviousWeek = viewModel::goToPreviousWeek,
                 onNextWeek = viewModel::goToNextWeek,
                 onGoToCurrentWeek = viewModel::goToCurrentWeek

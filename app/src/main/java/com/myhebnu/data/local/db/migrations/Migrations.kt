@@ -42,4 +42,31 @@ object Migrations {
             )
         }
     }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS grades (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    courseName TEXT NOT NULL,
+                    courseCode TEXT NOT NULL DEFAULT '',
+                    credit REAL NOT NULL DEFAULT 0,
+                    score TEXT NOT NULL DEFAULT '',
+                    scoreValue REAL,
+                    classId TEXT NOT NULL DEFAULT '',
+                    teachingClassName TEXT NOT NULL DEFAULT '',
+                    department TEXT NOT NULL DEFAULT '',
+                    semesterYear TEXT NOT NULL DEFAULT '',
+                    semesterTerm TEXT NOT NULL DEFAULT '',
+                    semesterName TEXT NOT NULL DEFAULT '',
+                    lastUpdated INTEGER NOT NULL DEFAULT 0
+                )
+                """.trimIndent()
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_grades_semesterYear_semesterTerm ON grades (semesterYear, semesterTerm)"
+            )
+        }
+    }
 }

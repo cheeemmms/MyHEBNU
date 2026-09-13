@@ -42,6 +42,7 @@ class UserPreferences @Inject constructor(
         val SHOW_WEEKEND_COLUMNS = booleanPreferencesKey("show_weekend_columns")
         val SENT_REMINDERS = stringPreferencesKey("sent_reminders")
         val PERIOD_TIMES_JSON = stringPreferencesKey("period_times_json")
+        val LAST_WEEK = intPreferencesKey("last_week")
         val HOME_WEIGHTED_AVG = floatPreferencesKey("home_weighted_avg")
         val HOME_WEIGHTED_AVG_SEMESTER = stringPreferencesKey("home_weighted_avg_semester")
     }
@@ -67,6 +68,8 @@ class UserPreferences @Inject constructor(
     val availableUpdateVersion: Flow<String> = context.dataStore.data.map { it[Keys.AVAILABLE_UPDATE_VERSION] ?: "" }
     val showWeekendColumns: Flow<Boolean> = context.dataStore.data.map { it[Keys.SHOW_WEEKEND_COLUMNS] ?: false }
     val periodTimesJson: Flow<String> = context.dataStore.data.map { it[Keys.PERIOD_TIMES_JSON] ?: "" }
+    /** 本学期实际末周（由 N2154 周次映射算得并持久化），供 cache-first 与翻周上限使用。 */
+    val lastWeek: Flow<Int> = context.dataStore.data.map { it[Keys.LAST_WEEK] ?: 20 }
     val homeWeightedAvg: Flow<Float> = context.dataStore.data.map { it[Keys.HOME_WEIGHTED_AVG] ?: 0f }
     val homeWeightedAvgSemester: Flow<String> = context.dataStore.data.map { it[Keys.HOME_WEIGHTED_AVG_SEMESTER] ?: "" }
 
@@ -168,6 +171,10 @@ class UserPreferences @Inject constructor(
 
     suspend fun setPeriodTimesJson(json: String) {
         context.dataStore.edit { it[Keys.PERIOD_TIMES_JSON] = json }
+    }
+
+    suspend fun setLastWeek(week: Int) {
+        context.dataStore.edit { it[Keys.LAST_WEEK] = week }
     }
 
     /**

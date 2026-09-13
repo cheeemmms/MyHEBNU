@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.myhebnu.data.local.db.AppDatabase
 import com.myhebnu.data.local.db.dao.ExamDao
+import com.myhebnu.data.local.db.dao.GradeDao
 import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.db.migrations.Migrations
 import dagger.Module
@@ -24,7 +25,11 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "myhebnu.db"
-        ).addMigrations(Migrations.MIGRATION_1_2, Migrations.MIGRATION_2_3)
+        ).addMigrations(
+            Migrations.MIGRATION_1_2,
+            Migrations.MIGRATION_2_3,
+            Migrations.MIGRATION_3_4
+        )
           .fallbackToDestructiveMigration(false).build()
     }
 
@@ -36,5 +41,10 @@ object DatabaseModule {
     @Provides
     fun provideExamDao(database: AppDatabase): ExamDao {
         return database.examDao()
+    }
+
+    @Provides
+    fun provideGradeDao(database: AppDatabase): GradeDao {
+        return database.gradeDao()
     }
 }

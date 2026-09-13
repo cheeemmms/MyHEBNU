@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
 import com.myhebnu.domain.Grade
+import com.myhebnu.ui.components.FloatingRefreshButton
 import com.myhebnu.ui.grade.components.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -149,6 +150,19 @@ fun GradeScreen(
                 item { Spacer(Modifier.height(80.dp)) } // Bottom padding for FAB
             }
         }
+    }
+
+    // 悬浮刷新图标：本地已有成绩时常驻。
+    // 短按 = 刷新最近一个有成绩的学期 + 当前学期；长按 = 强制拉取所有学期。
+    if (uiState.hasCache && uiState.semesters.isNotEmpty()) {
+        FloatingRefreshButton(
+            isRefreshing = uiState.isRefreshing,
+            onClick = viewModel::refreshLatestGrades,
+            onLongClick = viewModel::forceRefreshAllGrades,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = 20.dp)
+        )
     }
 
     // Grade detail bottom sheet

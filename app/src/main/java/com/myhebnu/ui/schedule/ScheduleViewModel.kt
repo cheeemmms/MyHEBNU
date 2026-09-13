@@ -6,6 +6,8 @@ import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.PeriodTime
 import com.myhebnu.data.repository.ScheduleRepository
+import com.myhebnu.data.repository.fallbackPeriods
+import com.myhebnu.data.repository.periodsFromJson
 import com.myhebnu.ui.theme.ColorPreset
 import com.myhebnu.ui.theme.builtInPresets
 import com.myhebnu.ui.theme.findPresetById
@@ -87,6 +89,14 @@ class ScheduleViewModel @Inject constructor(
     private val widgetUpdateManager: com.myhebnu.widget.WidgetUpdateManager
 ) : ViewModel() {
 
+    companion object {
+        /**
+         * cache-first 宽限期：今天超出末周周日该天数即视为本地学期已过期，转走联网路径。
+         * 兜底"完全 cache-first 后一直卡在旧学期"的情况。
+         */
+        private const val LOCAL_CACHE_GRACE_DAYS = 14L
+    }
+
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
@@ -122,7 +132,8 @@ class ScheduleViewModel @Inject constructor(
         val allCourses: List<CourseEntity>,
         val filtered: List<CourseEntity>,
         val colorPrefs: ColorPrefs,
-        val dayLabels: List<String>
+        val dayLabels: List<String>,
+        val dayDateLabels: List<String>
     )
 
     private val colorPrefsFlow: Flow<ColorPrefs> = combine(
@@ -158,7 +169,22 @@ class ScheduleViewModel @Inject constructor(
 
     private fun loadInitialData() {
         viewModelScope.launch {
+            // 首帧即进入加载态：等 Room 首次发射（有课则渲染网格、无课则显示无课表）
             _uiState.update { it.copy(isLoading = true) }
+
+            // 课程流常驻：Room 课程 + 展示周 + 配色 + 周末列 + 开学日 → 过滤 / 配色 / 表头月日
+            startObservingSchedule()
+
+            // 完全 cache-first：本地已有本学期课表且学期未明显过期 → 只读本地，零网络请求。
+            val cachedYear = preferences.currentSemesterYear.first()
+            val cachedTerm = preferences.currentSemesterTerm.first()
+            if (repository.hasCachedData(cachedYear, cachedTerm) && !isLocalSemesterExpired()) {
+                applyLocalSemesterState(cachedYear, cachedTerm)
+                computeAndApplyPanelMode()
+                return@launch
+            }
+
+            // 首次使用 / 学期已明显过期 → 走下面的全量联网流程
 
             // ① 探测/切换学期
             val (year, term) = detectAndApplySemester()
@@ -167,151 +193,313 @@ class ScheduleViewModel @Inject constructor(
             _currentYear.value = year
             _currentTerm.value = term
 
-            // ② 从 N2154 API 获取周次日期映射
-            val weekMappingResult = repository.fetchWeekDateMapping(year, term)
-
-            // ③ 自动计算当前周（开学日权威；未设置时由 N2154 周1起始日预填）
+            // ② 周次日期映射 + 开学日 / 当前周 / 末周 / 节次时间表（结果全部持久化）
             val today = LocalDate.now()
-            val weekMapping = weekMappingResult.getOrNull()
+            val weekMappingResult = repository.fetchWeekDateMapping(year, term)
+            val lastWeek = refreshCalendarState(year, term, today, weekMappingResult)
 
-            // 开学日：手动设置优先；未设置时由 N2154 周1起始日预填（兼容老版本升级用户）。
-            val n2154Start = weekMapping?.get(1)?.let { parseDateRange(it).first }
-            val storedStart = preferences.semesterStartDate.first()
-            val startDate = if (storedStart.isNotBlank()) {
-                runCatching { LocalDate.parse(storedStart) }.getOrNull()
-            } else {
-                n2154Start?.also { preferences.setSemesterStartDate(it.toString()) }
-            }
-            _semesterStartDate.value = startDate
-
-            val storedEnd = preferences.semesterEndDate.first()
-            val endDate = if (storedEnd.isNotBlank()) {
-                runCatching { LocalDate.parse(storedEnd) }.getOrNull()
-            } else null
-
-            val matchedWeek = weekMapping?.entries?.find { (_, dateRange) ->
-                val (start, end) = parseDateRange(dateRange)
-                today in start..end
-            }?.key
-            // 开学日已设置 → 以开学日为准计算当前周；否则回落 N2154 matchedWeek。
-            val computedWeek = if (startDate != null) computeCurrentWeek(startDate, endDate, today) else -1
-            val autoWeek = if (computedWeek >= 0) computedWeek else (matchedWeek ?: preferences.currentWeek.first())
-            // 假期中（开学前 / 放假日之后）→ currentWeek 置 0，避免把第 1 周误当当前周。
-            val vacation = if (startDate != null) autoWeek == 0 else (weekMappingResult.isSuccess && matchedWeek == null)
-            preferences.setCurrentWeek(autoWeek)
-            realCurrentWeek = autoWeek
-
-            // 实际末周（用于触发"下学期"提示，稳健于硬编码20周）
-            val lastWeek = weekMappingResult.fold(
-                onSuccess = { mapping -> mapping.keys.maxOrNull() ?: 20 },
-                onFailure = { 20 }
-            )
-
-            // Fetch real period time table from API (fallback = hardcoded 13-period table)
-            val periods = repository.fetchPeriods(year, term)
-            val periodLabels = toPeriodInfos(periods)
-
-            // Sync both displayWeek sources
-            _displayWeek.value = autoWeek
-            _uiState.update {
-                it.copy(
-                    semesterYear = year, semesterTerm = term,
-                    currentWeek = if (vacation) 0 else autoWeek,
-                    displayWeek = autoWeek,
-                    periodLabels = periodLabels,
-                    lastWeek = lastWeek,
-                    isVacation = vacation
-                )
-            }
-
-            // Check cache first
-            val cached = repository.hasCachedData(year, term)
-            if (cached) {
-                _uiState.update { it.copy(isCached = true) }
-            }
-
-            // ④ combine: Room 课程 + 独立的 displayWeek Flow → 自动过滤
-            // 使用独立的 _displayWeek 而不是 _uiState.map{}，避免
-            // StateFlow 合并更新时潜在的竞态导致 combine 错过触发信号
-            // ④ combine: Room 课程 + displayWeek + 色彩偏好 + 周末列开关 → 自动过滤 + 课程色相感知 seedHue
-            viewModelScope.launch {
-                combine(
-                    _viewYear.combine(_viewTerm) { y, t -> y to t }
-                        .flatMapLatest { (y, t) -> repository.observeSchedule(y, t) },
-                    _displayWeek,
-                    colorPrefsFlow,
-                    preferences.showWeekendColumns
-                ) { allCourses, week, colorPrefs, showWeekend ->
-                    CombinedSchedule(
-                        allCourses = allCourses,
-                        filtered = filterCoursesByWeek(allCourses, week),
-                        colorPrefs = colorPrefs,
-                        dayLabels = if (showWeekend) FULL_DAY_LABELS else WEEKDAY_DAY_LABELS
-                    )
-                }.collect { combined ->
-                    _uiState.update {
-                        it.copy(
-                            courses = combined.allCourses,
-                            filteredCourses = combined.filtered,
-                            coursePalettes = buildCoursePalettes(
-                                combined.allCourses,
-                                seedOffset = combined.colorPrefs.seedHue ?: 0f,
-                                isDark = combined.colorPrefs.isDark
-                            ),
-                            dayLabels = combined.dayLabels,
-                            dayDateLabels = buildDayDateLabels(_displayWeek.value, _semesterStartDate.value, combined.dayLabels.size),
-                            isLoading = false,
-                            activeCourseId = findActiveCourse(combined.filtered, it.displayWeek)
-                        )
-                    }
-                }
-            }
-
-            // ⑤ 刷新课表 (后台，不阻塞 UI)
-            refreshSchedule()
+            // ③ 刷新课表数据 (后台，不阻塞 UI)
+            refreshCourses(year, term)
 
             // #29 学期末窗口：今天 ≥ 末周周日 且 今天 < 估算下学期开学日 → 窗口活动
             // 面板可见性由 computeAndApplyPanelMode() 综合窗口态 + 下学期缓存 + 展示学期得出。
-            val lastWeekSunday: LocalDate = weekMappingResult.fold(
-                onSuccess = { mapping ->
-                    val rangeStr = mapping[lastWeek] ?: ""
-                    val parts = rangeStr.split("/")
-                    if (parts.size == 2) try { LocalDate.parse(parts[1]) } catch (_: Exception) { today } else today
-                },
-                onFailure = { today }
-            )
-            val nextTermStartEst = estimateNextTermStartDate(year, term)
-            endWindowActive = today >= lastWeekSunday && today < nextTermStartEst
+            applyEndWindow(today, weekMappingResult.getOrNull(), year, term, lastWeek, fallbackToToday = true)
             computeAndApplyPanelMode()
         }
     }
 
+    /**
+     * 悬浮刷新图标 / 错误重试：完整联网刷新。
+     *
+     * 与首次加载同一条链路——重新探测学期、拉周次映射与节次时间表、再拉课程数据，
+     * 结果全部持久化，保证下次进入课表页仍可零网络。
+     */
     fun refreshSchedule() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, error = null) }
-            val state = _uiState.value
-            val result = repository.refreshSchedule(state.semesterYear, state.semesterTerm)
-            result.fold(
-                onSuccess = {
-                    // Room Flow will automatically emit updated data
-                    _uiState.update { it.copy(isRefreshing = false, isCached = true) }
-                    // Refresh all widget instances
-                    widgetUpdateManager.updateAll()
-                },
-                onFailure = { e ->
-                    _uiState.update {
-                        it.copy(
-                            isRefreshing = false,
-                            error = if (it.isCached) {
-                                null // Don't show error if we have cached data
-                            } else {
-                                e.message ?: "Failed to load schedule"
-                            }
-                        )
-                    }
+            if (_uiState.value.isCached) {
+                _uiState.update { it.copy(isRefreshing = true, error = null) }
+            } else {
+                _uiState.update { it.copy(isLoading = true, error = null) }
+            }
+
+            // ① 探测/切换学期
+            val (year, term) = detectAndApplySemester()
+            _viewYear.value = year
+            _viewTerm.value = term
+            _currentYear.value = year
+            _currentTerm.value = term
+
+            // ② 周次日期映射 + 开学日 / 当前周 / 末周 / 节次时间表（结果全部持久化）
+            val today = LocalDate.now()
+            val weekMappingResult = repository.fetchWeekDateMapping(year, term)
+            val lastWeek = refreshCalendarState(year, term, today, weekMappingResult)
+
+            // ③ 课程数据
+            refreshCourses(year, term)
+
+            // ④ 学期末窗口 + 浮层
+            applyEndWindow(today, weekMappingResult.getOrNull(), year, term, lastWeek, fallbackToToday = true)
+            computeAndApplyPanelMode()
+        }
+    }
+
+    /**
+     * 课程流常驻：Room 课程 + 展示周 + 配色偏好 + 周末列开关 + 开学日
+     * → 过滤 / 调色板 / 表头月日。只在 ViewModel 初始化时启动一次。
+     *
+     * 使用独立的 _displayWeek / _semesterStartDate 而不是 _uiState.map{}，
+     * 避免 StateFlow 合并更新时潜在的竞态导致 combine 错过触发信号。
+     */
+    private fun startObservingSchedule() {
+        viewModelScope.launch {
+            combine(
+                _viewYear.combine(_viewTerm) { y, t -> y to t }
+                    .flatMapLatest { (y, t) -> repository.observeSchedule(y, t) },
+                _displayWeek,
+                colorPrefsFlow,
+                preferences.showWeekendColumns,
+                _semesterStartDate
+            ) { allCourses, week, colorPrefs, showWeekend, startDate ->
+                val dayLabels = if (showWeekend) FULL_DAY_LABELS else WEEKDAY_DAY_LABELS
+                CombinedSchedule(
+                    allCourses = allCourses,
+                    filtered = filterCoursesByWeek(allCourses, week),
+                    colorPrefs = colorPrefs,
+                    dayLabels = dayLabels,
+                    dayDateLabels = buildDayDateLabels(week, startDate, dayLabels.size)
+                )
+            }.collect { combined ->
+                _uiState.update {
+                    it.copy(
+                        courses = combined.allCourses,
+                        filteredCourses = combined.filtered,
+                        coursePalettes = buildCoursePalettes(
+                            combined.allCourses,
+                            seedOffset = combined.colorPrefs.seedHue ?: 0f,
+                            isDark = combined.colorPrefs.isDark
+                        ),
+                        dayLabels = combined.dayLabels,
+                        dayDateLabels = combined.dayDateLabels,
+                        // 首次拉取尚未完成时不提前解除 loading，避免闪出"无课表"
+                        isLoading = if (combined.allCourses.isEmpty()) it.isLoading else false,
+                        // Room 一交出课程即视为"本地有数据"→ 悬浮刷新图标随之出现
+                        isCached = it.isCached || combined.allCourses.isNotEmpty(),
+                        activeCourseId = findActiveCourse(combined.filtered, it.displayWeek)
+                    )
                 }
+            }
+        }
+    }
+
+    /**
+     * 由周次映射 + 学期起止日 换算并落地：开学日、当前周/假期、实际末周、节次时间表。
+     * 末周与节次表会写入 DataStore——下次进入课表页走 cache-first 时只能读本地。
+     *
+     * @return 实际末周（用于学期末浮层判定）
+     */
+    private suspend fun refreshCalendarState(
+        year: String,
+        term: String,
+        today: LocalDate,
+        weekMappingResult: Result<Map<Int, String>>
+    ): Int {
+        val weekMapping = weekMappingResult.getOrNull()
+
+        // 开学日：手动设置优先；未设置时由 N2154 周1起始日预填（兼容老版本升级用户）。
+        val n2154Start = weekMapping?.get(1)?.let { parseDateRange(it).first }
+        val storedStart = preferences.semesterStartDate.first()
+        val startDate = if (storedStart.isNotBlank()) {
+            runCatching { LocalDate.parse(storedStart) }.getOrNull()
+        } else {
+            n2154Start?.also { preferences.setSemesterStartDate(it.toString()) }
+        }
+        _semesterStartDate.value = startDate
+
+        val storedEnd = preferences.semesterEndDate.first()
+        val endDate = if (storedEnd.isNotBlank()) {
+            runCatching { LocalDate.parse(storedEnd) }.getOrNull()
+        } else null
+
+        val matchedWeek = weekMapping?.entries?.find { (_, dateRange) ->
+            val (start, end) = parseDateRange(dateRange)
+            today in start..end
+        }?.key
+        // 开学日已设置 → 以开学日为准计算当前周；否则回落 N2154 matchedWeek。
+        val computedWeek = if (startDate != null) computeCurrentWeek(startDate, endDate, today) else -1
+        val autoWeek = if (computedWeek >= 0) computedWeek else (matchedWeek ?: preferences.currentWeek.first())
+        // 假期中（开学前 / 放假日之后）→ currentWeek 置 0，避免把第 1 周误当当前周。
+        val vacation = if (startDate != null) autoWeek == 0 else (weekMappingResult.isSuccess && matchedWeek == null)
+        preferences.setCurrentWeek(autoWeek)
+        realCurrentWeek = autoWeek
+
+        // 实际末周（用于触发"下学期"提示，稳健于硬编码20周）
+        val lastWeek = weekMappingResult.fold(
+            onSuccess = { mapping -> mapping.keys.maxOrNull() ?: 20 },
+            onFailure = { 20 }
+        )
+        // 持久化实际末周：下次进入走 cache-first 时不再有周次映射可算，只能读这里。
+        preferences.setLastWeek(lastWeek)
+
+        // 真实节次时间表（失败时回退已持久化的真实节次，最后才是硬编码兜底）
+        val periods = repository.fetchPeriods(year, term)
+
+        // Sync both displayWeek sources
+        _displayWeek.value = autoWeek
+        _uiState.update {
+            it.copy(
+                semesterYear = year, semesterTerm = term,
+                currentWeek = if (vacation) 0 else autoWeek,
+                displayWeek = autoWeek,
+                periodLabels = toPeriodInfos(periods),
+                lastWeek = lastWeek,
+                isVacation = vacation
             )
         }
+        return lastWeek
+    }
+
+    /**
+     * cache-first 路径：学期与当前周、假期、末周、节次表全部读本地，零网络请求。
+     * 课表课程本身由常驻的 Room 课程流提供。
+     */
+    private suspend fun applyLocalSemesterState(year: String, term: String) {
+        _viewYear.value = year
+        _viewTerm.value = term
+        _currentYear.value = year
+        _currentTerm.value = term
+
+        val today = LocalDate.now()
+
+        val storedStart = preferences.semesterStartDate.first()
+        val startDate = if (storedStart.isNotBlank()) {
+            runCatching { LocalDate.parse(storedStart) }.getOrNull()
+        } else null
+        _semesterStartDate.value = startDate
+
+        val storedEnd = preferences.semesterEndDate.first()
+        val endDate = if (storedEnd.isNotBlank()) {
+            runCatching { LocalDate.parse(storedEnd) }.getOrNull()
+        } else null
+
+        val computedWeek = if (startDate != null) computeCurrentWeek(startDate, endDate, today) else -1
+        val autoWeek = if (computedWeek >= 0) computedWeek else preferences.currentWeek.first()
+        val vacation = computedWeek == 0
+        preferences.setCurrentWeek(autoWeek)
+        realCurrentWeek = autoWeek
+
+        val lastWeek = preferences.lastWeek.first()
+        // 节次时间表：读本地持久化的真实节次，空则回退硬编码兜底。
+        val periods = periodsFromJson(preferences.periodTimesJson.first()).ifEmpty { fallbackPeriods() }
+
+        _displayWeek.value = autoWeek
+        _uiState.update {
+            it.copy(
+                semesterYear = year, semesterTerm = term,
+                currentWeek = if (vacation) 0 else autoWeek,
+                displayWeek = autoWeek,
+                periodLabels = toPeriodInfos(periods),
+                lastWeek = lastWeek,
+                isVacation = vacation
+            )
+        }
+
+        applyEndWindow(today, null, year, term, lastWeek, fallbackToToday = false)
+    }
+
+    /**
+     * 只拉课程数据（学期信息与节次表已就绪时使用），成功后同步刷新小组件。
+     */
+    private suspend fun refreshCourses(year: String, term: String) {
+        val result = repository.refreshSchedule(year, term)
+        result.fold(
+            onSuccess = {
+                // Room Flow will automatically emit updated data
+                _uiState.update {
+                    it.copy(isRefreshing = false, isLoading = false, isCached = true, error = null)
+                }
+                // Refresh all widget instances
+                widgetUpdateManager.updateAll()
+            },
+            onFailure = { e ->
+                _uiState.update {
+                    it.copy(
+                        isRefreshing = false,
+                        isLoading = false,
+                        error = if (it.isCached) {
+                            null // Don't show error if we have cached data
+                        } else {
+                            e.message ?: "Failed to load schedule"
+                        }
+                    )
+                }
+            }
+        )
+    }
+
+    /**
+     * #29 学期末窗口判定：今天 ≥ 末周周日 且 今天 < 估算下学期开学日。
+     *
+     * @param fallbackToToday 末周周日无法算出时是否退化为"今天"（联网路径维持原有宽松行为）；
+     *                        本地路径传 false —— 无法判定就不弹浮层。
+     */
+    private fun applyEndWindow(
+        today: LocalDate,
+        weekMapping: Map<Int, String>?,
+        year: String,
+        term: String,
+        lastWeek: Int,
+        fallbackToToday: Boolean
+    ) {
+        val endSunday = lastWeekSundayOrNull(weekMapping, lastWeek, _semesterStartDate.value)
+        if (endSunday == null && !fallbackToToday) {
+            endWindowActive = false
+            return
+        }
+        val anchor = endSunday ?: today
+        endWindowActive = today >= anchor && today < estimateNextTermStartDate(year, term)
+    }
+
+    /**
+     * 末周周日：优先取周次映射里末周的日期区间右端；缺失时由开学日 + 末周推算。
+     */
+    private fun lastWeekSundayOrNull(
+        weekMapping: Map<Int, String>?,
+        lastWeek: Int,
+        startDate: LocalDate?
+    ): LocalDate? {
+        if (weekMapping != null) {
+            val rangeStr = weekMapping[lastWeek]
+            if (rangeStr != null) {
+                val parts = rangeStr.split("/")
+                if (parts.size == 2) {
+                    runCatching { LocalDate.parse(parts[1]) }.getOrNull()?.let { return it }
+                }
+            }
+        }
+        return startDate?.plusDays(((lastWeek - 1) * 7L) + 6)
+    }
+
+    /**
+     * 本地学期是否已明显过期（今天超过末周周日 [LOCAL_CACHE_GRACE_DAYS] 天以上）。
+     *
+     * 完全 cache-first 下不再每次联网校准学期，这道时间兜底用于避免学期切换后
+     * 一直卡在旧学期课表上——一旦过期就转走联网路径重新探测。
+     */
+    private suspend fun isLocalSemesterExpired(): Boolean {
+        val startStr = preferences.semesterStartDate.first()
+        val startDate = if (startStr.isNotBlank()) {
+            runCatching { LocalDate.parse(startStr) }.getOrNull()
+        } else null
+
+        val lastWeek = preferences.lastWeek.first()
+
+        val storedEnd = preferences.semesterEndDate.first()
+        val endDate = if (storedEnd.isNotBlank()) {
+            runCatching { LocalDate.parse(storedEnd) }.getOrNull()
+        } else null
+
+        val end = endDate ?: lastWeekSundayOrNull(null, lastWeek, startDate)
+        return end != null && LocalDate.now() > end.plusDays(LOCAL_CACHE_GRACE_DAYS)
     }
 
     fun goToPreviousWeek() {
@@ -372,9 +560,19 @@ class ScheduleViewModel @Inject constructor(
 
     // ---- #29 下学期课表悬浮面板（三态，内存态，每次进页重算） ----
 
-    /** 每次进入课表页调用：重置「暂时忽略」会话态并重算面板（满足"本次忽略、下次仍弹"）。 */
+    /**
+     * 每次进入课表页调用：重置「暂时忽略」会话态并重算面板（满足"本次忽略、下次仍弹"）。
+     *
+     * 另做一次本地学期过期检查——进程可能跨学期一直存活，一旦本地学期已过期就转走联网路径，
+     * 避免永远停留在旧学期课表上。未过期时不产生任何网络请求。
+     */
     fun onScheduleEntered() {
         panelDismissedThisSession = false
+        if (_uiState.value.isCached) {
+            viewModelScope.launch {
+                if (isLocalSemesterExpired()) refreshSchedule()
+            }
+        }
         computeAndApplyPanelMode()
     }
 

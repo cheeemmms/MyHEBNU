@@ -1,6 +1,7 @@
 package com.myhebnu.di
 
 import com.myhebnu.data.local.db.dao.ExamDao
+import com.myhebnu.data.local.db.dao.GradeDao
 import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.preferences.CredentialManager
 import com.myhebnu.data.local.preferences.UserPreferences
@@ -56,8 +57,10 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideGradeRepository(
-        api: EASystemApi
-    ): GradeRepository = GradeRepository(api)
+        api: EASystemApi,
+        dao: GradeDao,
+        preferences: UserPreferences
+    ): GradeRepository = GradeRepository(api, dao, preferences)
 
     @Provides
     @Singleton

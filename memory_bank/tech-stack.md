@@ -76,7 +76,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 当前无测试源码 | 未执行 |
 | 静态检查 | `.\gradlew.bat lintDebug` | Lint 报告 | 未执行 |
-| 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 需连接设备 | 未执行（当前无设备） |
+| 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 需连接设备 | **2026-10-21 通过**：24129PN74C / Android 17，`Success`；debug 包名 `com.myhebnu.debug` |
 | 应用日志 | `adb logcat -s MyHEBNU:*` | 主要链路日志 | 未执行 |
 | Widget 日志 | `adb logcat -s MyHEBNU-Widget:*` | Widget 进程日志 | 未执行 |
 

@@ -25,8 +25,8 @@
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
 | 分支/提交 | `main`；2026-10-21 有本地提交（记忆库/许可证/代理，见 `git log -1`）；此前发布提交 `db8580d`（2026-09-13），标签 `v1.5.0` |
 | 历史规模 | 2026-06-04 起，97 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
-| 当前可用程度 | **能构建**：2026-10-21 `assembleDebug` 通过；v1.5.0 已发布；未连接真机，功能回归待验收 |
-| 最近一次验证 | 2026-10-21 正常构建：增量 `assembleDebug` 27s，`clean assembleDebug` 1m38s，均 `BUILD SUCCESSFUL`；启动优化后再次 `assembleDebug` 通过（18s）；APK `MyHEBNU-v1.5.0-debug.apk`（71,509,476 B）。2 条 Kotlin 警告待清理；真机启动耗时待验收；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录） |
+| 当前可用程度 | **能构建、已上真机**：2026-10-21 debug 包安装到 24129PN74C / Android 17 并冷启动成功（528ms）；用户已登录并访问空教室/考试/成绩；启动优化后的登录态首页路径待复测 |
+| 最近一次验证 | 2026-10-21 正常构建：增量 `assembleDebug` 27s，`clean assembleDebug` 1m38s，均 `BUILD SUCCESSFUL`；启动优化后再次 `assembleDebug` 通过（18s）；APK `MyHEBNU-v1.5.0-debug.apk`（71,509,476 B）。真机：`adb install -r` 成功，冷启动 `TotalTime 528ms` / `WaitTime 554ms`，启动日志无 `hasValidSession`；2 条 Kotlin 警告待清理；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录） |
 | 工作区状态 | `gradle.properties` 有未提交改动（代理端口 7892→7897，已对齐本机）；`.workbuddy/` 未跟踪（另一工具的日志，不属于本记忆库） |
 
 ## 五分钟上手路径
@@ -105,7 +105,7 @@
 | 当前源码可构建 | **已验证**：2026-10-21 `assembleDebug` 通过 | 需要时重跑 `assembleDebug` |
 | 本机代理可用 | **已验证**：7897 正在监听，项目 `gradle.properties` 已对齐 | `Test-NetConnection 127.0.0.1 -Port 7897` |
 | v1.5.0 之后无回归 | **未验证**：本轮只读代码与构建，未真机 | 按 [implementation-plan.md](implementation-plan.md) 验证表逐项验收 |
-| 启动耗时 | **待真机**：启动已改为本地判定、无网络；需用 `am start -W` 确认总耗时 | 见 [diagnostics/startup-latency.md](diagnostics/startup-latency.md) |
+| 启动耗时 | **部分验证**：冷启动 2026-10-21 `TotalTime 528ms`（无本地会话→登录页）；登录态首页路径待复测 | 见 [diagnostics/startup-latency.md](diagnostics/startup-latency.md) |
 | 小学期成绩可查 | **待验证**：小学期未开始，接口/展示方式未知；待暴露后再接入 | 用小学期账号验证或查教务网页 |
 | i18n 可用 | **部分，已搁置**：仍有硬编码中文；用户决定暂缓 | 切英文逐页检查 |
 | 安全项 | **有风险**：明文 HTTP、Cookie 明文持久化、BODY 日志、备份暴露 | 见 [architecture/security.md](architecture/security.md) |

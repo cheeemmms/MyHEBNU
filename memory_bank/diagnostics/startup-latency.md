@@ -129,12 +129,13 @@ AuthInterceptor 识别 302/401/403/901
 | 项 | 命令/步骤 | 结果 |
 | --- | --- | --- |
 | 编译 | `.\gradlew.bat assembleDebug` | 2026-10-21 通过（增量 18s，APK 71,509,476 B） |
-| 冷启动计时 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 待真机执行；看 `TotalTime`/`WaitTime` |
-| 首帧日志 | `adb logcat -s MyHEBNU:*` | 观察是否还有 `hasValidSession`/`verifySessionValidity` 启动日志 |
-| 会话失效 | 使 Cookie 失效后进考试/成绩 | 应触发 autoLogin；失败才回登录页 |
-| 离线启动 | 断网冷启动 | 有本地会话时直接进首页；无会话进登录页 |
+| 冷启动计时 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 2026-10-21：设备 24129PN74C / Android 17；冷启动 `TotalTime 528ms`、`WaitTime 554ms`（debug 首次安装、无本地会话 → 登录页） |
+| 首帧日志 | `adb logcat -s MyHEBNU:*` | 启动阶段只有 `restoreFromStorage`，**没有** `hasValidSession`/`verifySessionValidity`；随后用户登录并正常访问空教室/考试/成绩 |
+| 会话失效 | 使 Cookie 失效后进考试/成绩 | 待真机专项验证 |
+| 离线启动 | 断网冷启动 | 待真机专项验证 |
+| 登录态冷启动 | 登录后 force-stop 再 `am start -W` | 待复测（预期直接进首页，不经登录页） |
 
-> 未连接真机，本轮只完成静态修改与构建验证；严格的前后耗时对比需要真机数据。
+> 2026-10-21 已在真机安装并启动 debug 包，冷启动 528ms；本次样本是“无本地会话 → 登录页”，登录态首页路径仍需复测。启动日志已确认不再出现 `hasValidSession` 网络校验。
 
 ## 后续可选优化
 

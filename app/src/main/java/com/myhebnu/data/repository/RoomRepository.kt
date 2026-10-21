@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.myhebnu.data.remote.EASystemApi
+import com.myhebnu.data.remote.LoginPageDetector
 import com.myhebnu.domain.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,8 +17,8 @@ class RoomRepository @Inject constructor(
         /** Quick check: response body is not raw HTML or error text */
         fun isHtmlResponse(text: String): Boolean {
             return text.contains("<!doctype") || text.contains("<html") ||
-                text.contains("无功能权限") || text.contains("登录") ||
-                text.contains("必选字段")
+                text.contains("无功能权限") || text.contains("必选字段") ||
+                LoginPageDetector.isLoginPage(text)
         }
     }
 
@@ -139,7 +140,7 @@ class RoomRepository @Inject constructor(
                 return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
             }
             val pageBody = pageResult.body()?.string() ?: ""
-            val isLogin = pageBody.contains("登录") || pageBody.contains("login_slogin")
+            val isLogin = LoginPageDetector.isLoginPage(pageBody)
             android.util.Log.w("MyHEBNU", "queryEmptyRooms step2: body size=${pageBody.length}, isLogin=$isLogin")
             if (isLogin) {
                 return Result.failure(Exception("Session 已失效，页面重定向到登录页"))

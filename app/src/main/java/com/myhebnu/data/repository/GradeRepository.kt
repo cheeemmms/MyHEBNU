@@ -6,6 +6,7 @@ import com.myhebnu.data.local.db.dao.GradeDao
 import com.myhebnu.data.local.db.entity.GradeEntity
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.remote.EASystemApi
+import com.myhebnu.data.remote.LoginPageDetector
 import com.myhebnu.domain.Grade
 import com.myhebnu.domain.GradeSubItem
 import kotlinx.coroutines.flow.Flow
@@ -53,7 +54,7 @@ class GradeRepository @Inject constructor(
                 return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
             }
             val pageBody = pageResult.body()?.string() ?: ""
-            if (pageBody.contains("登录") || pageBody.contains("login_slogin")) {
+            if (LoginPageDetector.isLoginPage(pageBody)) {
                 return Result.failure(Exception("Session 已失效，页面重定向到登录页"))
             }
 

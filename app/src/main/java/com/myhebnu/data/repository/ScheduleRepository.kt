@@ -7,6 +7,7 @@ import com.myhebnu.data.local.db.dao.ScheduleDao
 import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.remote.EASystemApi
+import com.myhebnu.data.remote.LoginPageDetector
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -69,7 +70,7 @@ class ScheduleRepository @Inject constructor(
                 return Result.failure(Exception("页面加载失败: HTTP ${pageResult.code()}"))
             }
             val pageBody = pageResult.body()?.string() ?: ""
-            val isLogin = pageBody.contains("登录") || pageBody.contains("login_slogin")
+            val isLogin = LoginPageDetector.isLoginPage(pageBody)
             android.util.Log.w("MyHEBNU", "loadSchedulePage -> ${pageResult.code()}, isLoginPage=$isLogin, size=${pageBody.length}")
             if (isLogin) {
                 return Result.failure(Exception("Session 已失效，页面重定向到登录页"))

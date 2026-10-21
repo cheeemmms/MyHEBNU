@@ -1,5 +1,8 @@
 # Unreleased
 
+## 修复
+- **课表 Session 失效误报**：教务课表页的 JavaScript 注释里含有“登录”二字，旧逻辑用裸 `contains("登录")` 判断登录页，导致正常课表被误报为 Session 失效（重试/清数据/重登录均无效）。现改用 `LoginPageDetector`，以 `login_slogin`、`yhm` 用户名输入框等真实登录页特征判断；同步修正成绩、空教室两处同款逻辑，并补 5 个单元测试。
+
 ## 优化
 - **启动等待**：启动改为纯本地会话判定，移除首帧前对教务 `index_initMenu.html` 的同步校验，并去掉 `LoginViewModel` 的重复校验；有本地会话时直接显示首页，会话失效改为首次 API 调用时惰性 autoLogin。
 - 附带修复：`LoginViewModel` 登录成功状态跨页面残留，避免会话过期回到登录页时立刻再次跳转。

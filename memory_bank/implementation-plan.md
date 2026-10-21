@@ -80,7 +80,7 @@
 | 验证项 | 命令/步骤 | 期望结果 | 最近一次结果 |
 | --- | --- | --- | --- |
 | 代理端口 | `Test-NetConnection 127.0.0.1 -Port 7897` | True | 2026-10-21：True；`gradle.properties` 已对齐 |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | 未执行（2026-10-21 文档整理；按约定由用户构建） |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：BUILD SUCCESSFUL in 27s；APK 71,289,145 B |
 | Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行（同上） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过（当前无测试源码） | 未执行 |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |
@@ -101,7 +101,7 @@
 | Cookie 普通存储 | 设备被 root/备份时泄露 | EncryptedSharedPreferences 或减少持久化 |
 | 小学期 `16` 成绩未接入 | 若小学期成绩有独立展示，可能不显示 | 待小学期开始/接口暴露后验证；不按当前缺陷处理，也不预先猜测接口 |
 | 无自动化测试 | 改动回归成本高 | 先补 GPA/日期/解析单测，再考虑 CI |
-| 手工构建依赖用户 | 代理无法独立验证 | 每轮交付附「用户验收步骤」；构建结果写回本文件 |
+| 手工构建依赖用户 | 代理无法独立验证 | 2026-10-21 已获授权代跑 `assembleDebug` 并通过；真机验收仍由用户完成 |
 | MIUI 差异 | Widget/通知在部分机型异常 | 保留资源化写法；真机回归；参考 [diagnostics/glance-miui-resources.md](diagnostics/glance-miui-resources.md) |
 
 ## 未决问题

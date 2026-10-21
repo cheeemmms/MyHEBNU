@@ -70,17 +70,17 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 
 | 目的 | 命令 | 产物/说明 | 最近结果 |
 | --- | --- | --- | --- |
-| 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 执行失败：DSH 沙箱拒绝写入 `GRADLE_USER_HOME` 的 `.lck`（环境限制，非项目问题；代理已对齐 7897） |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | 未执行（项目约定由用户在 Android Studio 构建） |
+| 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 通过：Gradle 9.5.1，Launcher JVM 21.0.10（Android Studio JBR） |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-21 通过**：`BUILD SUCCESSFUL in 27s`；APK 71,289,145 B |
 | Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.5.0-release.apk`；包名 `com.myhebnu`；需签名 | 未执行 |
-| 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 未执行：2026-10-21 尝试时沙箱升级无审批通道，无法写入 `GRADLE_USER_HOME` |
+| 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 当前无测试源码 | 未执行 |
 | 静态检查 | `.\gradlew.bat lintDebug` | Lint 报告 | 未执行 |
 | 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 需连接设备 | 未执行（当前无设备） |
 | 应用日志 | `adb logcat -s MyHEBNU:*` | 主要链路日志 | 未执行 |
 | Widget 日志 | `adb logcat -s MyHEBNU-Widget:*` | Widget 进程日志 | 未执行 |
 
-> **项目约定**：构建与真机验收由用户在 Android Studio 完成；代理改完代码后给出验收步骤，不自动跑 Gradle。上表“未执行”不代表命令不可用。
+> **构建约定**：2026-10-21 用户在会话中要求直接构建，`assembleDebug` 已由代理执行并通过。后续默认仍建议由用户在 Android Studio 做真机验收；代理在获得明确授权时可代跑 Gradle。上表“未执行”不代表命令不可用。
 
 ## 本机环境
 
@@ -89,7 +89,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 操作系统 | Windows（PowerShell 7） |
 | 项目路径 | `D:\Personal_file\VibeCoding\Program\My-University` |
 | Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，分支 `main` |
-| Git 状态 | 最新提交 `db8580d`（2026-09-13）；`backup/2026-08-30` 备份分支指向 `797e0ef` |
+| Git 状态 | 2026-10-21 有本地提交（记忆库/许可证/代理）；此前发布提交 `db8580d`（2026-09-13）；`backup/2026-08-30` 备份分支指向 `797e0ef` |
 | GitHub CLI | `gh 2.89.0`，已登录 `cheeemmms`；`git credential.helper=manager` |
 | Android Studio（JAVA_HOME） | `C:\Program Files\Android\Android Studio`，JBR 21.0.10 |
 | 另一处 Android Studio | `D:\Software\Android\bin\studio64.exe`（也存在） |

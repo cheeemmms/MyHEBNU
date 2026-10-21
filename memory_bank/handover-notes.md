@@ -23,10 +23,10 @@
 | 项 | 内容 |
 | --- | --- |
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
-| 分支/提交 | `main`，最新 `db8580d`（2026-09-13）；标签 `v1.5.0` |
+| 分支/提交 | `main`；2026-10-21 有本地提交（记忆库/许可证/代理，见 `git log -1`）；此前发布提交 `db8580d`（2026-09-13），标签 `v1.5.0` |
 | 历史规模 | 2026-06-04 起，97 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
-| 当前可用程度 | **v1.5.0 已发布**；源码结构完整，预计可构建（本轮未实际构建验证） |
-| 最近一次验证 | 2026-09-13 v1.5.0 发布校验：签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B（来自当时记录）；2026-10-21 本轮只做文档整理，未构建、未连真机 |
+| 当前可用程度 | **能构建**：2026-10-21 `assembleDebug` 通过；v1.5.0 已发布；未连接真机，功能回归待验收 |
+| 最近一次验证 | 2026-10-21 `assembleDebug`：`BUILD SUCCESSFUL in 27s`，APK `MyHEBNU-v1.5.0-debug.apk`（71,289,145 B）；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录）；本轮未连真机 |
 | 工作区状态 | `gradle.properties` 有未提交改动（代理端口 7892→7897，已对齐本机）；`.workbuddy/` 未跟踪（另一工具的日志，不属于本记忆库） |
 
 ## 五分钟上手路径
@@ -102,7 +102,7 @@
 
 | 项 | 状态 | 验证方法 |
 | --- | --- | --- |
-| 当前源码可构建 | **推测**：本轮未跑 Gradle；工具链与缓存存在 | 用户执行 `assembleDebug` |
+| 当前源码可构建 | **已验证**：2026-10-21 `assembleDebug` 通过 | 需要时重跑 `assembleDebug` |
 | 本机代理可用 | **已验证**：7897 正在监听，项目 `gradle.properties` 已对齐 | `Test-NetConnection 127.0.0.1 -Port 7897` |
 | v1.5.0 之后无回归 | **未验证**：本轮只读代码，未真机 | 按 [implementation-plan.md](implementation-plan.md) 验证表逐项验收 |
 | 小学期成绩可查 | **待验证**：小学期未开始，接口/展示方式未知；待暴露后再接入 | 用小学期账号验证或查教务网页 |
@@ -147,5 +147,5 @@
 
 ## 历史记录
 
-- **2026-10-21**：按 memory_bank 规范创建本文件。项目此前没有独立交接文档，状态散落在 `progress.md` 与 README；本次把“来源/上手/地图/约定/风险/待办”集中到此，`progress.md` 的变更过程归档到 [history/change-log.md](history/change-log.md)。同日对齐代理 7897、统一许可证 AGPL-3.0、关闭考试分页、把小学期成绩改为待验证、i18n 搁置、安全项搁置（保留 [architecture/security.md](architecture/security.md)），并修正课表长按发布说明。
+- **2026-10-21**：按 memory_bank 规范创建本文件。项目此前没有独立交接文档，状态散落在 `progress.md` 与 README；本次把“来源/上手/地图/约定/风险/待办”集中到此，`progress.md` 的变更过程归档到 [history/change-log.md](history/change-log.md)。同日对齐代理 7897、统一许可证 AGPL-3.0、关闭考试分页、把小学期成绩改为待验证、i18n 搁置、安全项搁置（保留 [architecture/security.md](architecture/security.md)）、修正课表长按发布说明，并跑通 `assembleDebug`。
 - **2026-08-30**：执行过 `git reset --hard v1.3.0` 回退；未提交改动保存在 `backup/2026-08-30`。后续 v1.3.1/v1.4.0/v1.5.0 已重新前进。

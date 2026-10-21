@@ -87,13 +87,13 @@
 | 冷启动 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 有本地会话时直接进首页；无启动期 `hasValidSession` 网络日志 | 2026-10-21：`TotalTime 528ms` / `WaitTime 554ms`（无本地会话→登录页）；启动日志无 `hasValidSession`；登录态待复测 |
 | Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：clean 1m38s；启动优化 18s；Session 修复 27s；APK 71,509,296 B |
 | Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行 |
-| 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过 | 2026-10-21：`LoginPageDetectorTest` 5 tests / 0 failures |
+| 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过 | 2026-10-21：`LoginPageDetectorTest` 5 + `WidgetScheduleLogicTest` 24 = 29 tests / 0 failures |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |
 | 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | 2026-10-21：Success（24129PN74C / Android 17） |
 | 冷启动 | 清后台后启动，观察首页 | 无白闪；首页直接出卡片；无网络等待 | 未执行 |
 | 课表缓存优先 | 断网后进课表 | 立即显示缓存；不出现加载圈长期停留 | 未执行 |
 | 会话自愈 | 使会话失效后进考试/成绩页 | 自动重登，不出现 HTTP 901/302 死循环 | 未执行 |
-| Widget | 添加 2×2/4×2/4×4 | 显示正确；跨日/周末状态正确；节次时间与 App 一致 | 未执行（需真机） |
+| Widget | 添加 2×2/4×2/4×4 | 显示正确；跨日/周末状态正确；节次时间与 App 一致 | 2026-10-21 部分通过：横版/微型渲染、8dp 标题间距、20dp 圆角、19:00 后切明日、tick 调度已验证；4×4 行数自适应、假期态、多课硬滑动计数待验（详见 [architecture/widget-and-reminders.md](architecture/widget-and-reminders.md)） |
 | 提醒 | 造一节 15 分钟内开始的课 | 收到通知且仅一次 | 未执行（需真机） |
 | 日志 | `adb logcat -s MyHEBNU:*` | 关键链路有日志；无敏感信息（发布前需关闭 BODY） | 未执行 |
 

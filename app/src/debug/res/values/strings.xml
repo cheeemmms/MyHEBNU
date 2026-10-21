@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 仅 debug 变体生效：debug 包（com.myhebnu.debug）与正式版可同时安装在同一台设备上，
+     两套桌面组件在选择器里同名会分不清，这里统一加「D」后缀。删掉本文件即恢复正式名称。 -->
+<resources>
+    <string name="app_name">MyHEBNU D</string>
+    <string name="widget_micro_label">课表·微型 D</string>
+    <string name="widget_medium_label">课表·横条 D</string>
+    <string name="widget_large_list_label">课表·列表 D</string>
+</resources>

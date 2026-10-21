@@ -2,12 +2,12 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFF7FF">
+    android:background="@color/widget_surface_container_lowest">
 
     <ProgressBar
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="center"
         android:indeterminate="true"
-        android:indeterminateTint="#6750A4" />
+        android:indeterminateTint="@color/widget_primary" />
 </FrameLayout>

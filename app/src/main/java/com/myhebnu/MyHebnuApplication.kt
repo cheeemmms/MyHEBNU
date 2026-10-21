@@ -8,10 +8,14 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import com.myhebnu.widget.ScheduleWidgetWorker
+import com.myhebnu.widget.WidgetTickScheduler
 import com.myhebnu.worker.ClassReminderWorker
 import com.myhebnu.worker.ExamReminderWorker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
@@ -19,10 +23,14 @@ import java.util.concurrent.TimeUnit
 @HiltAndroidApp
 class MyHebnuApplication : Application() {
 
+    /** 进程级后台作用域：只用于启动时的一次性调度，不持有 Activity/Context 之外的东西。 */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
-        scheduleWidgetMidnightRefresh()
+        // 节次表来自 DataStore，需要挂起读取，因此放到后台作用域里排任务。
+        appScope.launch { WidgetTickScheduler.start(this@MyHebnuApplication) }
         scheduleClassReminder()
         scheduleExamReminder()
     }
@@ -61,30 +69,9 @@ class MyHebnuApplication : Application() {
     }
 
     /**
-     * Schedule a periodic WorkManager task that refreshes all widgets at midnight.
-     * This ensures the widget displays the correct date and course list each day.
+     * 小组件刷新：节次边界一次性任务链（见 [WidgetTickScheduler]）。
+     * 旧的 24h 周期任务会在 [WidgetTickScheduler.start] 里被取消。
      */
-    private fun scheduleWidgetMidnightRefresh() {
-        val now = LocalTime.now()
-        val midnight = LocalTime.MIDNIGHT
-        var delayMs = ChronoUnit.MILLIS.between(now, midnight)
-        if (delayMs <= 0) delayMs += 24 * 60 * 60 * 1000L
-
-        val request = PeriodicWorkRequestBuilder<ScheduleWidgetWorker>(24, TimeUnit.HOURS)
-            .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
-            .setConstraints(
-                Constraints.Builder()
-                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
-                    .build()
-            )
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "schedule_widget_midnight",
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
-    }
 
     /**
      * Schedule a 15-minute periodic check for upcoming classes.

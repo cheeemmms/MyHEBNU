@@ -11,17 +11,20 @@ import kotlin.math.absoluteValue
 
 // ──────────────────────────────────────────────
 // MD3 Color definitions (resource-based)
+//
+// 注意：这里不能接收"是否深色"参数。MIUI 的 RemoteViews 反射执行器把 Glance 生成的
+// 每个 Int 参数都当 @ColorRes 解析，颜色一律走资源 ID，深浅色由 values-night 切换。
 // ──────────────────────────────────────────────
 
-fun widgetSurfaceColor(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface)
-fun widgetSurfaceContainerLowest(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container_lowest)
-fun widgetSurfaceContainer(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container)
-fun widgetSurfaceContainerHigh(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container_high)
-fun widgetOnSurface(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_surface)
-fun widgetOnSurfaceVariant(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_surface_variant)
-fun widgetPrimary(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_primary)
-fun widgetPrimaryContainer(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_primary_container)
-fun widgetOnPrimaryContainer(@Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_primary_container)
+fun widgetSurfaceColor(): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface)
+fun widgetSurfaceContainerLowest(): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container_lowest)
+fun widgetSurfaceContainer(): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container)
+fun widgetSurfaceContainerHigh(): ResourceColorProvider = ResourceColorProvider(R.color.widget_surface_container_high)
+fun widgetOnSurface(): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_surface)
+fun widgetOnSurfaceVariant(): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_surface_variant)
+fun widgetPrimary(): ResourceColorProvider = ResourceColorProvider(R.color.widget_primary)
+fun widgetPrimaryContainer(): ResourceColorProvider = ResourceColorProvider(R.color.widget_primary_container)
+fun widgetOnPrimaryContainer(): ResourceColorProvider = ResourceColorProvider(R.color.widget_on_primary_container)
 
 // ──────────────────────────────────────────────
 // Course color from hue → color resource
@@ -33,7 +36,7 @@ private val courseColorResources = listOf(
     R.color.widget_course_green, R.color.widget_course_blue, R.color.widget_course_purple
 )
 
-fun courseColorResource(hue: Int, @Suppress("UNUSED_PARAMETER") isDark: Boolean = false): ResourceColorProvider {
+fun courseColorResource(hue: Int): ResourceColorProvider {
     val bucket = ((hue % 360).absoluteValue / 60).coerceIn(0, 5)
     return ResourceColorProvider(courseColorResources[bucket])
 }

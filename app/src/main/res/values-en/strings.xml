@@ -145,8 +145,6 @@
     <string name="widget_micro_desc">Compact card: next class or tomorrow preview</string>
     <string name="widget_medium_label">Schedule·Row</string>
     <string name="widget_medium_desc">Horizontal row: timeline + color bars + 2 upcoming courses</string>
-    <string name="widget_large_grid_label">Schedule·Grid</string>
-    <string name="widget_large_grid_desc">Calendar grid: 3-day overview with navigation buttons</string>
     <string name="widget_large_list_label">Schedule·List</string>
     <string name="widget_large_list_desc">Card stream: full course list for today</string>
 

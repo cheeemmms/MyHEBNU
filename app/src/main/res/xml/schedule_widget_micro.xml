@@ -7,5 +7,4 @@
     android:previewImage="@drawable/widget_preview_micro"
     android:updatePeriodMillis="3600000"
     android:widgetCategory="home_screen"
-    android:widgetFeatures="reconfigurable"
     android:description="@string/widget_micro_desc" />

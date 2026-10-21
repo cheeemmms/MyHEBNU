@@ -25,7 +25,7 @@
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
 | 分支/提交 | `main`；2026-10-21 有本地提交（记忆库/许可证/代理，见 `git log -1`）；此前发布提交 `db8580d`（2026-09-13），标签 `v1.5.0` |
 | 历史规模 | 2026-06-04 起，97 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
-| 当前可用程度 | **能构建、已上真机**：2026-10-21 debug 包安装到 24129PN74C / Android 17 并冷启动成功（528ms）；用户已登录并访问空教室/考试/成绩；启动优化后的登录态首页路径待复测 |
+| 当前可用程度 | **能构建、已上真机**：2026-10-21 debug 包安装到 24129PN74C / Android 17 并冷启动成功（528ms）；用户已登录并访问空教室/考试/成绩。**课表页存在 Session 失效误报，待授权修复**；登录态启动路径待复测 |
 | 最近一次验证 | 2026-10-21 正常构建：增量 `assembleDebug` 27s，`clean assembleDebug` 1m38s，均 `BUILD SUCCESSFUL`；启动优化后再次 `assembleDebug` 通过（18s）；APK `MyHEBNU-v1.5.0-debug.apk`（71,509,476 B）。真机：`adb install -r` 成功，冷启动 `TotalTime 528ms` / `WaitTime 554ms`，启动日志无 `hasValidSession`；2 条 Kotlin 警告待清理；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录） |
 | 工作区状态 | `gradle.properties` 有未提交改动（代理端口 7892→7897，已对齐本机）；`.workbuddy/` 未跟踪（另一工具的日志，不属于本记忆库） |
 
@@ -46,7 +46,7 @@
 | 版本号/包名/签名 | `app/build.gradle.kts` | 同步 `CHANGELOG.md`、`strings.xml` 的 `changelog_content`、Git tag |
 | 入口/导航/会话门控 | `MainActivity.kt`、`ui/navigation/TopLevelRoute.kt` | 手写 backStack，不是 NavHost；启动只做本地判定，不在启动期调用 `hasValidSession()` |
 | 登录/自动重登 | `data/repository/AuthRepository.kt`、`data/remote/interceptor/AuthInterceptor.kt`、`CredentialManager.kt` | 901 必须继续识别；验证码重试不要先 logout |
-| 课表逻辑 | `ui/schedule/ScheduleViewModel.kt`、`data/repository/ScheduleRepository.kt` | 881 行，改前先看 `_currentYear/_currentTerm` vs `_viewYear/_viewTerm` |
+| 课表逻辑 | `ui/schedule/ScheduleViewModel.kt`、`data/repository/ScheduleRepository.kt` | 881 行；改前先看 `_currentYear/_currentTerm` vs `_viewYear/_viewTerm`；登录页判定不要用裸 `contains("登录")` |
 | 课表 UI | `ui/schedule/components/WeekViewGrid.kt`、`CourseCard.kt`、`WeekSelector.kt` | 节次列宽 5 列 36dp / 7 列 28dp；卡片高度由父层传入 |
 | 成绩 | `data/repository/GradeRepository.kt`、`ui/grade/GradeViewModel.kt`、`GpaCard.kt` | 成绩页只观察 Room；网络刷新写库；GPA 公式在 `GpaCalculator` |
 | 空教室 | `data/repository/RoomRepository.kt`、`ui/room/RoomViewModel.kt`、`FilterPanel.kt`、`RoomList.kt` | 三步门控 + `queryModel.showCount` + 分页 |
@@ -117,6 +117,7 @@
 
 | # | 事项 | 类型 | 优先级 | 线索 |
 | --- | --- | --- | --- | --- |
+| 0 | 课表 Session 失效误报（已定位·待授权） | Bug | 高 | `ScheduleRepository.kt:72` 裸 `contains("登录")`；详见 [diagnostics/schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md) |
 | 1 | 发布构建关闭 BODY 日志并脱敏 Cookie 日志 | 安全·搁置 | — | `NetworkModule.provideOkHttpClient`、`PersistentCookieJar` |
 | 2 | Cookie 持久化加密或改为不持久化 | 安全·搁置 | — | `SessionManager` 普通 SharedPreferences |
 | 3 | 收紧 `network_security_config`，仅放行教务域名 | 安全·搁置 | — | `res/xml/network_security_config.xml` |

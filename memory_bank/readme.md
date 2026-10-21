@@ -30,8 +30,8 @@
 | 当前版本 | **v1.5.0**（versionCode 7，2026-09-13 发布）；2026-10-21 有本地文档/配置提交 |
 | 当前阶段 | Phase 0–7（侦察、骨架、认证、课表、成绩、空教室、考试、Widget+提醒）已交付；**Phase 8「打磨/收尾」未完成** |
 | 最近一次实质进展 | v1.5.0：成绩/课表缓存优先、悬浮刷新、节次起止时间；2026-10-21 记忆库重整、代理对齐 7897、许可证统一 AGPL-3.0、安全项盘点并搁置；**启动改为本地判定、移除启动网络校验，assembleDebug 通过** |
-| 下一步 | 见 [implementation-plan.md](implementation-plan.md)：真机验收启动耗时与功能回归；Phase 8 收尾（i18n 已搁置）、README 架构图同步、小学期成绩待验证 |
-| 已知阻塞 | 无代码/构建阻塞；代理已对齐 `7897`，`assembleDebug` 已通过；debug 包已安装到 24129PN74C（Android 17），冷启动 528ms；登录态启动路径待复测 |
+| 下一步 | **课表 Session 失效误报待授权修复**（见 [diagnostics/schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md)）；真机复测登录态冷启动；Phase 8 收尾（i18n 已搁置） |
+| 已知阻塞 | 课表页因 `contains("登录")` 误判而不可用；修复方案已定位，等待用户明确授权后改代码。其余：代理 7897、`assembleDebug`、debug 真机安装与冷启动 528ms 均已通过 |
 | 最后更新 | 2026-10-21 |
 
 ## 文件清单
@@ -66,6 +66,7 @@
 | [diagnostics/glance-miui-resources.md](diagnostics/glance-miui-resources.md) | Glance 1.1.1 在 MIUI/HyperOS 上的资源解析坑与修法 | 改 Widget 尺寸/颜色/圆角后异常 | 2026-10-21 |
 | [diagnostics/compose-nested-scroll.md](diagnostics/compose-nested-scroll.md) | 空教室闪退的嵌套滚动根因、排查清单与教训 | 出现 Compose measure 崩溃、页面卡死 | 2026-10-21 |
 | [diagnostics/startup-latency.md](diagnostics/startup-latency.md) | 启动转圈的内容、根因、本地优先修复与耗时验收方法 | 启动变慢、改会话/首帧逻辑 | 2026-10-21 |
+| [diagnostics/schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md) | 课表页因 JS 注释含“登录”被误判 Session 失效的根因与修复方案 | 课表加载失败/重试无效/清数据无效 | 2026-10-21 |
 
 ### 历史归档
 

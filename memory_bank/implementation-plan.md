@@ -30,6 +30,12 @@
 
 ## 任务清单
 
+### P0 · 当前故障（待授权修复）
+
+| # | 任务 | 状态 | 阻塞 | 关联文件 |
+| --- | --- | --- | --- | --- |
+| 20 | **课表页 Session 失效误报**：`ScheduleRepository` 用裸 `contains("登录")` 判断登录页，真实课表页 JS 注释含“登录”导致误报；重试/清数据/重登录均无效 | 已定位·待授权 | 需用户明确授权修复 | `ScheduleRepository.kt:72`；同款模式在 `GradeRepository.kt:56`、`RoomRepository.kt:142`；详见 [diagnostics/schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md) |
+
 ### P0 · 安全项（2026-10-21 暂时搁置）
 
 | # | 任务 | 状态 | 阻塞 | 关联文件 |

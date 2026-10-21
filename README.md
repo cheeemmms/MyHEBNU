@@ -7,8 +7,8 @@
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-2024.12-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![Material Design 3](https://img.shields.io/badge/Material%20Design-3-FF7043?logo=materialdesign&logoColor=white)](https://m3.material.io)
 [![Hilt](https://img.shields.io/badge/Hilt-2.57.2-FF5722?logo=dagger&logoColor=white)](https://dagger.dev/hilt)
-[![License](https://img.shields.io/badge/License-MIT-green)](./LICENSE)
-[![Release](https://img.shields.io/badge/Release-v1.0.0-blue)](https://github.com/cheeemmms/MyHEBNU/releases)
+[![License](https://img.shields.io/badge/License-AGPL_v3-blue)](./LICENSE)
+[![Release](https://img.shields.io/badge/Release-v1.5.0-blue)](https://github.com/cheeemmms/MyHEBNU/releases)
 
 **河北师范大学非官方教务助手** — Material Design 3 风格的 Android 课表 · 成绩 · 空教室 · 考试 App
 
@@ -124,13 +124,12 @@
 
 | 优先级 | 功能 | 说明 |
 |--------|------|------|
-| P1 | **桌面 Widget** | 桌面小部件显示当天课表 |
-| P1 | **上课提醒** | 课前 15 分钟推送通知 |
-| P1 | **考试提醒** | 考前 1 天 + 考前 1 小时推送通知 |
-| P2 | **中英双语** | 全量国际化 |
+| P1 | **错误处理与离线体验** | 统一失败提示与重试；考试页离线读缓存 |
+| P1 | **性能基准** | 冷启动首帧、滚动、数据库量化 |
+| P2 | **中英双语** | 暂搁置；恢复时补齐 values-en 与硬编码中文 |
 | P2 | **无障碍适配** | TalkBack + 高对比度 + 大字体 |
 
-> 📋 详细进度追踪见 [`memory-bank/progress.md`](./memory-bank/progress.md)
+> 📋 详细进度与后续计划见 [`memory_bank/implementation-plan.md`](./memory_bank/implementation-plan.md)
 
 ---
 
@@ -158,7 +157,7 @@
 - **架构模式**：MVVM + Repository，单 Activity，自定义导航（AnimatedContent）
 - **状态管理**：ViewModel + StateFlow，四态覆盖（Loading / Data / Empty / Error）
 - **DI**：Hilt 全应用注入
-- **缓存策略**：课表 = Cache-First；成绩/空教室 = Network-Only
+- **缓存策略**：课表/成绩 = Cache-First（v1.5.0 起）；考试 = 联网优先 + 本地缓存；空教室 = Network-Only
 
 ## 技术栈清单
 
@@ -219,7 +218,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | `Referer` | 功能页面 URL | 🟡 建议 |
 | `Origin` | `http://jwgl.hebtu.edu.cn` | 🟡 建议 |
 
-> 📋 完整 API 文档见 [`memory-bank/architecture.md` §5](./memory-bank/architecture.md)
+> 📋 完整 API 文档见 [`memory_bank/architecture/ea-api.md`](./memory_bank/architecture/ea-api.md)
 
 ## 项目结构
 
@@ -245,7 +244,7 @@ app/src/main/java/com/myhebnu/
 │   ├── exam/                       # ExamCard + ExamScreen
 │   ├── settings/                   # Settings + Advanced + ColorTheme
 │   └── navigation/                 # Route 定义
-└── widget/                         # Glance (待实现)
+└── widget/                         # Glance 桌面课表（3 种尺寸）
 ```
 
 ## 构建与运行
@@ -277,6 +276,19 @@ app/src/main/java/com/myhebnu/
 | 2026-06-07 | Batch 4 — 单首页 + 课表重设计 + 设置 + 6 轮精修 |
 | 2026-06-07 | Batch 5 — 自定义登录 + 自动重登 + 欢迎页 + 验证码修复 + UI 重设计 |
 | 2026-06-07 | **v1.0.0 发布** — GitHub Release + APK 签名 |
+| 2026-07-21 | **v1.3.0 发布** — Batch 10（首页缓存优先、小学期适配、下学期课表、周末列等） |
+| 2026-08-30 | **v1.3.1 发布** — HTTP 901 自动重登修复 |
+| 2026-09-04 | **v1.4.0 发布** — 学期设置、考试学期收敛、表头月日 |
+| 2026-09-13 | **v1.5.0 发布** — 成绩/课表缓存优先、悬浮刷新、节次起止时间 |
+| 2026-10-21 | 记忆库重整；代理对齐 7897；许可证统一为 AGPL-3.0 |
+
+## 📄 许可证
+
+本项目以 [GNU Affero General Public License v3.0](./LICENSE)（AGPL-3.0-only）发布。你可以自由使用、修改、分发，但分发修改版或通过网络提供服务时，需按 AGPL-3.0 提供对应源代码。
+
+Copyright (C) 2026 cheeemmms
+
+> 历史说明：v1.5.0 及之前的仓库 README 标注 MIT 但未附 `LICENSE` 文件；自 2026-10-21 起统一为 AGPL-3.0。已发布旧 APK 的授权状态不追溯更改。
 
 ---
 
@@ -295,6 +307,6 @@ app/src/main/java/com/myhebnu/
 <div align="center">
 
 **Built with ❤️ + Kotlin + 逆向分析**\
-[memory-bank](./memory-bank/) · [Issues](https://github.com/cheeemmms/MyHEBNU/issues) · [Releases](https://github.com/cheeemmms/MyHEBNU/releases)
+[memory_bank](./memory_bank/readme.md) · [Issues](https://github.com/cheeemmms/MyHEBNU/issues) · [Releases](https://github.com/cheeemmms/MyHEBNU/releases)
 
 </div>

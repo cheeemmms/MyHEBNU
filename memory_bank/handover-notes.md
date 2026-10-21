@@ -23,11 +23,11 @@
 | 项 | 内容 |
 | --- | --- |
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
-| 分支/提交 | `main`；2026-10-21 有本地提交（记忆库/许可证/代理，见 `git log -1`）；此前发布提交 `db8580d`（2026-09-13），标签 `v1.5.0` |
-| 历史规模 | 2026-06-04 起，97 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
+| 分支/提交 | `main`；2026-10-21 有本地提交（记忆库/许可证/代理/启动/课表修复，见 `git log -1`）；此前发布提交 `db8580d`（2026-09-13），标签 `v1.5.0` |
+| 历史规模 | 2026-06-04 起，107 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
 | 当前可用程度 | **能构建、已上真机**：2026-10-21 debug 包安装到 24129PN74C / Android 17 并冷启动成功（528ms）；用户已登录并访问空教室/考试/成绩；课表 Session 误报已修复并真机验证；登录态启动路径待复测 |
 | 最近一次验证 | 2026-10-21 正常构建：增量 `assembleDebug` 27s，`clean assembleDebug` 1m38s，均 `BUILD SUCCESSFUL`；启动优化后再次 `assembleDebug` 通过（18s）；Session 修复后 `testDebugUnitTest` 5/5 通过、`assembleDebug` 27s；APK `MyHEBNU-v1.5.0-debug.apk`（71,509,296 B）。真机：`adb install -r` 成功，冷启动 `TotalTime 528ms` / `WaitTime 554ms`，启动日志无 `hasValidSession`；deep link 进课表 `isLoginPage=false`、`getSchedule -> 200`，课表正常渲染；2 条 Kotlin 警告待清理；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录） |
-| 工作区状态 | `gradle.properties` 有未提交改动（代理端口 7892→7897，已对齐本机）；`.workbuddy/` 未跟踪（另一工具的日志，不属于本记忆库） |
+| 工作区状态 | 代码/文档已提交，工作区干净；仅 `.workbuddy/` 未跟踪（另一工具的日志，不属于本记忆库） |
 
 ## 五分钟上手路径
 

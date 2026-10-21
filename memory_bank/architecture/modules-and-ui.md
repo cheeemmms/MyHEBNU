@@ -3,7 +3,7 @@
 - **用途**：说明代码如何按包分层、页面如何导航、各屏状态由谁持有，以及主题与依赖注入的位置。
 - **阅读时机**：新增页面/模块、修改导航或主题、定位某个界面逻辑。
 - **最后更新**：2026-10-21
-- **状态**：稳定（与 v1.5.0 代码一致）
+- **状态**：稳定（含 2026-10-21 MD3 前端整改，分支 `feat/md3-ui-refresh`）
 
 ## 目录
 
@@ -73,9 +73,11 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 
 - `MainAppContent` 持有 `currentRoute: String` + `backStack: SnapshotStateList<String>`。
 - `navigateTo` 压栈前进，`goBack` 弹栈；栈空回 `home`。
-- `BackHandler(enabled = currentRoute != "home")` 拦截系统返回手势。
+- **底层导航（2026-10-21 起）**：5 个顶层目的地（首页/课表/成绩/空教室/考试）显示 `NavigationBar`，选中态用 `primaryContainer` 指示器；切换 tab 视为一级导航并清空回退栈。
+- `isTopLevel` 判定：`currentRoute in topLevelRoutes`；`BackHandler(enabled = !isTopLevel)` 只拦二级页返回。
+- 页面切换用 `AnimatedContent`，外层 `Column` 用 `Modifier.background(surface)` 兜底，避免暗色下交叉淡入透出白底。
 - 路由集合（`TopLevelRoute` + 字符串）：`home`、`schedule`、`grade`、`empty_room`、`exam`、`settings`、`advanced_settings`、`color_theme`、`about`、`system_update`、`semester_setup`。
-- 每个页面自带 `Scaffold` + `TopAppBar`（子页有返回箭头），不再有全局 TopAppBar 或抽屉。
+- 每个页面自带 `Scaffold` + `TopAppBar`；顶层页传 `onBack = null` 不显示返回箭头，二级页传 lambda 显示。
 - Widget 深链：`myhebnu://navigate/{route}`，由 `MainActivity.handleDeepLink()` 写入 `pendingNavigation`，主界面消费后清空返回栈并跳转。
 
 > 注意：`ui/navigation/TopLevelRoute` 只是路由常量集合；项目**没有使用** Navigation Compose 的 `NavHost`，尽管 `libs.navigation.compose` 仍在依赖中。
@@ -109,8 +111,11 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | 动态取色 | Android 12+ 默认 `dynamicLight/DarkColorScheme` |
 | 自定义主题 | 用户选择 seed hue → `seedColorScheme()` 生成整套色板，优先级高于动态取色 |
 | 课程配色 | 课程名 hash 得到稳定 hue，再叠加主题 seedOffset → `CourseTonalPalette`，浅/深色各一套 |
-| 状态栏 | `DisposableEffect(colorScheme.primary, darkTheme)` 同步状态栏颜色与图标明暗 |
-| 字体 | `Type.kt`；课程卡片按卡片实际高度动态决定课名行数（`WeekViewGrid` 传 `cardHeight`） |
+| 颜色角色 | `Color.kt` 的 `lightSurfaceRoles()` / `darkSurfaceRoles()` 补全 MD3 的 `surfaceContainerLowest/Low/…/Highest`、`surfaceDim/Bright`、`surfaceTint`、`inverseSurface/OnInverseSurface` 等 15 个角色（M3 1.3.1 的 `lightColorScheme()` 默认是灰色，必须显式给） |
+| 形状 | `Shapes.kt` 的 `AppShapes`：extraSmall 4 / small 8 / medium 12 / large 16 / extraLarge 28 dp；业务代码统一用 `MaterialTheme.shapes.*`，不再写字面量圆角 |
+| 状态栏 | `DisposableEffect` 只设置 `isAppearanceLightStatusBars`，不再把状态栏涂成 primary（避免与顶部栏脱节、并入主流体验） |
+| 字体 | `Type.kt`；课程卡片按卡片实际高度动态决定课名行数（`WeekViewGrid` 传 `cardHeight`），课名 14/13/12sp 退让、次信息 11sp |
+| 文本对比 | 不再用 `copy(alpha = …)` 模拟次级文本，统一走 `onSurfaceVariant`；只有装饰性发光/网格线保留 alpha |
 | 弹层/选择器 | 一律 Material 3 原生控件；禁止自研 iOS 风格滚轮 |
 
 ## 依赖注入

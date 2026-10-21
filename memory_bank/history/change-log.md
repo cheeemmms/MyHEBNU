@@ -88,6 +88,9 @@
 | 2026-10-21 | 定位课表 Session 失效误报：真实课表页 HTTP 200、含“课表”、无登录表单，但 JS 注释含 5 处“登录”，被 `ScheduleRepository` 裸 `contains("登录")` 误判 | 重试/清数据/重登录均无效；详见 [diagnostics/schedule-login-false-positive.md](../diagnostics/schedule-login-false-positive.md) |
 | 2026-10-21 | 修复课表 Session 误报：新增 `LoginPageDetector`（`login_slogin` + `yhm` 表单特征），替换 Schedule/Grade/Room 三处裸 `"登录"` 判断；新增 5 个单测；`assembleDebug` 27s，APK 71,509,296 B；真机 deep link 进课表 `isLoginPage=false` / `getSchedule -> 200`，课表正常 | 用户明确授权“按这个方案做”；单测与真机加载均通过 |
 
+| 2026-10-21 | 小组件重做：`WidgetTickScheduler` + `WidgetTickWorker` 事件边界刷新（替代 24h 周期任务），`WidgetScheduleLogic` 纯函数（下一节次/硬滑动/假期周/行数自适应），三种尺寸样式统一；单测 24 个新增（合计 29），真机 tick 调度 `next tick in 154 min` 验证通过 | 用户答复刷新规则取舍：当天上完但未到 19:00 仍显示「已结束」，19:00 后才展示明天；不做色相 24 档实验 |
+| 2026-10-21 | MD3 前端整改（分支 `feat/md3-ui-refresh`，提交 `f99d848`）：补全 15 个颜色角色、新增 `AppShapes`、去 alpha 与状态栏涂色、`NavigationBar` 顶层导航、GPA 分段按钮、空教室暴露式下拉、设置页 `ListItem`、课表周切换器上移；29 单测全绿，真机逐页截图核对 | 用户要求严格对齐 MD3 并参考 PixelPlayer；本轮只改前端，不动业务逻辑 |
+
 ## 发布索引
 
 | 版本 | 日期 | 主要变化 |

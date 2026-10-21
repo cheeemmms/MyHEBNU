@@ -30,7 +30,8 @@
 | 当前版本 | **v1.5.0**（versionCode 7，2026-09-13 发布）；2026-10-21 有本地代码/文档提交（启动优化、课表误报修复）+ 小组件重做（**未发版**） |
 | 当前阶段 | Phase 0–7（侦察、骨架、认证、课表、成绩、空教室、考试、Widget+提醒）已交付；**Phase 8「打磨/收尾」未完成**，另加 2026-10-21 小组件专项 |
 | 最近一次实质进展 | 2026-10-21 小组件重做：事件边界刷新引擎（`WidgetTickScheduler` + `WidgetTickWorker`，替换 24h 周期任务）、硬滑动 + 行数自适应、假期态/空态/深色样式统一；单测 29 个全绿，`assembleDebug` 通过，真机 tick 调度已验证。真机（Xiaomi 24129PN74C / HyperOS 3）已确认：横版标题 8dp 间距、20dp 圆角、硬滑动起点、微型「明天 周X」标签 |
-| 下一步 | 补验小组件剩余项（列表 4–6 行随高度自适应、假期态、多节课硬滑动）；Phase 8 收尾（i18n 已搁置）、README 架构图同步、小学期成绩待验证 |
+| 最近一次实质进展（续） | 2026-10-21 MD3 前端整改：补全 15 个 surfaceContainer*/inverseSurface 等颜色角色、新增 `AppShapes` 统一圆角、去 alpha 覆写与状态栏涂色、`NavigationBar` 五顶层导航 + 可空返回、GPA 改 SegmentedButton、空教室改 ExposedDropdownMenu、设置页改 ListItem；分支 `feat/md3-ui-refresh`（提交 `f99d848`），29 单测全绿，真机逐页截图核对通过 |
+| 下一步 | 决定 `feat/md3-ui-refresh` 并入主线（当前未合）；补验小组件剩余项（列表 4–6 行随高度自适应、假期态、多节课硬滑动）；Phase 8 收尾（i18n 已搁置）、README 架构图同步、小学期成绩待验证 |
 | 已知阻塞 | 无当前阻塞；`assembleDebug`、`testDebugUnitTest`、真机安装、课表加载与小组件渲染均已通过 |
 | 交接状态 | **可交接**：代码、测试、文档已提交；工作区仅 `.workbuddy/` 未跟踪（另一工具日志）；新会话从本文件开始读 |
 | 最后更新 | 2026-10-21 |

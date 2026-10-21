@@ -172,7 +172,7 @@ MyHEBNU 是河北师范大学的**非官方 Android 教务助手**，把 ZFSOFT 
 
 | 类别 | 要求 | 现状 |
 | --- | --- | --- |
-| 性能 | 缓存命中时首帧即展示；启动不等待网络 | ✅ 设计上满足；未做量化基准 |
+| 性能 | 缓存命中时首帧即展示；启动不等待网络 | ✅ 启动已改为本地判定（2026-10-21）；未做量化基准 |
 | 可靠性 | 网络异常展示缓存/错误，不崩溃；Worker 异常自消化 | ✅ 大部分路径 |
 | 安全性 | 凭证加密；日志不泄露会话 | 🟡 **暂搁置**（2026-10-21）；凭证已加密；Cookie 仍为普通 SharedPreferences；BODY 日志全构建开启；详见 [architecture/security.md](architecture/security.md) |
 | 兼容性 | Android 12+；小米/HyperOS 16KB Page | ✅ `minSdk 31` + 16KB 对齐开关 |

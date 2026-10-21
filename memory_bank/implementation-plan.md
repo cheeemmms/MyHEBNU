@@ -64,6 +64,7 @@
 | 16 | README 同步 | 待办 | 变更日志/许可证/版本徽章已更新；剩架构图与技术栈表旧值（如 Compose BOM 年代、旧类名） |
 | 17 | 通知权限引导 | 待办 | Android 13+ 未授权时提醒静默失败；设置页增加引导入口 |
 | 18 | 清理编译警告 | 待办 | `ScheduleViewModel.kt:266` 加 `@OptIn(ExperimentalCoroutinesApi::class)`；`WidgetUpdateManager.kt:17` 改 `@param:ApplicationContext` |
+| 19 | 真机启动耗时验收 | 待办 | 冷启动 `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` 记录 TotalTime；确认 logcat 无启动期 `hasValidSession`；对照优化前 |
 
 ### 已完成 / 已关闭
 
@@ -73,6 +74,7 @@
 | 考试接口分页 | 用户实测未出现问题，关闭该项；代码保持现状 | 2026-10-21 |
 | 代理端口 | `gradle.properties` 对齐本机实际监听 `127.0.0.1:7897` | 2026-10-21 |
 | 课表刷新长按 | 已证实课表页未接长按；但课表短按 `refreshSchedule()` 已是完整刷新（重新探测学期/周次/节次/课程），长按无独立语义。已修正 `CHANGELOG.md` 与应用内 `changelog_content`，明确“仅成绩页支持长按” | 2026-10-21 |
+| 启动等待优化 | 启动改为本地判定（`isFirstLaunch`+`isLoggedIn`+`hasLocalCookieSession`），移除 MainActivity/LoginViewModel 的启动网络校验；会话改为首次 API 惰性校验 + autoLogin。`assembleDebug` 通过；真机耗时待验收 | 2026-10-21 |
 
 ## 验证方式
 
@@ -81,7 +83,8 @@
 | 验证项 | 命令/步骤 | 期望结果 | 最近一次结果 |
 | --- | --- | --- | --- |
 | 代理端口 | `Test-NetConnection 127.0.0.1 -Port 7897` | True | 2026-10-21：True；`gradle.properties` 已对齐 |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：增量 27s；`clean assembleDebug` 1m38s；APK 71,289,145 B |
+| 冷启动 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 有本地会话时直接进首页；无启动期 `hasValidSession` 网络日志 | 待真机（2026-10-21 已改代码并构建通过） |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：增量 27s；`clean assembleDebug` 1m38s；启动优化后 18s；APK 71,509,476 B |
 | Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行（同上） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过（当前无测试源码） | 未执行 |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |

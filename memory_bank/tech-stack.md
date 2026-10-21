@@ -71,7 +71,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 目的 | 命令 | 产物/说明 | 最近结果 |
 | --- | --- | --- | --- |
 | 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 通过：Gradle 9.5.1，Launcher JVM 21.0.10（Android Studio JBR） |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-21 通过**：正常增量构建 27s；`clean assembleDebug` 1m38s（42 tasks，37 executed / 5 cache）；APK 71,289,145 B |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-21 通过**：正常增量构建 27s；`clean assembleDebug` 1m38s（42 tasks，37 executed / 5 cache）；启动优化后增量构建 18s，APK 71,509,476 B（优化前 71,289,145 B） |
 | Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.5.0-release.apk`；包名 `com.myhebnu`；需签名 | 未执行 |
 | 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 当前无测试源码 | 未执行 |

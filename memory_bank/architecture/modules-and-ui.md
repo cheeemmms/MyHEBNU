@@ -65,8 +65,9 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 ```
 
 - 首次启动标记：`UserPreferences.isFirstLaunch`；点击“开始使用”后写为 false。
-- 会话判断：`AuthRepository.hasValidSession()` 同时检查本地 Cookie 与 `isLoggedIn`，并请求 `index_initMenu.html` 验证。
-- 会话过期：`AuthInterceptor` 命中 302/401/403/901 → `sessionExpired` → `autoLogin()` → 成功留主界面，失败回登录页并提示。
+- **启动判定（2026-10-21 起）**：一次 `combine(isFirstLaunch, isLoggedIn).first()` + `AuthRepository.hasLocalCookieSession()`，**纯本地、不联网**；随后进入 Welcome / Main / Login。
+- 会话过期：启动不主动校验；`AuthInterceptor` 在首次 API 调用命中 302/401/403/901 → `sessionExpired` → `autoLogin()` → 成功留主界面，失败回登录页并提示。
+- 详细根因、修复与真机计时方法见 [../diagnostics/startup-latency.md](../diagnostics/startup-latency.md)。
 
 ### 主界面导航
 

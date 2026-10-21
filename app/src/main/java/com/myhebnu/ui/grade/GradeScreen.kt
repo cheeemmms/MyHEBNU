@@ -1,6 +1,9 @@
 package com.myhebnu.ui.grade
 
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,14 +18,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
+import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.domain.Grade
 import com.myhebnu.ui.components.FloatingRefreshButton
 import com.myhebnu.ui.grade.components.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun GradeScreen(
     modifier: Modifier = Modifier,
+    sharedScope: SharedTransitionScope? = null,
+    animatedScope: AnimatedVisibilityScope? = null,
     viewModel: GradeViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null
 ) {
@@ -65,7 +71,13 @@ fun GradeScreen(
                 )
             }
         },
-        modifier = modifier
+        modifier = modifier.then(
+            sharedCardPageModifier(
+                key = "home-card-grade",
+                sharedScope = sharedScope,
+                animatedScope = animatedScope
+            )
+        )
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             when {

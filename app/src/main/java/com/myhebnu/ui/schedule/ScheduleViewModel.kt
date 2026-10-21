@@ -266,6 +266,7 @@ class ScheduleViewModel @Inject constructor(
                     .flatMapLatest { (y, t) -> repository.observeSchedule(y, t) },
                 _displayWeek,
                 colorPrefsFlow,
+                // 横屏时强制 7 列（用户 2026-10-21 要求：横屏展示七天课表）
                 preferences.showWeekendColumns,
                 _semesterStartDate
             ) { allCourses, week, colorPrefs, showWeekend, startDate ->

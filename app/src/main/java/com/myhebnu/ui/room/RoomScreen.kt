@@ -1,5 +1,8 @@
 package com.myhebnu.ui.room
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -12,13 +15,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
+import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.ui.room.components.FilterPanel
 import com.myhebnu.ui.room.components.RoomList
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun RoomScreen(
     modifier: Modifier = Modifier,
+    sharedScope: SharedTransitionScope? = null,
+    animatedScope: AnimatedVisibilityScope? = null,
     viewModel: RoomViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null
 ) {
@@ -37,7 +43,13 @@ fun RoomScreen(
                 }
             )
         },
-        modifier = modifier
+        modifier = modifier.then(
+            sharedCardPageModifier(
+                key = "home-card-empty_room",
+                sharedScope = sharedScope,
+                animatedScope = animatedScope
+            )
+        )
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier

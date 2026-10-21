@@ -18,6 +18,14 @@ import com.myhebnu.data.local.db.entity.CourseEntity
 import com.myhebnu.ui.theme.CourseTonalPalette
 import kotlin.math.max
 
+/**
+ * 课表格子。
+ *
+ * 排版约定（2026-10-21 用户确认）：
+ * - 课名在顶部，尽量完整展示（行数由格子高度决定，不再一味压行数）；
+ * - 教室紧随其后；
+ * - 教师固定在卡片最底部（用 weight 顶到下方），长格子不会出现「教师飘在中间」的观感。
+ */
 @Composable
 fun CourseCard(
     course: CourseEntity,
@@ -25,47 +33,52 @@ fun CourseCard(
     palette: CourseTonalPalette,
     cardHeight: Dp,
     modifier: Modifier = Modifier,
+    cardWidth: Dp = 0.dp,
     onClick: (() -> Unit)? = null
 ) {
     val borderWidth = if (isActive) 2.dp else 0.dp
     val gap = 3.dp
+    val shape = MaterialTheme.shapes.medium
 
     // 卡片内可用高度 = 总高 - 上下 padding（各 6dp）
     val innerH = (cardHeight - 12.dp).coerceAtLeast(0.dp)
 
-    // 课名按可用高度在 14 / 13 / 12sp 之间退让，不低于 MD3 bodySmall(12sp)
-    val nameFontSize = when {
-        innerH >= 76.dp -> 14.sp
-        innerH >= 56.dp -> 13.sp
-        else -> 12.sp
-    }
-    val nameLineSp = (nameFontSize.value * 1.35f).sp
-    val nameLineDp = nameLineSp.value.dp
-    // 次信息（教室 / 教师）统一按 labelSmall(11sp) 处理
-    val metaLineSp = 14.sp
-    val metaLineDp = metaLineSp.value.dp
+    val nameLineDp = 14.dp
+    val metaLineDp = 12.dp
+    val teacherLineDp = 14.dp
 
-    // 非课名部分预算：教室空间充足才 2 行，否则 1 行；老师始终 1 行；各含上方 gap
-    var fixedH = 0.dp
-    val roomMaxLines = if (innerH >= 72.dp) 2 else 1
-    if (course.classroom.isNotBlank()) {
-        fixedH += gap + metaLineDp * roomMaxLines
-    }
-    if (course.teacher.isNotBlank()) {
-        fixedH += gap + metaLineDp
-    }
+    val hasRoom = course.classroom.isNotBlank()
+    val hasTeacher = course.teacher.isNotBlank()
 
-    // 课名可用高度 → 动态行数；空间足够即填满长条，仅快溢出才限行
-    val nameBudget = (innerH - fixedH).coerceAtLeast(nameLineDp)
-    val nameMaxLines = max(1, (nameBudget.value / nameLineDp.value).toInt())
+    // 课名优先完整展示：按「可用宽度能放几个字」估行数，再受格子高度约束
+    val textWidthDp = (if (cardWidth > 0.dp) cardWidth else 96.dp) - 16.dp
+    val nameLinesNeeded = estimateLines(course.courseName, textWidthDp, 11.dp)
+    val reservedBottom =
+        (if (hasRoom) gap + metaLineDp else 0.dp) +
+        (if (hasTeacher) gap + metaLineDp + teacherLineDp else 0.dp)
+    val nameBudgetLines = max(1, ((innerH - reservedBottom).value / nameLineDp.value).toInt())
+    val nameMaxLines = nameLinesNeeded.coerceAtMost(nameBudgetLines).coerceAtLeast(1)
+
+    // 教室：不设两行上限，占满剩余高度；教师之前至少留一行空白，
+    // 超长时在留白前折叠（用户 2026-10-21 指定）。
+    val roomBudgetDp = (
+        innerH -
+        nameLineDp * nameMaxLines -
+        (if (hasTeacher) metaLineDp * 2 + teacherLineDp else 0.dp)
+    ).coerceAtLeast(0.dp)
+    val roomMaxLines = if (!hasRoom) 0
+        else max(1, (roomBudgetDp.value / metaLineDp.value).toInt())
+
+    // 极矮格子（单节且信息密集）略微缩小课名，避免单行溢出
+    val nameFontSize = if (innerH < 40.dp) 10.sp else 11.sp
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
+            .clip(shape)
             .background(palette.container)
             .then(
-                if (isActive) Modifier.border(borderWidth, palette.onContainer, MaterialTheme.shapes.medium)
+                if (isActive) Modifier.border(borderWidth, palette.onContainer, shape)
                 else Modifier
             )
             .then(
@@ -74,40 +87,51 @@ fun CourseCard(
             )
             .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // 课名
             Text(
                 text = course.courseName,
                 fontWeight = FontWeight.Medium,
                 fontSize = nameFontSize,
-                lineHeight = nameLineSp,
+                lineHeight = 14.sp,
                 color = palette.onContainer,
                 maxLines = nameMaxLines,
                 overflow = TextOverflow.Ellipsis
             )
 
+            // 教室
             if (course.classroom.isNotBlank()) {
                 Spacer(Modifier.height(gap))
                 Text(
                     text = course.classroom,
-                    fontSize = 11.sp,
-                    lineHeight = metaLineSp,
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
                     color = palette.variant,
                     maxLines = roomMaxLines,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
+            // 教师固定在底部
+            Spacer(Modifier.weight(1f))
+
             if (course.teacher.isNotBlank()) {
-                Spacer(Modifier.height(gap))
                 Text(
                     text = course.teacher,
-                    fontSize = 11.sp,
-                    lineHeight = metaLineSp,
+                    fontSize = 9.5.sp,
+                    lineHeight = 12.sp,
                     color = palette.variant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
         }
     }
+}
+
+/** 粗估一段中文/中英混排在给定宽度下会占几行（1 个汉字 ≈ 1em）。 */
+private fun estimateLines(text: String, widthDp: Dp, charDp: Dp): Int {
+    if (text.isBlank() || widthDp <= 0.dp || charDp <= 0.dp) return 1
+    val perLine = max(1, (widthDp.value / charDp.value).toInt())
+    return max(1, (text.length + perLine - 1) / perLine)
 }

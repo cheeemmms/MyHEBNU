@@ -4,6 +4,9 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,12 +20,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
+import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.ui.exam.components.ExamCard
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExamScreen(
     modifier: Modifier = Modifier,
+    sharedScope: SharedTransitionScope? = null,
+    animatedScope: AnimatedVisibilityScope? = null,
     viewModel: ExamViewModel = hiltViewModel(),
     onBack: (() -> Unit)? = null
 ) {
@@ -46,7 +52,13 @@ fun ExamScreen(
                 }
             )
         },
-        modifier = modifier
+        modifier = modifier.then(
+            sharedCardPageModifier(
+                key = "home-card-exam",
+                sharedScope = sharedScope,
+                animatedScope = animatedScope
+            )
+        )
     ) { paddingValues ->
         AnimatedContent(
             targetState = uiState,

@@ -1,5 +1,8 @@
 package com.myhebnu.ui.home.components
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,11 +26,14 @@ import com.myhebnu.R
 import com.myhebnu.ui.home.HomeUiState
 import com.myhebnu.ui.home.NextClassState
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun HomeCardPanel(
     uiState: HomeUiState,
     onNavigate: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sharedScope: SharedTransitionScope? = null,
+    animatedScope: AnimatedVisibilityScope? = null
 ) {
     val nextClassTitle = when (uiState.nextClassState) {
         NextClassState.IN_CLASS -> "正在上课"
@@ -65,7 +71,20 @@ fun HomeCardPanel(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(cards) { card ->
-            HomeInfoCard(card = card, onClick = { onNavigate(card.route) })
+            // 四张卡片都与各自目标页共享元素：点击后卡片在原位展开成整页
+            val cardModifier = if (sharedScope != null && animatedScope != null) {
+                with(sharedScope) {
+                    Modifier.sharedBounds(
+                        sharedContentState = rememberSharedContentState(
+                            key = "home-card-${card.route}"
+                        ),
+                        animatedVisibilityScope = animatedScope
+                    )
+                }
+            } else {
+                Modifier
+            }
+            HomeInfoCard(card = card, onClick = { onNavigate(card.route) }, modifier = cardModifier)
         }
     }
 }
@@ -75,12 +94,16 @@ private data class HomeCardData(
 )
 
 @Composable
-private fun HomeInfoCard(card: HomeCardData, onClick: () -> Unit) {
+private fun HomeInfoCard(
+    card: HomeCardData,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     ElevatedCard(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),

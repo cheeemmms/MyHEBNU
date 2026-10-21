@@ -86,7 +86,7 @@ fun WeekViewGrid(
                             .width(cellWidth)
                             .then(
                                 if (isToday) Modifier
-                                    .clip(MaterialTheme.shapes.small)
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                 else Modifier
                             )
@@ -104,6 +104,7 @@ fun WeekViewGrid(
                                 Spacer(Modifier.height(1.dp))
                                 Text(
                                     dateLabel, style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
                                     color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -169,7 +170,7 @@ fun WeekViewGrid(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontSize = 8.5.sp,
                                                 lineHeight = 10.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                                             )
                                         }
                                     }
@@ -213,6 +214,7 @@ fun WeekViewGrid(
                             isActive = course.id == activeCourseId,
                             palette = palette,
                             cardHeight = rowHeight * spanCount - 4.dp,
+                            cardWidth = cellWidth - 4.dp,
                             onClick = { onCourseClick(course) },
                             modifier = Modifier
                                 .offset(

@@ -44,6 +44,10 @@ fun GpaCard(
                     SegmentedButton(
                         selected = currentStrategy == strategy,
                         onClick = { onStrategyChange(strategy) },
+                        // 选中态用容器色表达，不再放 ✓ 图标：三个中文标签在 1/3 宽度里
+                        // 再加图标会把「百分制加权」挤到换行/截断
+                        icon = {},
+                        modifier = Modifier.weight(1f),
                         shape = SegmentedButtonDefaults.itemShape(
                             index = index,
                             count = GpaStrategy.entries.size
@@ -57,11 +61,17 @@ fun GpaCard(
                             inactiveBorderColor = MaterialTheme.colorScheme.outline
                         ),
                         label = {
-                            Text(
-                                text = strategy.label,
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = strategy.label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
                         }
                     )
                 }

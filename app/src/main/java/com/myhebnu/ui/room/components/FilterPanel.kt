@@ -19,6 +19,9 @@ import com.myhebnu.domain.Building
  */
 private val DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
 
+/** 节次选项：1..13（与教务网站 jcd 位掩码逐节对应） */
+private val PERIOD_OPTIONS = (1..13).toList()
+
 /**
  * 空教室筛选面板。
  *
@@ -316,21 +319,12 @@ private fun PeriodChipSelector(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 常用节次分组：1-2、3-4、5-6、7-8、9-10、11-13
-            val groups = listOf(
-                "1-2节" to listOf(1, 2),
-                "3-4节" to listOf(3, 4),
-                "5-6节" to listOf(5, 6),
-                "7-8节" to listOf(7, 8),
-                "9-10节" to listOf(9, 10),
-                "11-13节" to listOf(11, 12, 13)
-            )
-            items(groups) { (label, periods) ->
-                val allSelected = periods.all { it in selected }
+            // 逐节选择：教务网站 jcd 是节次位掩码，单节选择与其语义一一对应
+            items(PERIOD_OPTIONS) { period ->
                 FilterChip(
-                    selected = allSelected,
-                    onClick = { if (enabled) periods.forEach(onToggle) },
-                    label = { Text(label) },
+                    selected = period in selected,
+                    onClick = { if (enabled) onToggle(period) },
+                    label = { Text("${period}节") },
                     enabled = enabled
                 )
             }

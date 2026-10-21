@@ -30,12 +30,6 @@
 
 ## 任务清单
 
-### P0 · 当前故障（待授权修复）
-
-| # | 任务 | 状态 | 阻塞 | 关联文件 |
-| --- | --- | --- | --- | --- |
-| 20 | **课表页 Session 失效误报**：`ScheduleRepository` 用裸 `contains("登录")` 判断登录页，真实课表页 JS 注释含“登录”导致误报；重试/清数据/重登录均无效 | 已定位·待授权 | 需用户明确授权修复 | `ScheduleRepository.kt:72`；同款模式在 `GradeRepository.kt:56`、`RoomRepository.kt:142`；详见 [diagnostics/schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md) |
-
 ### P0 · 安全项（2026-10-21 暂时搁置）
 
 | # | 任务 | 状态 | 阻塞 | 关联文件 |
@@ -80,7 +74,8 @@
 | 考试接口分页 | 用户实测未出现问题，关闭该项；代码保持现状 | 2026-10-21 |
 | 代理端口 | `gradle.properties` 对齐本机实际监听 `127.0.0.1:7897` | 2026-10-21 |
 | 课表刷新长按 | 已证实课表页未接长按；但课表短按 `refreshSchedule()` 已是完整刷新（重新探测学期/周次/节次/课程），长按无独立语义。已修正 `CHANGELOG.md` 与应用内 `changelog_content`，明确“仅成绩页支持长按” | 2026-10-21 |
-| 启动等待优化 | 启动改为本地判定（`isFirstLaunch`+`isLoggedIn`+`hasLocalCookieSession`），移除 MainActivity/LoginViewModel 的启动网络校验；会话改为首次 API 惰性校验 + autoLogin。`assembleDebug` 通过；真机耗时待验收 | 2026-10-21 |
+| 启动等待优化 | 启动改为本地判定（`isFirstLaunch`+`isLoggedIn`+`hasLocalCookieSession`），移除 MainActivity/LoginViewModel 的启动网络校验；会话改为首次 API 惰性校验 + autoLogin。构建通过；真机冷启动 528ms | 2026-10-21 |
+| 课表 Session 误报 | 新增 `LoginPageDetector`，改用 `login_slogin` + `yhm` 表单特征，移除裸 `contains("登录")`；已替换 Schedule/Grade/Room 三处；5 个单测通过，真机课表正常加载 | 2026-10-21 |
 
 ## 验证方式
 
@@ -90,11 +85,11 @@
 | --- | --- | --- | --- |
 | 代理端口 | `Test-NetConnection 127.0.0.1 -Port 7897` | True | 2026-10-21：True；`gradle.properties` 已对齐 |
 | 冷启动 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 有本地会话时直接进首页；无启动期 `hasValidSession` 网络日志 | 2026-10-21：`TotalTime 528ms` / `WaitTime 554ms`（无本地会话→登录页）；启动日志无 `hasValidSession`；登录态待复测 |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：增量 27s；`clean assembleDebug` 1m38s；启动优化后 18s；APK 71,509,476 B |
-| Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行（同上） |
-| 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过（当前无测试源码） | 未执行 |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：clean 1m38s；启动优化 18s；Session 修复 27s；APK 71,509,296 B |
+| Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行 |
+| 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过 | 2026-10-21：`LoginPageDetectorTest` 5 tests / 0 failures |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |
-| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | 未执行（当前无连接设备） |
+| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | 2026-10-21：Success（24129PN74C / Android 17） |
 | 冷启动 | 清后台后启动，观察首页 | 无白闪；首页直接出卡片；无网络等待 | 未执行 |
 | 课表缓存优先 | 断网后进课表 | 立即显示缓存；不出现加载圈长期停留 | 未执行 |
 | 会话自愈 | 使会话失效后进考试/成绩页 | 自动重登，不出现 HTTP 901/302 死循环 | 未执行 |

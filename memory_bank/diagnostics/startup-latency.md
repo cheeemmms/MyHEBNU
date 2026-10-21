@@ -128,7 +128,7 @@ AuthInterceptor 识别 302/401/403/901
 
 | 项 | 命令/步骤 | 结果 |
 | --- | --- | --- |
-| 编译 | `.\gradlew.bat assembleDebug` | 2026-10-21 通过（增量 18s，APK 71,509,476 B） |
+| 编译 | `.\gradlew.bat assembleDebug` | 2026-10-21 通过（启动优化后 18s；Session 修复后最新 APK 71,509,296 B） |
 | 冷启动计时 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 2026-10-21：设备 24129PN74C / Android 17；冷启动 `TotalTime 528ms`、`WaitTime 554ms`（debug 首次安装、无本地会话 → 登录页） |
 | 首帧日志 | `adb logcat -s MyHEBNU:*` | 启动阶段只有 `restoreFromStorage`，**没有** `hasValidSession`/`verifySessionValidity`；随后用户登录并正常访问空教室/考试/成绩 |
 | 会话失效 | 使 Cookie 失效后进考试/成绩 | 待真机专项验证 |

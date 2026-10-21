@@ -25,8 +25,8 @@
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
 | 分支/提交 | `main`；2026-10-21 有本地提交（记忆库/许可证/代理，见 `git log -1`）；此前发布提交 `db8580d`（2026-09-13），标签 `v1.5.0` |
 | 历史规模 | 2026-06-04 起，97 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
-| 当前可用程度 | **能构建、已上真机**：2026-10-21 debug 包安装到 24129PN74C / Android 17 并冷启动成功（528ms）；用户已登录并访问空教室/考试/成绩。**课表页存在 Session 失效误报，待授权修复**；登录态启动路径待复测 |
-| 最近一次验证 | 2026-10-21 正常构建：增量 `assembleDebug` 27s，`clean assembleDebug` 1m38s，均 `BUILD SUCCESSFUL`；启动优化后再次 `assembleDebug` 通过（18s）；APK `MyHEBNU-v1.5.0-debug.apk`（71,509,476 B）。真机：`adb install -r` 成功，冷启动 `TotalTime 528ms` / `WaitTime 554ms`，启动日志无 `hasValidSession`；2 条 Kotlin 警告待清理；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录） |
+| 当前可用程度 | **能构建、已上真机**：2026-10-21 debug 包安装到 24129PN74C / Android 17 并冷启动成功（528ms）；用户已登录并访问空教室/考试/成绩；课表 Session 误报已修复并真机验证；登录态启动路径待复测 |
+| 最近一次验证 | 2026-10-21 正常构建：增量 `assembleDebug` 27s，`clean assembleDebug` 1m38s，均 `BUILD SUCCESSFUL`；启动优化后再次 `assembleDebug` 通过（18s）；Session 修复后 `testDebugUnitTest` 5/5 通过、`assembleDebug` 27s；APK `MyHEBNU-v1.5.0-debug.apk`（71,509,296 B）。真机：`adb install -r` 成功，冷启动 `TotalTime 528ms` / `WaitTime 554ms`，启动日志无 `hasValidSession`；deep link 进课表 `isLoginPage=false`、`getSchedule -> 200`，课表正常渲染；2 条 Kotlin 警告待清理；2026-09-13 v1.5.0 发布校验（签名 v2、证书 SHA-256 与 v1.4.0 一致、APK 7,367,150 B，来自当时记录） |
 | 工作区状态 | `gradle.properties` 有未提交改动（代理端口 7892→7897，已对齐本机）；`.workbuddy/` 未跟踪（另一工具的日志，不属于本记忆库） |
 
 ## 五分钟上手路径
@@ -117,7 +117,6 @@
 
 | # | 事项 | 类型 | 优先级 | 线索 |
 | --- | --- | --- | --- | --- |
-| 0 | 课表 Session 失效误报（已定位·待授权） | Bug | 高 | `ScheduleRepository.kt:72` 裸 `contains("登录")`；详见 [diagnostics/schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md) |
 | 1 | 发布构建关闭 BODY 日志并脱敏 Cookie 日志 | 安全·搁置 | — | `NetworkModule.provideOkHttpClient`、`PersistentCookieJar` |
 | 2 | Cookie 持久化加密或改为不持久化 | 安全·搁置 | — | `SessionManager` 普通 SharedPreferences |
 | 3 | 收紧 `network_security_config`，仅放行教务域名 | 安全·搁置 | — | `res/xml/network_security_config.xml` |
@@ -133,7 +132,7 @@
 | 13 | MIUI Widget 资源化 | 坑 | 高 | 见 [diagnostics/glance-miui-resources.md](diagnostics/glance-miui-resources.md) |
 
 > 安全项 2026-10-21 用户决定**暂时搁置**，保留记录不实施；恢复优先级见 [architecture/security.md](architecture/security.md)。
-> 已完成：许可证统一为 AGPL-3.0-only 并补 `LICENSE`；考试分页项关闭；课表长按已修正为“仅成绩页支持长按”的发布说明（课表短按 `refreshSchedule()` 已是完整刷新，长按无独立语义）。完整任务见 [implementation-plan.md](implementation-plan.md)。
+> 已完成：许可证统一为 AGPL-3.0-only 并补 `LICENSE`；考试分页项关闭；课表长按已修正为“仅成绩页支持长按”的发布说明（课表短按 `refreshSchedule()` 已是完整刷新，长按无独立语义）；课表 Session 误报已修复（`LoginPageDetector`，5 个单测通过，真机课表正常）。完整任务见 [implementation-plan.md](implementation-plan.md)。
 
 ## 交接检查清单
 
@@ -149,5 +148,5 @@
 
 ## 历史记录
 
-- **2026-10-21**：按 memory_bank 规范创建本文件。项目此前没有独立交接文档，状态散落在 `progress.md` 与 README；本次把“来源/上手/地图/约定/风险/待办”集中到此，`progress.md` 的变更过程归档到 [history/change-log.md](history/change-log.md)。同日对齐代理 7897、统一许可证 AGPL-3.0、关闭考试分页、把小学期成绩改为待验证、i18n 搁置、安全项搁置（保留 [architecture/security.md](architecture/security.md)）、修正课表长按发布说明，并跑通 `assembleDebug`；启动改为本地判定并移除启动网络校验，详见 [diagnostics/startup-latency.md](diagnostics/startup-latency.md)。
+- **2026-10-21**：按 memory_bank 规范创建本文件。项目此前没有独立交接文档，状态散落在 `progress.md` 与 README；本次把“来源/上手/地图/约定/风险/待办”集中到此，`progress.md` 的变更过程归档到 [history/change-log.md](history/change-log.md)。同日对齐代理 7897、统一许可证 AGPL-3.0、关闭考试分页、把小学期成绩改为待验证、i18n 搁置、安全项搁置（保留 [architecture/security.md](architecture/security.md)）、修正课表长按发布说明，并跑通 `assembleDebug`；启动改为本地判定并移除启动网络校验（[startup-latency.md](diagnostics/startup-latency.md)）；修复课表 Session 误报（[schedule-login-false-positive.md](diagnostics/schedule-login-false-positive.md)）。
 - **2026-08-30**：执行过 `git reset --hard v1.3.0` 回退；未提交改动保存在 `backup/2026-08-30`。后续 v1.3.1/v1.4.0/v1.5.0 已重新前进。

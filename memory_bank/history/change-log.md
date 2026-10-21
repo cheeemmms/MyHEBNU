@@ -85,7 +85,8 @@
 | 2026-10-21 | 代理端口 `7892`/工作区 `10808` → `7897`；许可证统一 AGPL-3.0 并补 `LICENSE`；新增安全项清单（随后搁置）；关闭考试分页项（用户实测正常）；小学期成绩改为待验证；i18n 搁置；修正课表长按发布说明（仅成绩页支持长按） | 用户逐项确认；许可证按应用内既有 AGPL 表述统一 |
 | 2026-10-21 | `assembleDebug` 构建通过（增量 27s；`clean assembleDebug` 1m38s；APK 71,289,145 B）；代理 7897 验证可用 | 用户授权代理直接构建；从干净状态验证配置与工具链 |
 | 2026-10-21 | 启动优化：移除 MainActivity/LoginViewModel 启动期网络会话校验，改为本地 `isFirstLaunch + isLoggedIn + hasLocalCookieSession` 判定；会话改为首次 API 惰性校验 + autoLogin；LoginViewModel 增加 `consumeLoginSuccess()` 防成功状态残留；构建 18s，APK 71,509,476 B；真机 24129PN74C / Android 17 安装并冷启动 528ms | 启动转圈数秒，根因为 `index_initMenu` 网络校验与重复调用；详见 [diagnostics/startup-latency.md](../diagnostics/startup-latency.md) |
-| 2026-10-21 | 定位课表 Session 失效误报：真实课表页 HTTP 200、含“课表”、无登录表单，但 JS 注释含 5 处“登录”，被 `ScheduleRepository` 裸 `contains("登录")` 误判 | 重试/清数据/重登录均无效；修复方案待用户授权，详见 [diagnostics/schedule-login-false-positive.md](../diagnostics/schedule-login-false-positive.md) |
+| 2026-10-21 | 定位课表 Session 失效误报：真实课表页 HTTP 200、含“课表”、无登录表单，但 JS 注释含 5 处“登录”，被 `ScheduleRepository` 裸 `contains("登录")` 误判 | 重试/清数据/重登录均无效；详见 [diagnostics/schedule-login-false-positive.md](../diagnostics/schedule-login-false-positive.md) |
+| 2026-10-21 | 修复课表 Session 误报：新增 `LoginPageDetector`（`login_slogin` + `yhm` 表单特征），替换 Schedule/Grade/Room 三处裸 `"登录"` 判断；新增 5 个单测；`assembleDebug` 27s，APK 71,509,296 B；真机 deep link 进课表 `isLoginPage=false` / `getSchedule -> 200`，课表正常 | 用户明确授权“按这个方案做”；单测与真机加载均通过 |
 
 ## 发布索引
 

@@ -3,14 +3,14 @@
 - **用途**：记录“进入课表页报 Session 已失效”的根因、证据与修复方案。
 - **阅读时机**：课表加载失败、重试/清数据无效、检查教务 HTML 守卫时。
 - **最后更新**：2026-10-21
-- **状态**：已定位，待用户明确授权后修复（本轮未改代码）
+- **状态**：已修复（2026-10-21）；真机课表已正常加载
 
 ## 目录
 
 - [现象](#现象)
 - [证据](#证据)
 - [根因](#根因)
-- [修复方案（待授权）](#修复方案待授权)
+- [修复内容](#修复内容)
 - [波及范围](#波及范围)
 - [验证方式](#验证方式)
 
@@ -63,29 +63,37 @@ val isLogin = pageBody.contains("登录") || pageBody.contains("login_slogin")
 - 清数据/重新登录 = 会话已正常工作，但页面文本仍含“登录” → 仍误判；
 - 同一会话下其他模块正常，因为它们的页面文本没有这类注释（但存在同样风险，见下）。
 
-## 修复方案（待授权）
+## 修复内容
 
-新增一个统一的登录页判定，不使用裸 `"登录"`：
+新增 `LoginPageDetector`（`data/remote/LoginPageDetector.kt`），不使用裸 `"登录"`：
 
 ```kotlin
 internal object LoginPageDetector {
-    fun isLoginPage(html: String): Boolean =
-        html.contains("login_slogin") ||
-        html.contains("name=\"yhm\"") ||
-        html.contains("id=\"yhm\"")
+    private val YHM_INPUT = Regex("""(?i)\b(?:name|id)\s*=\s*["']?yhm\b""")
+
+    fun isLoginPage(html: String): Boolean {
+        if (html.isBlank()) return false
+        return html.contains("login_slogin") || YHM_INPUT.containsMatchIn(html)
+    }
 }
 ```
 
 依据：登录页包含 `login_slogin`、`name="yhm"`、`id="yhm"`；课表页三者都没有，只有 JS 注释里的“登录”。
 
-替换以下位置：
+已替换：
 
 1. `ScheduleRepository.refreshSchedule()` 的 `isLogin` 判定（本次故障点）。
-2. `GradeRepository.getGrades()` 的同款判定（成绩页目前正常，但同风险）。
-3. `RoomRepository.queryEmptyRooms()` step 2 的同款判定（空教室目前正常，但同风险）。
-4. `RoomRepository.isHtmlResponse()` 中的裸 `"登录"` 可移除或改用 detector；HTML 本身已由 `<!doctype`/`<html` 识别。
+2. `GradeRepository.getGrades()` 的同款判定。
+3. `RoomRepository.queryEmptyRooms()` step 2 的同款判定。
+4. `RoomRepository.isHtmlResponse()` 中的裸 `"登录"` 改为调用 detector。
 
-可保留原错误文案，但只在真正的登录页命中时返回。
+同时新增单元测试 `LoginPageDetectorTest`（5 个用例），覆盖：
+
+- 课表页 JS 注释含“登录” → false
+- 登录表单 `name="yhm"` → true
+- `login_slogin` 跳转 → true
+- 无引号 `name=yhm` → true
+- 空响应 → false
 
 ## 波及范围
 
@@ -104,4 +112,10 @@ internal object LoginPageDetector {
 4. 清除数据 → 重新登录 → 进课表，确认首次加载正常。
 5. 进入成绩/空教室，确认原功能未回归。
 
-> 本轮仅做只读排查与手机端请求重放，没有修改任何源码。
+### 实际结果（2026-10-21）
+
+- `testDebugUnitTest`：5 tests / 0 failures / 0 errors。
+- `assembleDebug`：`BUILD SUCCESSFUL in 27s`，APK 71,509,296 B。
+- `adb install -r`：`Success`。
+- Deep link 打开课表：`loadSchedulePage -> 200, isLoginPage=false, size=31541`，随后 `getSchedule -> 200, size=29242`，课表正常渲染（截图见 `logcat/schedule_fixed.png`，gitignore）。
+- 保留当前会话已验证；清数据重登路径未重复执行（避免打断已登录会话），由 detector 单测覆盖页面判定。

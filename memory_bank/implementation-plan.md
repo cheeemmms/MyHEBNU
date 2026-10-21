@@ -63,6 +63,7 @@
 | 15 | 课表刷新事务化 | 待办 | `deleteBySemester` + `upsertAll` 改为 DAO `@Transaction replaceSemester` |
 | 16 | README 同步 | 待办 | 变更日志/许可证/版本徽章已更新；剩架构图与技术栈表旧值（如 Compose BOM 年代、旧类名） |
 | 17 | 通知权限引导 | 待办 | Android 13+ 未授权时提醒静默失败；设置页增加引导入口 |
+| 18 | 清理编译警告 | 待办 | `ScheduleViewModel.kt:266` 加 `@OptIn(ExperimentalCoroutinesApi::class)`；`WidgetUpdateManager.kt:17` 改 `@param:ApplicationContext` |
 
 ### 已完成 / 已关闭
 
@@ -80,7 +81,7 @@
 | 验证项 | 命令/步骤 | 期望结果 | 最近一次结果 |
 | --- | --- | --- | --- |
 | 代理端口 | `Test-NetConnection 127.0.0.1 -Port 7897` | True | 2026-10-21：True；`gradle.properties` 已对齐 |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：BUILD SUCCESSFUL in 27s；APK 71,289,145 B |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：增量 27s；`clean assembleDebug` 1m38s；APK 71,289,145 B |
 | Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行（同上） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过（当前无测试源码） | 未执行 |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |

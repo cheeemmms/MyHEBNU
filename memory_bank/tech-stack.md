@@ -71,7 +71,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 目的 | 命令 | 产物/说明 | 最近结果 |
 | --- | --- | --- | --- |
 | 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 通过：Gradle 9.5.1，Launcher JVM 21.0.10（Android Studio JBR） |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-21 通过**：`BUILD SUCCESSFUL in 27s`；APK 71,289,145 B |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-21 通过**：正常增量构建 27s；`clean assembleDebug` 1m38s（42 tasks，37 executed / 5 cache）；APK 71,289,145 B |
 | Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.5.0-release.apk`；包名 `com.myhebnu`；需签名 | 未执行 |
 | 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 当前无测试源码 | 未执行 |
@@ -80,7 +80,9 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 应用日志 | `adb logcat -s MyHEBNU:*` | 主要链路日志 | 未执行 |
 | Widget 日志 | `adb logcat -s MyHEBNU-Widget:*` | Widget 进程日志 | 未执行 |
 
-> **构建约定**：2026-10-21 用户在会话中要求直接构建，`assembleDebug` 已由代理执行并通过。后续默认仍建议由用户在 Android Studio 做真机验收；代理在获得明确授权时可代跑 Gradle。上表“未执行”不代表命令不可用。
+> **构建约定**：2026-10-21 用户在会话中要求直接构建，`assembleDebug` 已由代理执行并通过（含 `clean` 全量构建）。后续默认仍建议由用户在 Android Studio 做真机验收；代理在获得明确授权时可代跑 Gradle。上表“未执行”不代表命令不可用。
+>
+> **编译警告（2026-10-21 clean build）**：2 条 Kotlin 警告——`ScheduleViewModel.kt:266` 的 `flatMapLatest` 需要 `@OptIn(ExperimentalCoroutinesApi::class)`；`WidgetUpdateManager.kt:17` 的 `@ApplicationContext` 建议写成 `@param:ApplicationContext`。另有 2 个 native 库无法 strip（正常警告）。不影响构建，待清理。
 
 ## 本机环境
 

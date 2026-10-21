@@ -44,6 +44,123 @@ val Red40 = Color(0xFFBA1A1A)
 val Red80 = Color(0xFFFFB4AB)
 val Red90 = Color(0xFFFFDAD6)
 
+// ---- MD3 容器 / 描边角色（与上面的色阶同源，全部不透明） ----
+
+/** `surfaceContainer*`、`surfaceDim`、`surfaceBright`、`outlineVariant` 一组派生色。 */
+data class SurfaceRoles(
+    val containerLowest: Color,
+    val containerLow: Color,
+    val container: Color,
+    val containerHigh: Color,
+    val containerHighest: Color,
+    val dim: Color,
+    val bright: Color,
+    val outlineVariant: Color
+)
+
+/** 浅色主题的五档容器：越往上越暗，全部跟随主色相、保持低饱和。 */
+fun lightSurfaceRoles(hue: Float, saturation: Float = 0.10f): SurfaceRoles = SurfaceRoles(
+    containerLowest = Color.hsl(hue, saturation * 0.4f, 1.000f),
+    containerLow = Color.hsl(hue, saturation * 0.8f, 0.975f),
+    container = Color.hsl(hue, saturation, 0.945f),
+    containerHigh = Color.hsl(hue, saturation, 0.915f),
+    containerHighest = Color.hsl(hue, saturation, 0.885f),
+    dim = Color.hsl(hue, saturation * 0.8f, 0.855f),
+    bright = Color.hsl(hue, saturation * 0.6f, 0.990f),
+    outlineVariant = Color.hsl(hue, saturation, 0.800f)
+)
+
+/** 深色主题的五档容器：越往上越亮。 */
+fun darkSurfaceRoles(hue: Float, saturation: Float = 0.12f): SurfaceRoles = SurfaceRoles(
+    containerLowest = Color.hsl(hue, saturation, 0.050f),
+    containerLow = Color.hsl(hue, saturation, 0.100f),
+    container = Color.hsl(hue, saturation, 0.130f),
+    containerHigh = Color.hsl(hue, saturation, 0.170f),
+    containerHighest = Color.hsl(hue, saturation, 0.210f),
+    dim = Color.hsl(hue, saturation * 0.8f, 0.060f),
+    bright = Color.hsl(hue, saturation, 0.240f),
+    outlineVariant = Color.hsl(hue, saturation, 0.300f)
+)
+
+/** 把容器角色一次性写进 ColorScheme（`ColorScheme.copy` 参数太多，集中在此处）。 */
+fun ColorScheme.withSurfaces(roles: SurfaceRoles): ColorScheme = copy(
+    surfaceContainerLowest = roles.containerLowest,
+    surfaceContainerLow = roles.containerLow,
+    surfaceContainer = roles.container,
+    surfaceContainerHigh = roles.containerHigh,
+    surfaceContainerHighest = roles.containerHighest,
+    surfaceDim = roles.dim,
+    surfaceBright = roles.bright,
+    outlineVariant = roles.outlineVariant
+)
+
+/** 品牌固有色相（师大蓝）；自定义配色用用户选的 seed hue 覆盖。 */
+private const val BRAND_HUE = 210f
+
+/** 既未开启动态取色、也未启用自定义配色时的浅色方案。 */
+fun defaultLightColorScheme(): ColorScheme = lightColorScheme(
+    primary = Blue40,
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Blue90,
+    onPrimaryContainer = Blue10,
+    secondary = Teal40,
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Teal90,
+    onSecondaryContainer = Teal10,
+    tertiary = Amber40,
+    onTertiary = Color(0xFFFFFFFF),
+    tertiaryContainer = Amber90,
+    onTertiaryContainer = Amber10,
+    error = Red40,
+    onError = Color(0xFFFFFFFF),
+    errorContainer = Red90,
+    onErrorContainer = Red10,
+    background = Neutral99,
+    onBackground = Neutral10,
+    surface = Neutral99,
+    onSurface = Neutral10,
+    surfaceVariant = Color(0xFFE3E1EC),
+    onSurfaceVariant = Color(0xFF45464F),
+    outline = Color(0xFF79747E),
+    inverseSurface = Color(0xFF313033),
+    inverseOnSurface = Color(0xFFF4EFF4),
+    inversePrimary = Blue80,
+    surfaceTint = Blue40,
+    scrim = Color(0xFF000000)
+).withSurfaces(lightSurfaceRoles(BRAND_HUE))
+
+/** 既未开启动态取色、也未启用自定义配色时的深色方案。 */
+fun defaultDarkColorScheme(): ColorScheme = darkColorScheme(
+    primary = Blue80,
+    onPrimary = Blue20,
+    primaryContainer = Blue30,
+    onPrimaryContainer = Blue90,
+    secondary = Teal80,
+    onSecondary = Teal20,
+    secondaryContainer = Teal30,
+    onSecondaryContainer = Teal90,
+    tertiary = Amber80,
+    onTertiary = Amber20,
+    tertiaryContainer = Amber30,
+    onTertiaryContainer = Amber90,
+    error = Red80,
+    onError = Red20,
+    errorContainer = Red30,
+    onErrorContainer = Red90,
+    background = Neutral10,
+    onBackground = Neutral90,
+    surface = Neutral10,
+    onSurface = Neutral90,
+    surfaceVariant = Color(0xFF49454F),
+    onSurfaceVariant = Color(0xFFCAC4D0),
+    outline = Color(0xFF938F99),
+    inverseSurface = Color(0xFFE6E1E5),
+    inverseOnSurface = Color(0xFF313033),
+    inversePrimary = Blue40,
+    surfaceTint = Blue80,
+    scrim = Color(0xFF000000)
+).withSurfaces(darkSurfaceRoles(BRAND_HUE))
+
 // Course card colors — MD3 Tonal Palette per course (assigned by hue)
 data class CourseTonalPalette(
     val container: Color,    // Tonal 90 (light) / 30 (dark)
@@ -142,8 +259,9 @@ fun builtInPresets(): List<ColorPreset> = listOf(
  * Dark scheme: lower saturation, lower lightness for containers.
  */
 fun seedColorScheme(seedHue: Float, isDark: Boolean): ColorScheme {
-    if (isDark) {
-        return darkColorScheme(
+    val onVariant = if (isDark) Color.hsl(seedHue, 0.05f, 0.80f) else Color.hsl(seedHue, 0.05f, 0.30f)
+    return if (isDark) {
+        darkColorScheme(
             primary = Color.hsl(seedHue, 0.45f, 0.75f),
             onPrimary = Color.hsl(seedHue, 0.15f, 0.15f),
             primaryContainer = Color.hsl(seedHue, 0.30f, 0.25f),
@@ -157,32 +275,47 @@ fun seedColorScheme(seedHue: Float, isDark: Boolean): ColorScheme {
             tertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.25f, 0.20f),
             onTertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.30f, 0.85f),
             error = Red80, onError = Red20, errorContainer = Red30, onErrorContainer = Red90,
-            background = Neutral10, onBackground = Neutral90,
-            surface = Neutral10, onSurface = Neutral90,
-            surfaceVariant = Neutral10.copy(alpha = 0.8f),
-            onSurfaceVariant = Neutral90.copy(alpha = 0.8f),
-            outline = Neutral90.copy(alpha = 0.2f)
-        )
+            background = darkSurfaceRoles(seedHue).containerLow,
+            onBackground = Neutral90,
+            surface = darkSurfaceRoles(seedHue).containerLow,
+            onSurface = Neutral90,
+            surfaceVariant = Color.hsl(seedHue, 0.06f, 0.26f),
+            onSurfaceVariant = onVariant,
+            outline = Color.hsl(seedHue, 0.05f, 0.60f),
+            inverseSurface = Color.hsl(seedHue, 0.04f, 0.90f),
+            inverseOnSurface = Color.hsl(seedHue, 0.06f, 0.20f),
+            inversePrimary = Color.hsl(seedHue, 0.40f, 0.45f),
+            surfaceTint = Color.hsl(seedHue, 0.45f, 0.75f),
+            scrim = Color(0xFF000000)
+        ).withSurfaces(darkSurfaceRoles(seedHue))
     } else {
-        return lightColorScheme(
+        lightColorScheme(
             primary = Color.hsl(seedHue, 0.40f, 0.38f),
-            onPrimary = Neutral99,
+            onPrimary = Color(0xFFFFFFFF),
             primaryContainer = Color.hsl(seedHue, 0.30f, 0.90f),
             onPrimaryContainer = Color.hsl(seedHue, 0.50f, 0.10f),
             secondary = Color.hsl((seedHue + 30) % 360, 0.25f, 0.42f),
-            onSecondary = Neutral99,
+            onSecondary = Color(0xFFFFFFFF),
             secondaryContainer = Color.hsl((seedHue + 30) % 360, 0.20f, 0.90f),
             onSecondaryContainer = Color.hsl((seedHue + 30) % 360, 0.35f, 0.10f),
             tertiary = Color.hsl((seedHue + 60) % 360, 0.30f, 0.40f),
-            onTertiary = Neutral99,
+            onTertiary = Color(0xFFFFFFFF),
             tertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.25f, 0.90f),
             onTertiaryContainer = Color.hsl((seedHue + 60) % 360, 0.40f, 0.10f),
-            error = Red40, onError = Neutral99, errorContainer = Red90, onErrorContainer = Red10,
-            background = Neutral99, onBackground = Neutral10,
-            surface = Neutral99, onSurface = Neutral10,
-            surfaceVariant = Neutral95, onSurfaceVariant = Neutral10.copy(alpha = 0.6f),
-            outline = Neutral10.copy(alpha = 0.2f)
-        )
+            error = Red40, onError = Color(0xFFFFFFFF), errorContainer = Red90, onErrorContainer = Red10,
+            background = Neutral99,
+            onBackground = Neutral10,
+            surface = Neutral99,
+            onSurface = Neutral10,
+            surfaceVariant = Color.hsl(seedHue, 0.08f, 0.90f),
+            onSurfaceVariant = onVariant,
+            outline = Color.hsl(seedHue, 0.05f, 0.48f),
+            inverseSurface = Color.hsl(seedHue, 0.04f, 0.20f),
+            inverseOnSurface = Color.hsl(seedHue, 0.04f, 0.92f),
+            inversePrimary = Color.hsl(seedHue, 0.40f, 0.80f),
+            surfaceTint = Color.hsl(seedHue, 0.40f, 0.38f),
+            scrim = Color(0xFF000000)
+        ).withSurfaces(lightSurfaceRoles(seedHue))
     }
 }
 

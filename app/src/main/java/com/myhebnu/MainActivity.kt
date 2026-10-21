@@ -7,11 +7,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -220,6 +223,18 @@ fun MainAppContent(
     var currentRoute by remember { mutableStateOf(TopLevelRoute.Home.route) }
     val backStack = remember { mutableStateListOf<String>() }
 
+    // 顶层目的地：显示底部 NavigationBar（MD3 建议 3–5 个，这里 5 个）
+    val topLevelRoutes = remember {
+        listOf(
+            TopLevelRoute.Home,
+            TopLevelRoute.Schedule,
+            TopLevelRoute.Grade,
+            TopLevelRoute.EmptyRoom,
+            TopLevelRoute.Exam
+        )
+    }
+    val isTopLevel = currentRoute in topLevelRoutes.map { it.route }
+
     // Handle widget deep-link navigation
     LaunchedEffect(Unit) {
         for (route in pendingNavigation) {
@@ -243,68 +258,88 @@ fun MainAppContent(
         }
     }
 
-    // 修复 #6d：非首页时拦截系统返回手势
-    BackHandler(enabled = currentRoute != TopLevelRoute.Home.route) {
+    // 修复 #6d：只有非顶层页面才拦截系统返回手势（顶层由 tab 自己消费）
+    BackHandler(enabled = !isTopLevel) {
         goBack()
     }
 
     // #6e: Opaque backdrop prevents white window background from
     // bleeding through during AnimatedContent crossfade in dark mode.
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        AnimatedContent(targetState = currentRoute) { route ->
-            when (route) {
-                TopLevelRoute.Home.route -> HomeScreen(
-                    onNavigate = { target -> navigateTo(target) },
-                    onNavigateToSettings = { navigateTo(TopLevelRoute.SettingsRoute.route) }
-                )
+        Box(modifier = Modifier.weight(1f)) {
+            AnimatedContent(targetState = currentRoute) { route ->
+                when (route) {
+                    TopLevelRoute.Home.route -> HomeScreen(
+                        onNavigate = { target -> navigateTo(target) },
+                        onNavigateToSettings = { navigateTo(TopLevelRoute.SettingsRoute.route) }
+                    )
 
-                TopLevelRoute.Schedule.route -> ScheduleScreen(
-                    onBack = { goBack() }
-                )
+                    // 顶层 tab 不显示返回箭头
+                    TopLevelRoute.Schedule.route -> ScheduleScreen()
 
-                TopLevelRoute.Grade.route -> GradeScreen(
-                    onBack = { goBack() }
-                )
+                    TopLevelRoute.Grade.route -> GradeScreen()
 
-                TopLevelRoute.EmptyRoom.route -> RoomScreen(
-                    onBack = { goBack() }
-                )
+                    TopLevelRoute.EmptyRoom.route -> RoomScreen()
 
-                TopLevelRoute.Exam.route -> ExamScreen(
-                    onBack = { goBack() }
-                )
+                    TopLevelRoute.Exam.route -> ExamScreen()
 
-                TopLevelRoute.SettingsRoute.route -> SettingsScreen(
-                    onBack = { goBack() },
-                    onNavigateToAdvanced = { navigateTo("advanced_settings") },
-                    onNavigateToAbout = { navigateTo("about") }
-                )
+                    TopLevelRoute.SettingsRoute.route -> SettingsScreen(
+                        onBack = { goBack() },
+                        onNavigateToAdvanced = { navigateTo("advanced_settings") },
+                        onNavigateToAbout = { navigateTo("about") }
+                    )
 
-                "advanced_settings" -> AdvancedSettingsScreen(
-                    onBack = { goBack() },
-                    onNavigateToColorTheme = { navigateTo("color_theme") }
-                )
+                    "advanced_settings" -> AdvancedSettingsScreen(
+                        onBack = { goBack() },
+                        onNavigateToColorTheme = { navigateTo("color_theme") }
+                    )
 
-                "color_theme" -> ColorThemeScreen(
-                    onBack = { goBack() }
-                )
+                    "color_theme" -> ColorThemeScreen(
+                        onBack = { goBack() }
+                    )
 
-                "about" -> AboutScreen(
-                    onBack = { goBack() },
-                    onNavigateToSystemUpdate = { navigateTo("system_update") }
-                )
+                    "about" -> AboutScreen(
+                        onBack = { goBack() },
+                        onNavigateToSystemUpdate = { navigateTo("system_update") }
+                    )
 
-                "system_update" -> SystemUpdateScreen(
-                    onBack = { goBack() }
-                )
+                    "system_update" -> SystemUpdateScreen(
+                        onBack = { goBack() }
+                    )
 
-                "semester_setup" -> SemesterSetupScreen(
-                    onBack = { goBack() }
-                )
+                    "semester_setup" -> SemesterSetupScreen(
+                        onBack = { goBack() }
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(visible = isTopLevel) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                topLevelRoutes.forEach { destination ->
+                    val selected = currentRoute == destination.route
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = {
+                            if (currentRoute != destination.route) {
+                                // tab 切换视为新的一级导航，清空回退栈
+                                backStack.clear()
+                                currentRoute = destination.route
+                            }
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
+                                contentDescription = stringResource(destination.titleResId)
+                            )
+                        },
+                        label = { Text(stringResource(destination.titleResId)) }
+                    )
+                }
             }
         }
     }

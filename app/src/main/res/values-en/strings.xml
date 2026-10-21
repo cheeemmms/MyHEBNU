@@ -82,7 +82,9 @@
     <string name="settings_appearance">Appearance</string>
     <string name="settings_dynamic_color">Dynamic Color</string>
     <string name="settings_academics">Academics</string>
+    <string name="settings_more">More</string>
     <string name="settings_advanced">Advanced</string>
+    <string name="settings_app_info">App info</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %s</string>
     <string name="advanced_title">Advanced Features</string>

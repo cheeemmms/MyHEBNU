@@ -30,12 +30,18 @@ fun ExamCard(
     val days = exam.daysRemaining
     val isExpired = days < 0
 
+    // 徽标成对使用 MD3 语义容器色：底色与前景色同取一个角色，保证对比度
+    val countdownContainer = when {
+        isExpired -> MaterialTheme.colorScheme.surfaceContainerHighest
+        days <= 3 -> MaterialTheme.colorScheme.errorContainer
+        days <= 7 -> MaterialTheme.colorScheme.tertiaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
     val countdownColor = when {
-        isExpired -> MaterialTheme.colorScheme.outline
-        days <= 3 -> MaterialTheme.colorScheme.error
-        days <= 7 -> MaterialTheme.colorScheme.tertiary
-        days <= 14 -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        isExpired -> MaterialTheme.colorScheme.onSurfaceVariant
+        days <= 3 -> MaterialTheme.colorScheme.onErrorContainer
+        days <= 7 -> MaterialTheme.colorScheme.onTertiaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     val accessibilityLabel = buildString {
@@ -52,7 +58,7 @@ fun ExamCard(
         modifier = modifier
             .fillMaxWidth()
             .semantics { contentDescription = accessibilityLabel },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
@@ -112,8 +118,8 @@ fun ExamCard(
 
             // --- Right column: countdown badge ---
             Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = MaterialTheme.shapes.small,
+                color = countdownContainer,
                 modifier = Modifier.width(64.dp)
             ) {
                 Column(

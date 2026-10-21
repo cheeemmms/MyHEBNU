@@ -79,7 +79,7 @@ fun AboutScreen(
                 contentDescription = "MyHEBNU",
                 modifier = Modifier
                     .size(80.dp)
-                    .clip(RoundedCornerShape(24.dp)),
+                    .clip(MaterialTheme.shapes.extraLarge),
                 contentScale = ContentScale.Crop
             )
 
@@ -99,7 +99,7 @@ fun AboutScreen(
             Text(
                 text = stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(Modifier.height(32.dp))
@@ -248,7 +248,7 @@ private val LICENSES_TEXT = """
 @Composable
 private fun AboutCard(content: @Composable ColumnScope.() -> Unit) {
     ElevatedCard(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),

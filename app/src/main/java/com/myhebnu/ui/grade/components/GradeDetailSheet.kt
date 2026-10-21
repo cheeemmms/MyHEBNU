@@ -126,7 +126,7 @@ private fun GradeSubItemRow(
             modifier = Modifier
                 .width(80.dp)
                 .height(8.dp),
-            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )
 
         Spacer(Modifier.width(12.dp))

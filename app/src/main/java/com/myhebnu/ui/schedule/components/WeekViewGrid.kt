@@ -86,7 +86,7 @@ fun WeekViewGrid(
                             .width(cellWidth)
                             .then(
                                 if (isToday) Modifier
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(MaterialTheme.shapes.small)
                                     .background(MaterialTheme.colorScheme.primaryContainer)
                                 else Modifier
                             )
@@ -104,7 +104,6 @@ fun WeekViewGrid(
                                 Spacer(Modifier.height(1.dp))
                                 Text(
                                     dateLabel, style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 9.sp,
                                     color = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -170,7 +169,7 @@ fun WeekViewGrid(
                                                 style = MaterialTheme.typography.labelSmall,
                                                 fontSize = 8.5.sp,
                                                 lineHeight = 10.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
                                     }

@@ -155,8 +155,8 @@ fun LoginScreen(
                                 modifier = Modifier
                                     .width(110.dp)
                                     .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                                 contentScale = ContentScale.Fit
                             )
                         } else {
@@ -164,8 +164,8 @@ fun LoginScreen(
                                 modifier = Modifier
                                     .width(110.dp)
                                     .height(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    .clip(MaterialTheme.shapes.medium)
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
@@ -224,7 +224,7 @@ fun LoginScreen(
                     .fillMaxWidth()
                     .height(52.dp),
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(28.dp),
+                shape = MaterialTheme.shapes.extraLarge,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
@@ -264,10 +264,10 @@ private fun CapsuleTextField(
     isError: Boolean = false,
     onDone: (() -> Unit)? = null
 ) {
-    val shape = RoundedCornerShape(28.dp)
+    val shape = MaterialTheme.shapes.extraLarge
     val bgColor by animateColorAsState(
         targetValue = if (isError) MaterialTheme.colorScheme.errorContainer
-                     else MaterialTheme.colorScheme.surfaceVariant,
+                     else MaterialTheme.colorScheme.surfaceContainerHighest,
         animationSpec = tween(400)
     )
 
@@ -307,7 +307,7 @@ private fun CapsuleTextField(
                     Text(
                         text = placeholder,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 innerTextField()
@@ -330,7 +330,7 @@ private fun PasswordCapsuleField(
     isError: Boolean,
     onDone: () -> Unit
 ) {
-    val shape = RoundedCornerShape(28.dp)
+    val shape = MaterialTheme.shapes.extraLarge
 
     // Breathing animation: pulsing glow on error
     val infiniteTransition = rememberInfiniteTransition()
@@ -344,7 +344,7 @@ private fun PasswordCapsuleField(
     )
 
     val errorBgColor = MaterialTheme.colorScheme.errorContainer
-    val normalBgColor = MaterialTheme.colorScheme.surfaceVariant
+    val normalBgColor = MaterialTheme.colorScheme.surfaceContainerHighest
 
     val bgColor by animateColorAsState(
         targetValue = if (isError) errorBgColor else normalBgColor,
@@ -394,7 +394,7 @@ private fun PasswordCapsuleField(
                         Text(
                             text = placeholder,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     innerTextField()

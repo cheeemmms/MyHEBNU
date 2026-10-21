@@ -61,7 +61,7 @@ fun SystemUpdateScreen(
         ) {
             // Card: Auto check toggle
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
@@ -99,7 +99,7 @@ fun SystemUpdateScreen(
 
             // Card: Manual check
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),
@@ -151,7 +151,7 @@ fun SystemUpdateScreen(
 
             // Card: Changelog
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = MaterialTheme.shapes.large,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow
                 ),

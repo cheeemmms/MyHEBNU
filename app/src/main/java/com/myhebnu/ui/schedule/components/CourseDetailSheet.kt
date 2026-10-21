@@ -19,7 +19,7 @@ fun CourseDetailSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow
     ) {
         Column(

@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -137,7 +138,7 @@ fun SettingsScreen(
             }
 
             // ═══ Advanced ═══
-            SettingsSectionHeader(title = stringResource(R.string.settings_advanced))
+            SettingsSectionHeader(title = stringResource(R.string.settings_more))
             SettingsCard {
                 SettingsNavigateItem(
                     title = stringResource(R.string.settings_advanced),
@@ -146,7 +147,7 @@ fun SettingsScreen(
             }
 
             // ═══ About ═══
-            SettingsSectionHeader(title = stringResource(R.string.settings_about))
+            SettingsSectionHeader(title = stringResource(R.string.settings_app_info))
             SettingsCard {
                 SettingsNavigateItem(
                     title = stringResource(R.string.about_title),
@@ -179,7 +180,7 @@ private fun SettingsCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     ElevatedCard(
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.elevatedCardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         ),
@@ -192,39 +193,38 @@ private fun SettingsCard(
 
 @Composable
 private fun SettingsInfoItem(title: String, value: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
-        if (value.isNotEmpty()) {
-            Text(
-                value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    ListItem(
+        headlineContent = {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+        },
+        trailingContent = if (value.isNotEmpty()) {
+            {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else null,
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier
+    )
 }
 
 @Composable
 private fun SettingsNavigateItem(title: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Icon(
-            Icons.Filled.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.outlineVariant
-        )
-    }
+    ListItem(
+        headlineContent = {
+            Text(title, style = MaterialTheme.typography.bodyLarge)
+        },
+        trailingContent = {
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(onClick = onClick)
+    )
 }

@@ -42,7 +42,7 @@ fun RoomList(
                 fontWeight = FontWeight.SemiBold
             )
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Text(
@@ -119,8 +119,8 @@ private fun PaginationBar(
         }
 
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
             Text(
@@ -153,7 +153,7 @@ private fun RoomCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -161,7 +161,7 @@ private fun RoomCard(
         ) {
             // Left: room icon/color block
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = MaterialTheme.shapes.small,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier.size(48.dp)
             ) {

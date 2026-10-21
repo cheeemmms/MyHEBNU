@@ -80,7 +80,9 @@
     <string name="settings_appearance">外观</string>
     <string name="settings_dynamic_color">动态色彩</string>
     <string name="settings_academics">教务</string>
+    <string name="settings_more">更多</string>
     <string name="settings_advanced">高级功能</string>
+    <string name="settings_app_info">应用信息</string>
     <string name="settings_about">关于</string>
     <string name="settings_version">版本 %s</string>
     <string name="advanced_title">高级功能</string>

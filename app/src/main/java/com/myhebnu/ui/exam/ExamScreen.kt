@@ -24,7 +24,7 @@ import com.myhebnu.ui.exam.components.ExamCard
 fun ExamScreen(
     modifier: Modifier = Modifier,
     viewModel: ExamViewModel = hiltViewModel(),
-    onBack: () -> Unit = {}
+    onBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -38,8 +38,10 @@ fun ExamScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_exam)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    onBack?.let { back ->
+                        IconButton(onClick = back) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
                     }
                 }
             )

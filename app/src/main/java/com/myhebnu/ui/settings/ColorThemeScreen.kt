@@ -156,7 +156,7 @@ fun ColorThemeScreen(
                 OutlinedButton(
                     onClick = { showCreator = true },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = MaterialTheme.shapes.medium
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
@@ -208,10 +208,10 @@ private fun PresetChip(
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .then(
-                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
-                else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                if (isSelected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, MaterialTheme.shapes.medium)
+                else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
             )
             .then(combined)
             .padding(10.dp),
@@ -222,7 +222,7 @@ private fun PresetChip(
         Box(
             modifier = Modifier
                 .size(32.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(MaterialTheme.shapes.large)
                 .background(Color.hsl(preset.seedHue, 0.40f, 0.70f))
         )
         Text(
@@ -260,8 +260,8 @@ private fun PresetCreator(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -274,7 +274,7 @@ private fun PresetCreator(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(MaterialTheme.shapes.medium)
                     .background(previewColor),
                 contentAlignment = Alignment.Center
             ) {
@@ -309,7 +309,7 @@ private fun PresetCreator(
                 }
                 Surface(
                     color = badgeColor.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(6.dp)
+                    shape = MaterialTheme.shapes.small
                 ) {
                     Text(
                         badgeText,
@@ -327,7 +327,7 @@ private fun PresetCreator(
                 label = { Text("预设名称") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             )
 
             // Buttons
@@ -341,7 +341,7 @@ private fun PresetCreator(
                 Button(
                     onClick = { onSave(name.ifBlank { "我的主题" }, hue) },
                     enabled = true,
-                    shape = RoundedCornerShape(20.dp)
+                    shape = MaterialTheme.shapes.extraLarge
                 ) {
                     Text("保存预设")
                 }
@@ -370,7 +370,7 @@ private fun HueSliderBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(32.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(MaterialTheme.shapes.large)
             .background(rainbowBrush)
             .onSizeChanged { sliderWidthPx = it.width.toFloat() }
             .pointerInput(sliderWidthPx) {

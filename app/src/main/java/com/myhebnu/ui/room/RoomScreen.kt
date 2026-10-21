@@ -20,7 +20,7 @@ import com.myhebnu.ui.room.components.RoomList
 fun RoomScreen(
     modifier: Modifier = Modifier,
     viewModel: RoomViewModel = hiltViewModel(),
-    onBack: () -> Unit = {}
+    onBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -29,8 +29,10 @@ fun RoomScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_empty_room)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    onBack?.let { back ->
+                        IconButton(onClick = back) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
                     }
                 }
             )

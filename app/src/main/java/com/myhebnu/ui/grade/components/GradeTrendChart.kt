@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import com.myhebnu.domain.GpaStrategy
 import com.myhebnu.domain.SemesterGrades
@@ -37,6 +38,7 @@ fun GradeTrendChart(
         return
     }
 
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val sorted = semesters.sortedBy { it.semesterName }
     val values = sorted.map { sem ->
         when (currentStrategy) {
@@ -71,8 +73,8 @@ fun GradeTrendChart(
 
             // Grid lines
             val gridPaint = android.graphics.Paint().apply {
-                color = android.graphics.Color.parseColor("#E0E0E0")
-                textSize = 24f
+                color = labelColor.toArgb()
+                textSize = 22f
                 isAntiAlias = true
             }
 
@@ -130,9 +132,13 @@ fun GradeTrendChart(
 
                 // X-axis label
                 val label = labels.getOrElse(index) { "" }
+                // 首尾标签居中会越界，夹在画布内避免被裁掉
+                val textWidth = gridPaint.measureText(label)
+                val labelX = (point.x - textWidth / 2f)
+                    .coerceIn(0f, (w - textWidth).coerceAtLeast(0f))
                 drawContext.canvas.nativeCanvas.drawText(
                     label,
-                    point.x - 20f,
+                    labelX,
                     h + 32f,
                     gridPaint
                 )

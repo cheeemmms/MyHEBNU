@@ -24,7 +24,7 @@ import com.myhebnu.ui.grade.components.*
 fun GradeScreen(
     modifier: Modifier = Modifier,
     viewModel: GradeViewModel = hiltViewModel(),
-    onBack: () -> Unit = {}
+    onBack: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -47,11 +47,23 @@ fun GradeScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.nav_grade)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    onBack?.let { back ->
+                        IconButton(onClick = back) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            // 悬浮刷新：本地已有成绩时常驻。短按刷新最近学期，长按强制全量刷新。
+            if (uiState.hasCache && uiState.semesters.isNotEmpty()) {
+                FloatingRefreshButton(
+                    isRefreshing = uiState.isRefreshing,
+                    onClick = viewModel::refreshLatestGrades,
+                    onLongClick = viewModel::forceRefreshAllGrades
+                )
+            }
         },
         modifier = modifier
     ) { paddingValues ->
@@ -123,7 +135,7 @@ fun GradeScreen(
                     Text(
                         text = "算法仅供参考，实际GPA请参考官方公布结果",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
                     )
                 }
@@ -153,18 +165,6 @@ fun GradeScreen(
         }
     }
 
-    // 悬浮刷新图标：本地已有成绩时常驻。
-    // 短按 = 刷新最近一个有成绩的学期 + 当前学期；长按 = 强制拉取所有学期。
-    if (uiState.hasCache && uiState.semesters.isNotEmpty()) {
-        FloatingRefreshButton(
-            isRefreshing = uiState.isRefreshing,
-            onClick = viewModel::refreshLatestGrades,
-            onLongClick = viewModel::forceRefreshAllGrades,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = 20.dp)
-        )
-    }
 
     // Grade detail bottom sheet
     val expandedCourseId = uiState.expandedCourse

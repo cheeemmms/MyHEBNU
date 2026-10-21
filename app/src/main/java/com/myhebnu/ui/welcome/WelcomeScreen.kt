@@ -4,7 +4,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material3.*
@@ -100,7 +99,6 @@ fun WelcomeScreen(
             // Get Started capsule button
             Button(
                 onClick = onGetStarted,
-                shape = RoundedCornerShape(25.dp),
                 contentPadding = PaddingValues(horizontal = 28.dp, vertical = 12.dp)
             ) {
                 Text(

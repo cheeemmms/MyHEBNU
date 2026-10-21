@@ -157,9 +157,9 @@ fun AdvancedSettingsScreen(
 private fun DonationCard(context: Context) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Column(
@@ -174,7 +174,7 @@ private fun DonationCard(context: Context) {
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
                     .aspectRatio(1f)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(MaterialTheme.shapes.medium),
                 contentScale = ContentScale.Fit
             )
 
@@ -191,14 +191,14 @@ private fun DonationCard(context: Context) {
             Text(
                 text = "高级功能为诚信付款激活，不设置检测，亦不绑定任何账号系统。",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
 
             // Save image button
             OutlinedButton(
                 onClick = { saveImageToGallery(context) },
-                shape = RoundedCornerShape(12.dp)
+                shape = MaterialTheme.shapes.medium
             ) {
                 Icon(
                     Icons.Default.Download,

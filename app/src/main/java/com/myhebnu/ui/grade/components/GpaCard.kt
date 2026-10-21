@@ -1,18 +1,23 @@
 package com.myhebnu.ui.grade.components
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.myhebnu.R
 import com.myhebnu.domain.GpaStrategy
 
+/**
+ * GPA 主卡。
+ *
+ * 三种算法互斥，按 MD3 用 `SegmentedButton`（单选分段按钮）而不是 `FilterChip`
+ * ——chip 的语义是「多选筛选 / 标签」，用在单选上会让用户误以为可以多选。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GpaCard(
     currentStrategy: GpaStrategy,
@@ -25,57 +30,65 @@ fun GpaCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            // Strategy selector chips
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                GpaStrategy.entries.forEach { strategy ->
-                    FilterChip(
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                GpaStrategy.entries.forEachIndexed { index, strategy ->
+                    SegmentedButton(
                         selected = currentStrategy == strategy,
                         onClick = { onStrategyChange(strategy) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = GpaStrategy.entries.size
+                        ),
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            activeContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            activeBorderColor = Color.Transparent,
+                            inactiveContainerColor = Color.Transparent,
+                            inactiveContentColor = MaterialTheme.colorScheme.onSurface,
+                            inactiveBorderColor = MaterialTheme.colorScheme.outline
+                        ),
                         label = {
                             Text(
                                 text = strategy.label,
-                                style = MaterialTheme.typography.labelSmall
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1
                             )
                         }
                     )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // GPA value
             Text(
                 text = formatGpa(currentStrategy, currentGpa),
-                style = MaterialTheme.typography.displaySmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 36.sp
-                ),
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-
-            Text(
-                text = getStrategyLabel(currentStrategy),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.primary
             )
 
             Spacer(Modifier.height(4.dp))
 
             Text(
+                text = getStrategyLabel(currentStrategy),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
                 text = stringResource(R.string.total_credits) + ": ${"%.1f".format(totalCredits)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

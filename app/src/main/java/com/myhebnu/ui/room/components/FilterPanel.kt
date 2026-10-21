@@ -1,9 +1,8 @@
 package com.myhebnu.ui.room.components
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -20,6 +19,12 @@ import com.myhebnu.domain.Building
  */
 private val DAY_LABELS = listOf("一", "二", "三", "四", "五", "六", "日")
 
+/**
+ * 空教室筛选面板。
+ *
+ * 交互全部使用 MD3 原生组件：下拉用 `ExposedDropdownMenuBox` + `OutlinedTextField`（只读），
+ * 多选筛选用 `FilterChip`，横向 chip 列表用 `LazyRow`（避免最后一项被屏幕边缘截断）。
+ */
 @Composable
 fun FilterPanel(
     semesterYear: String,
@@ -46,16 +51,16 @@ fun FilterPanel(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = MaterialTheme.shapes.medium
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Row 1: Year + Semester
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 val yearOptions = listOf(
                     "2024" to "2024-2025",
@@ -105,9 +110,8 @@ fun FilterPanel(
             // Row 2: Campus + Building
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Campus dropdown
                 FilterDropdown(
                     label = stringResource(R.string.room_campus),
                     value = campuses.find { it.code == selectedCampusId }?.name ?: "",
@@ -125,7 +129,6 @@ fun FilterPanel(
                     }
                 }
 
-                // Building dropdown
                 FilterDropdown(
                     label = stringResource(R.string.room_building),
                     value = selectedBuilding?.name ?: "全部",
@@ -151,16 +154,34 @@ fun FilterPanel(
                 }
             }
 
-            // Row 2: Week selector
-            WeekChipSelector(
+            // Row 3: Week selector
+            FilterDropdown(
                 label = stringResource(R.string.room_week),
-                selected = selectedWeek,
-                range = 1..20,
-                onSelect = onWeekChange,
+                value = "第 $selectedWeek 周",
+                modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
-            )
+            ) { closeMenu ->
+                (1..20).forEach { week ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "第 $week 周",
+                                fontWeight = if (week == selectedWeek) {
+                                    androidx.compose.ui.text.font.FontWeight.Medium
+                                } else {
+                                    androidx.compose.ui.text.font.FontWeight.Normal
+                                }
+                            )
+                        },
+                        onClick = {
+                            onWeekChange(week)
+                            closeMenu()
+                        }
+                    )
+                }
+            }
 
-            // Row 3: Day of week (multi-select)
+            // Row 4: Day of week (multi-select)
             ChipGroup(
                 label = stringResource(R.string.room_day),
                 items = DAY_LABELS.mapIndexed { i, label ->
@@ -170,7 +191,7 @@ fun FilterPanel(
                 enabled = !isLoading
             )
 
-            // Row 4: Period selector (multi-select)
+            // Row 5: Period selector (multi-select)
             PeriodChipSelector(
                 selected = selectedPeriods,
                 onToggle = onPeriodToggle,
@@ -180,9 +201,10 @@ fun FilterPanel(
             // Query button
             Button(
                 onClick = onQuery,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading,
-                shape = RoundedCornerShape(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -193,13 +215,17 @@ fun FilterPanel(
                     Spacer(Modifier.width(8.dp))
                 }
                 Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(R.string.room_query))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.room_query), style = MaterialTheme.typography.labelLarge)
             }
         }
     }
 }
 
+/**
+ * MD3 暴露式下拉：只读 `OutlinedTextField` + 下拉菜单。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterDropdown(
     label: String,
@@ -210,78 +236,31 @@ private fun FilterDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (enabled) expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            singleLine = true,
+            enabled = enabled,
+            // 值用 bodyMedium：两列窄栏下 bodyLarge 会把「2026-2027」挤掉尾部
+            textStyle = MaterialTheme.typography.bodyMedium,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+            modifier = Modifier
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled)
+                .fillMaxWidth()
         )
-        Box {
-            OutlinedButton(
-                onClick = { if (enabled) expanded = true },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = enabled
-            ) {
-                Text(
-                    text = value,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                content({ expanded = false })
-            }
-        }
-    }
-}
-
-@Composable
-private fun WeekChipSelector(
-    label: String,
-    selected: Int,
-    range: IntRange,
-    onSelect: (Int) -> Unit,
-    enabled: Boolean
-) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        OutlinedButton(
-            onClick = { if (enabled) expanded = true },
-            enabled = enabled
-        ) {
-            Text("第 $selected 周")
-        }
-        DropdownMenu(
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            range.forEach { week ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            "第 $week 周",
-                            fontWeight = if (week == selected) {
-                                androidx.compose.ui.text.font.FontWeight.Bold
-                            } else {
-                                androidx.compose.ui.text.font.FontWeight.Normal
-                            }
-                        )
-                    },
-                    onClick = {
-                        onSelect(week)
-                        expanded = false  // close dropdown after selection
-                    }
-                )
-            }
+            content { expanded = false }
         }
     }
 }
@@ -296,18 +275,18 @@ private fun ChipGroup(
     Column {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items.forEach { item ->
+            items(items, key = { it.index }) { item ->
                 FilterChip(
                     selected = item.selected,
                     onClick = { if (enabled) onToggle(item.index) },
-                    label = { Text(item.label, style = MaterialTheme.typography.labelSmall) },
+                    label = { Text(item.label) },
                     enabled = enabled
                 )
             }
@@ -330,14 +309,14 @@ private fun PeriodChipSelector(
     Column {
         Text(
             text = stringResource(R.string.room_period),
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        Spacer(Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Common period groups: 1-2, 3-4, 5-6, 7-8, 9-10, 11-13
+            // 常用节次分组：1-2、3-4、5-6、7-8、9-10、11-13
             val groups = listOf(
                 "1-2节" to listOf(1, 2),
                 "3-4节" to listOf(3, 4),
@@ -346,14 +325,12 @@ private fun PeriodChipSelector(
                 "9-10节" to listOf(9, 10),
                 "11-13节" to listOf(11, 12, 13)
             )
-            groups.forEach { (label, periods) ->
+            items(groups) { (label, periods) ->
                 val allSelected = periods.all { it in selected }
                 FilterChip(
                     selected = allSelected,
-                    onClick = {
-                        if (enabled) periods.forEach(onToggle)
-                    },
-                    label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                    onClick = { if (enabled) periods.forEach(onToggle) },
+                    label = { Text(label) },
                     enabled = enabled
                 )
             }

@@ -32,7 +32,8 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { },
-                navigationIcon = {
+                // MD3：设置属于页面级操作，放在 topBar 尾部 actions（而非导航位）
+                actions = {
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Filled.Settings, stringResource(R.string.settings))
                     }
@@ -44,14 +45,16 @@ fun HomeScreen(
         },
         modifier = modifier
     ) { paddingValues ->
+        // 固定间距替代按比例撑开（小屏 / 大字体下不会把卡片挤出去）；
+        // 卡片列表自己带 LazyColumn，这里用 weight 给它一个确定高度，避免嵌套无限约束。
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            Spacer(Modifier.weight(0.20f))
+            Spacer(Modifier.height(8.dp))
             GreetingSection(fullGreeting = uiState.greeting)
-            Spacer(Modifier.weight(0.35f))
+            Spacer(Modifier.height(24.dp))
 
             if (uiState.needsSemesterSetup) {
                 SemesterSetupBanner(onClick = { onNavigate("semester_setup") })
@@ -63,8 +66,12 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
-            HomeCardPanel(uiState = uiState, onNavigate = onNavigate)
-            Spacer(Modifier.height(24.dp))
+            HomeCardPanel(
+                uiState = uiState,
+                onNavigate = onNavigate,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
@@ -76,7 +83,7 @@ private fun SemesterSetupBanner(onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
@@ -124,7 +131,7 @@ private fun UpdateBanner(onClick: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
@@ -170,7 +177,7 @@ private fun GreetingSection(fullGreeting: String) {
     val (greetingWord, name) = splitGreeting(fullGreeting)
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.Start
     ) {
         if (name.isNotEmpty()) {

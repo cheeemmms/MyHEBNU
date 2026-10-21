@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.myhebnu.R
 
@@ -28,8 +27,7 @@ fun WeekSelector(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        tonalElevation = 1.dp,
-        color = MaterialTheme.colorScheme.surfaceContainerLow
+        color = MaterialTheme.colorScheme.surface
     ) {
         Row(
             modifier = Modifier
@@ -56,8 +54,7 @@ fun WeekSelector(
             ) {
                 Text(
                     text = stringResource(R.string.week_selector, displayWeek),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium
                 )
                 if (isVacation) {
                     // 假期：无“当前周”概念，明确提示放假中

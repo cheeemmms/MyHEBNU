@@ -151,7 +151,7 @@ private fun scoreColor(score: String): androidx.compose.ui.graphics.Color {
         s >= 90 -> MaterialTheme.colorScheme.primary
         s >= 80 -> MaterialTheme.colorScheme.tertiary
         s >= 70 -> MaterialTheme.colorScheme.secondary
-        s >= 60 -> MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+        s >= 60 -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.error
     }
 }

@@ -17,13 +17,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.AuthRepository
 import com.myhebnu.ui.about.AboutScreen
 import com.myhebnu.ui.about.SystemUpdateScreen
 import com.myhebnu.ui.auth.LoginScreen
-import com.myhebnu.ui.auth.LoginViewModel
 import com.myhebnu.ui.exam.ExamScreen
 import com.myhebnu.ui.grade.GradeScreen
 import com.myhebnu.ui.home.HomeScreen
@@ -38,6 +36,7 @@ import com.myhebnu.ui.theme.MyHEBNUTheme
 import com.myhebnu.ui.theme.findPresetById
 import com.myhebnu.ui.welcome.WelcomeScreen
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import javax.inject.Inject
@@ -121,16 +120,20 @@ fun MyHEBNUApp(
 ) {
     var currentScreen by remember { mutableStateOf<AppScreen?>(null) }
     var sessionExpiredMessage by remember { mutableStateOf<String?>(null) }
-    val loginViewModel: LoginViewModel = hiltViewModel()
 
-    // Check initial state: first launch? valid session?
+    // Startup decision is LOCAL ONLY — no network call before the first frame.
+    // Session validity is checked lazily by AuthInterceptor on the first API call,
+    // and autoLogin() recovers silently if needed.
     LaunchedEffect(Unit) {
-        val isFirstLaunch = preferences.isFirstLaunch.first()
-        if (isFirstLaunch) {
-            currentScreen = AppScreen.Welcome
-        } else {
-            val hasSession = authRepository.hasValidSession()
-            currentScreen = if (hasSession) AppScreen.Main else AppScreen.Login
+        val (isFirstLaunch, isLoggedIn) = combine(
+            preferences.isFirstLaunch,
+            preferences.isLoggedIn
+        ) { firstLaunch, loggedIn -> firstLaunch to loggedIn }.first()
+
+        currentScreen = when {
+            isFirstLaunch -> AppScreen.Welcome
+            isLoggedIn && authRepository.hasLocalCookieSession() -> AppScreen.Main
+            else -> AppScreen.Login
         }
     }
 
@@ -148,14 +151,6 @@ fun MyHEBNUApp(
                 sessionExpiredMessage = "会话已过期，请重新登录"
                 currentScreen = AppScreen.Login
             }
-        }
-    }
-
-    // Listen for login success from LoginViewModel
-    val loginState by loginViewModel.uiState.collectAsState()
-    LaunchedEffect(loginState.isLoggedIn) {
-        if (loginState.isLoggedIn) {
-            currentScreen = AppScreen.Main
         }
     }
 
@@ -189,7 +184,6 @@ fun MyHEBNUApp(
                     .background(MaterialTheme.colorScheme.background)
             ) {
                 LoginScreen(
-                    viewModel = loginViewModel,
                     onLoginSuccess = { currentScreen = AppScreen.Main }
                 )
 

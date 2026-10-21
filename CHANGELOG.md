@@ -1,3 +1,9 @@
+# Unreleased
+
+## 优化
+- **启动等待**：启动改为纯本地会话判定，移除首帧前对教务 `index_initMenu.html` 的同步校验，并去掉 `LoginViewModel` 的重复校验；有本地会话时直接显示首页，会话失效改为首次 API 调用时惰性 autoLogin。
+- 附带修复：`LoginViewModel` 登录成功状态跨页面残留，避免会话过期回到登录页时立刻再次跳转。
+
 # MyHEBNU v1.5.0
 
 发布日期：2026-09-13

@@ -57,6 +57,7 @@ fun LoginScreen(
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
             onLoginSuccess()
+            viewModel.consumeLoginSuccess()
         }
     }
 

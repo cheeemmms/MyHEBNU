@@ -74,6 +74,26 @@ class AuthRepository @Inject constructor(
     // Session validation
     // ============================================================
 
+    /**
+     * Local-only startup check — no network.
+     *
+     * Use this to decide whether to show the cached home immediately or the login
+     * screen. Server-side validity is checked lazily by [AuthInterceptor] on the
+     * first API call, where the existing autoLogin() path can recover the session.
+     */
+    fun hasLocalCookieSession(): Boolean {
+        val hasCookieSession = cookieJar.hasStoredSession()
+        android.util.Log.w("MyHEBNU", "hasLocalCookieSession: hasCookieSession=$hasCookieSession")
+        return hasCookieSession
+    }
+
+    /**
+     * Full check: local cookie + server validation.
+     *
+     * Do NOT call this during startup: [verifySessionValidity] performs a blocking
+     * network round-trip (up to 15s) and is also responsible for clearing an
+     * expired session. Startup uses [hasLocalCookieSession] instead.
+     */
     suspend fun hasValidSession(): Boolean {
         val hasCookieSession = cookieJar.hasStoredSession()
         val isLoggedInPref = preferences.isLoggedIn.first()

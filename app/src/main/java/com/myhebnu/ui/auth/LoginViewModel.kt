@@ -44,25 +44,19 @@ class LoginViewModel @Inject constructor(
     }
 
     init {
-        checkLoginState()
+        prefillSavedCredentials()
     }
 
-    private fun checkLoginState() {
+    /**
+     * Login 页只在 MainActivity 判定“无本地会话”后才创建，因此这里不再做任何
+     * 服务端会话校验（那会重复一次网络请求并拖慢启动）。只回填本地加密凭证。
+     */
+    private fun prefillSavedCredentials() {
         viewModelScope.launch {
-            val hasSession = authRepository.hasValidSession()
-            _uiState.update {
-                it.copy(
-                isLoading = false,
-                isLoggedIn = hasSession
-            )
-            }
-            // Pre-fill saved credentials if available
-            if (!hasSession) {
-                val creds = credentialManager.loadCredentials()
-                if (creds != null) {
-                    _uiState.update {
-                        it.copy(username = creds.first, password = creds.second)
-                    }
+            val creds = credentialManager.loadCredentials()
+            if (creds != null) {
+                _uiState.update {
+                    it.copy(username = creds.first, password = creds.second)
                 }
             }
         }
@@ -150,5 +144,13 @@ class LoginViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    /**
+     * 登录成功回调已消费。LoginViewModel 是 Activity 级、会跨页面存活；
+     * 若不清掉 isLoggedIn，下次会话过期回到登录页时会立刻再次触发成功回调。
+     */
+    fun consumeLoginSuccess() {
+        _uiState.update { it.copy(isLoggedIn = false) }
     }
 }

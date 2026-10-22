@@ -18,3 +18,4 @@ keystore.properties
 logcat/
 HAR/
 mitm/
+.workbuddy/

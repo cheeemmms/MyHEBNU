@@ -1,14 +1,26 @@
 package com.myhebnu.ui.schedule.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -34,9 +46,19 @@ fun CourseCard(
     cardHeight: Dp,
     modifier: Modifier = Modifier,
     cardWidth: Dp = 0.dp,
-    onClick: (() -> Unit)? = null
+    onClick: ((CourseCellSnapshot, Rect) -> Unit)? = null
 ) {
     val borderWidth = if (isActive) 2.dp else 0.dp
+    // 按下时下陷，松手回弹（详情层的翻转放大由 CourseDetailOverlay 负责）
+    val interaction = remember { MutableInteractionSource() }
+    // 点下时的屏幕矩形，供详情层做「小卡片 → 大卡片」的连续过渡
+    var cardBounds by remember { mutableStateOf(Rect.Zero) }
+    val pressed by interaction.collectIsPressedAsState()
+    val pressScale by animateFloatAsState(
+        targetValue = if (pressed) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 900f),
+        label = "card-press"
+    )
     val gap = 3.dp
     val shape = MaterialTheme.shapes.medium
 
@@ -81,8 +103,29 @@ fun CourseCard(
                 if (isActive) Modifier.border(borderWidth, palette.onContainer, shape)
                 else Modifier
             )
+            .onGloballyPositioned { cardBounds = it.boundsInRoot() }
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
             .then(
-                if (onClick != null) Modifier.clickable(onClick = onClick)
+                if (onClick != null) Modifier.clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = {
+                        onClick.invoke(
+                            CourseCellSnapshot(
+                                course = course,
+                                isActive = isActive,
+                                palette = palette,
+                                cardWidth = cardWidth,
+                                cardHeight = cardHeight,
+                                pressScale = pressScale
+                            ),
+                            cardBounds
+                        )
+                    }
+                )
                 else Modifier
             )
             .padding(horizontal = 8.dp, vertical = 6.dp)

@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -21,7 +23,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.myhebnu.R
 import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.ui.components.FloatingRefreshButton
-import com.myhebnu.ui.schedule.components.CourseDetailSheet
+import com.myhebnu.ui.schedule.components.CourseCellSnapshot
+import com.myhebnu.ui.schedule.components.CourseDetailOverlay
+import com.myhebnu.ui.theme.coursePaletteForHue
 import com.myhebnu.ui.schedule.components.WeekSelector
 import com.myhebnu.ui.schedule.components.WeekViewGrid
 import java.time.LocalDate
@@ -36,7 +40,8 @@ fun ScheduleScreen(
     animatedScope: AnimatedVisibilityScope? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    viewModel.updateSystemDarkMode(isSystemInDarkTheme())  // sync system dark mode for course card palettes
+    val isDarkTheme = isSystemInDarkTheme()
+    viewModel.updateSystemDarkMode(isDarkTheme)  // sync system dark mode for course card palettes
     val today = LocalDate.now()
     val todayDayOfWeek = today.dayOfWeek.value // Mon=1 ... Sun=7
     val snackbarHostState = remember { SnackbarHostState() }
@@ -75,6 +80,11 @@ fun ScheduleScreen(
         sharedScope = sharedScope,
         animatedScope = animatedScope
     )
+
+    val detailCourse = uiState.selectedCourse
+    // 被点下的课程小卡片：屏幕矩形 + 绘制快照（详情层从它原位翻开）
+    var detailOrigin by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    var detailSnapshot by remember { mutableStateOf<CourseCellSnapshot?>(null) }
 
     Box(modifier = pageModifier) {
     Scaffold(
@@ -159,15 +169,21 @@ fun ScheduleScreen(
                             todayDayOfWeek = todayDayOfWeek,
                             activeCourseId = uiState.activeCourseId,
                             coursePalettes = uiState.coursePalettes,
-                            onCourseClick = { course -> viewModel.selectCourse(course) },
+                            onCourseClick = { snapshot, bounds ->
+                                detailSnapshot = snapshot
+                                detailOrigin = bounds
+                                viewModel.selectCourse(snapshot.course)
+                            },
                             dayDateLabels = uiState.dayDateLabels,
+                            hiddenCourseId = detailCourse?.id,
+                            hiddenCourse = detailCourse,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 } // end when
 
                 // #29 下学期课表浮层——三态复用同一 MD3 卡片（when 之后、Box 之内）
-                if (uiState.panelMode != SemesterPanelMode.NONE) {
+                if (uiState.panelMode != SemesterPanelMode.NONE && !uiState.isLoading) {
                     SemesterEndFloatingPanel(
                         mode = uiState.panelMode,
                         nextTermLabel = uiState.nextTermLabel,
@@ -249,16 +265,22 @@ fun ScheduleScreen(
             )
         }
     }
+
+        // 课程详情：从被点格子原位翻开成居中的卡片
+        val snapshot = detailSnapshot
+        if (detailCourse != null && snapshot != null) {
+            CourseDetailOverlay(
+                snapshot = snapshot,
+                originRect = detailOrigin,
+                onDismiss = {
+                    viewModel.selectCourse(null)
+                    detailOrigin = null
+                    detailSnapshot = null
+                }
+            )
+        }
     }
 
-    // Course detail BottomSheet
-    val selectedCourse = uiState.selectedCourse
-    if (selectedCourse != null) {
-        CourseDetailSheet(
-            course = selectedCourse,
-            onDismiss = { viewModel.selectCourse(null) }
-        )
-    }
 }
 
 /**

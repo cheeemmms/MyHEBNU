@@ -16,6 +16,7 @@ import com.myhebnu.util.computeCurrentWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.DayOfWeek
@@ -592,8 +593,17 @@ class ScheduleViewModel @Inject constructor(
                 // 这是自动触发的过期补刷，不弹刷新提示
                 if (isLocalSemesterExpired()) refreshAll(notify = false)
             }
+            computeAndApplyPanelMode()
+        } else {
+            // 冷启动：等本地课表真正加载完再判定学期末浮层。
+            // 否则浮层会和课表首帧同时参与布局，表现为"浮层闪一下 + 首帧掉帧"。
+            viewModelScope.launch {
+                withTimeoutOrNull(8_000L) {
+                    _uiState.filter { it.isCached }.first()
+                }
+                computeAndApplyPanelMode()
+            }
         }
-        computeAndApplyPanelMode()
     }
 
     /** Snackbar 消费「下学期未公布」标记，避免重复提示。 */

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -42,7 +43,11 @@ fun WeekViewGrid(
     todayDayOfWeek: Int,
     activeCourseId: String?,
     coursePalettes: Map<String, CourseTonalPalette>,
-    onCourseClick: (CourseEntity) -> Unit,
+    onCourseClick: (CourseCellSnapshot, Rect) -> Unit,
+    // 已经被详情层拿在手上的课程：格子本身不再绘制，避免"原地留一张、上面又翻一张"
+    hiddenCourseId: String? = null,
+    /** 正在翻开的那门课：同名同起始节的重复行也一并隐藏，避免旁边留一张"幽灵卡" */
+    hiddenCourse: CourseEntity? = null,
     dayDateLabels: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
@@ -69,7 +74,8 @@ fun WeekViewGrid(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(headerHeight)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    // 顶栏与左侧节次栏统一底色（用户指定：以侧栏为准）
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
                     .padding(vertical = 4.dp)
             ) {
                 Box(Modifier.width(timeColumnWidth), contentAlignment = Alignment.Center) {
@@ -204,6 +210,13 @@ fun WeekViewGrid(
                             periodLabels.indexOfFirst { it.startPeriod == course.startPeriod }
                         if (periodIdx < 0) continue
 
+                        if (course.id == hiddenCourseId) continue
+                        if (hiddenCourse != null &&
+                            course.dayOfWeek == hiddenCourse.dayOfWeek &&
+                            course.startPeriod == hiddenCourse.startPeriod &&
+                            course.courseName == hiddenCourse.courseName
+                        ) continue
+
                         val spanCount = (course.endPeriod - course.startPeriod + 1)
                             .coerceAtMost(totalPeriods - periodIdx)
                         val palette = coursePalettes[course.courseName]
@@ -215,7 +228,7 @@ fun WeekViewGrid(
                             palette = palette,
                             cardHeight = rowHeight * spanCount - 4.dp,
                             cardWidth = cellWidth - 4.dp,
-                            onClick = { onCourseClick(course) },
+                            onClick = { snapshot, bounds -> onCourseClick(snapshot, bounds) },
                             modifier = Modifier
                                 .offset(
                                     x = timeColumnWidth + cellWidth * dayIdx + 2.dp,

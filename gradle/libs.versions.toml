@@ -21,6 +21,7 @@ core-ktx = "1.15.0"
 workmanager = "2.10.0"
 colorpicker-compose = "1.2.0"
 security-crypto = "1.1.0-alpha06"
+zxing = "3.5.3"
 
 [libraries]
 # Compose BOM
@@ -79,6 +80,9 @@ jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 workmanager-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 colorpicker-compose = { group = "com.github.skydoves", name = "colorpicker-compose", version.ref = "colorpicker-compose" }
 security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
+
+# 条形码 / 二维码编码（纯 Java，仅生成不做扫码）
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # Testing
 junit = { group = "junit", name = "junit", version = "4.13.2" }

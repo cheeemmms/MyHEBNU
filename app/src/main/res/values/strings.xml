@@ -67,6 +67,8 @@
     <string name="home_empty_room">空教室查询</string>
     <string name="home_next_exam">下一场考试</string>
     <string name="home_grade">成绩查询</string>
+    <string name="home_library">我的图书馆</string>
+    <string name="home_library_hint">借阅、借书码与馆藏检索</string>
     <string name="home_class_done">今日课程已结束</string>
     <string name="home_weekend">今天周末，好好休息吧~</string>
     <string name="home_holiday">放假中~</string>
@@ -143,28 +145,9 @@
     <string name="auto_check_update_desc">开启后每次启动 App 自动检查 GitHub 新版本</string>
     <string name="home_update_banner">发现新版本！</string>
     <string name="changelog">更新日志</string>
-    <string name="changelog_content">v1.6.0
+    <string name="changelog_content">v1.7.0
 主要更新
-• 桌面小组件重做：改为按上课/下课/19:00 等时间边界精确刷新，新增假期态与内容行数自适应，配色与圆角对齐全局规范
-• 课表卡片重排：课名与地点完整展示，授课教师固定在卡片底部；横屏可完整展示七天课表
-• 点击课表卡片：卡片从原位翻面放大成详情大卡，周次与课程类型移至卡片底部
-• 首页四个入口卡片：点开后卡片原位展开为对应页面
-• 全局 Material 3 整改：补全颜色角色与深色配色、统一圆角与字阶、去除文字半透明、修正分段按钮/下拉筛选/选项印章等控件
-• 修复：冷启动进入课表时「学期已结束」浮层闪现；同一时段存在重复课程时，打开详情后残留在原地的小卡片
-
-v1.5.0
-主要更新
-• 成绩页/课表页缓存优先：再次进入零联网秒显，降低教务服务端压力
-• 新增悬浮刷新按钮：成绩页短按刷新最近学期、长按强制拉取全部学期；课表页短按完整刷新（重新探测学期/周次/节次）
-• 课表节次列补全每堂课的结束时间（按「节次/开始/结束」显示）
-• 刷新结果 Toast 提示（成功/失败），长按生效时轻微震动反馈
-• 修正课表与桌面小组件的节次时间表：改为教务真实起止时间
-
-v1.4.0
-主要更新
-• 新增「学期设置」：登录后选择学年与学期，自动推导开学日与放假日
-• 课表表头新增月日显示
-• 考试页只显示所设学期的考试安排</string>
+• 解决了一些已知问题</string>
 
     <!-- Login -->
     <string name="login_title">统一身份认证</string>

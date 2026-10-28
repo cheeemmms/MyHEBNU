@@ -71,6 +71,8 @@
     <string name="home_empty_room">Empty Rooms</string>
     <string name="home_next_exam">Next Exam</string>
     <string name="home_grade">Grades</string>
+    <string name="home_library">My Library</string>
+    <string name="home_library_hint">Loans, reader code and catalog search</string>
     <string name="home_class_done">All classes done for today</string>
     <string name="home_weekend">Weekend! Take a rest~</string>
     <string name="home_holiday">On holiday~</string>

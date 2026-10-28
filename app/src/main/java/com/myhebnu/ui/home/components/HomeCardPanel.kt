@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Grade
+import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -63,6 +64,12 @@ fun HomeCardPanel(
             info = buildGradeInfo(uiState),
             route = "grade",
             icon = Icons.Filled.Grade
+        ),
+        HomeCardData(
+            title = stringResource(R.string.home_library),
+            info = stringResource(R.string.home_library_hint),
+            route = "library",
+            icon = Icons.Filled.LocalLibrary
         )
     )
 

@@ -44,6 +44,15 @@ val Red40 = Color(0xFFBA1A1A)
 val Red80 = Color(0xFFFFB4AB)
 val Red90 = Color(0xFFFFDAD6)
 
+// Success（语义「通过 / 在架 / 入藏」）—— 调色板本身只有蓝-青-琥珀，
+// 没有绿色角色，所以单独给一组固定的成功色，深浅主题各一套。
+val SuccessLight = Color(0xFF1F6B33)
+val SuccessContainerLight = Color(0xFFD3EFD8)
+val OnSuccessContainerLight = Color(0xFF0C3315)
+val SuccessDark = Color(0xFF9BD8A8)
+val SuccessContainerDark = Color(0xFF23432B)
+val OnSuccessContainerDark = Color(0xFFBDEEC8)
+
 // ---- MD3 容器 / 描边角色（与上面的色阶同源，全部不透明） ----
 
 /** `surfaceContainer*`、`surfaceDim`、`surfaceBright`、`outlineVariant` 一组派生色。 */

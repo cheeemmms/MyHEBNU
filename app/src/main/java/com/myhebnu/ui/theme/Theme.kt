@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -50,10 +51,27 @@ fun MyHEBNUTheme(
         }
     }
 
+    val semanticColors = if (darkTheme) {
+        SemanticColors(
+            success = SuccessDark,
+            successContainer = SuccessContainerDark,
+            onSuccessContainer = OnSuccessContainerDark
+        )
+    } else {
+        SemanticColors(
+            success = SuccessLight,
+            successContainer = SuccessContainerLight,
+            onSuccessContainer = OnSuccessContainerLight
+        )
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
         shapes = AppShapes,
-        content = content
-    )
+    ) {
+        CompositionLocalProvider(LocalSemanticColors provides semanticColors) {
+            content()
+        }
+    }
 }

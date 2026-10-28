@@ -54,6 +54,12 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // 每次进入登录页都重新开一次认证会话：上一次失败留下的 execution 早已失效，
+    // 直接复用只会白白浪费一次提交（服务端会说「闲置时间过长」或「密码错误」）。
+    LaunchedEffect(Unit) {
+        viewModel.onLoginScreenShown()
+    }
+
     LaunchedEffect(uiState.isLoggedIn) {
         if (uiState.isLoggedIn) {
             onLoginSuccess()
@@ -84,11 +90,20 @@ fun LoginScreen(
 
             // Header — left-aligned
             Text(
-                text = "请登录您的教务账号",
+                text = "请使用学校统一身份认证登录",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Medium
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "教务与图书馆通用，登录一次两边都能进",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth()
             )
 

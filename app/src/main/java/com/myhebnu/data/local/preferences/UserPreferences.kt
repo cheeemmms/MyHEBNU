@@ -34,6 +34,8 @@ class UserPreferences @Inject constructor(
         val STUDENT_NAME = stringPreferencesKey("student_name")
         val ADVANCED_ENABLED = booleanPreferencesKey("advanced_enabled")
         val IS_FIRST_LAUNCH = booleanPreferencesKey("is_first_launch")
+        val SSO_MIGRATION_NOTICE_SHOWN = booleanPreferencesKey("sso_migration_notice_shown")
+        val SSO_CREDENTIAL_MIGRATED = booleanPreferencesKey("sso_credential_migrated")
         val USE_CUSTOM_COLORS = booleanPreferencesKey("use_custom_colors")
         val ACTIVE_PRESET_ID = stringPreferencesKey("active_preset_id")
         val CUSTOM_PRESETS_JSON = stringPreferencesKey("custom_presets_json")
@@ -61,6 +63,18 @@ class UserPreferences @Inject constructor(
     val studentName: Flow<String> = context.dataStore.data.map { it[Keys.STUDENT_NAME] ?: "" }
     val advancedEnabled: Flow<Boolean> = context.dataStore.data.map { it[Keys.ADVANCED_ENABLED] ?: false }
     val isFirstLaunch: Flow<Boolean> = context.dataStore.data.map { it[Keys.IS_FIRST_LAUNCH] ?: true }
+    /** 登录方式从「教务自建登录页」切到「学校统一身份认证」的一次性提示是否已展示 */
+    val ssoMigrationNoticeShown: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.SSO_MIGRATION_NOTICE_SHOWN] ?: false }
+
+    /**
+     * 已保存的凭证是否已经是「统一身份认证」密码。
+     *
+     * 升级前的凭证是教务自建登录页的密码，与统一身份认证**可能不同**，
+     * 因此升级后不能拿它去做静默重登——那会白白消耗一次 CAS 认证失败次数。
+     */
+    val ssoCredentialsMigrated: Flow<Boolean> =
+        context.dataStore.data.map { it[Keys.SSO_CREDENTIAL_MIGRATED] ?: false }
     val useCustomColors: Flow<Boolean> = context.dataStore.data.map { it[Keys.USE_CUSTOM_COLORS] ?: false }
     val activePresetId: Flow<String?> = context.dataStore.data.map { it[Keys.ACTIVE_PRESET_ID] }
     val customPresetsJson: Flow<String> = context.dataStore.data.map { it[Keys.CUSTOM_PRESETS_JSON] ?: "[]" }
@@ -135,6 +149,14 @@ class UserPreferences @Inject constructor(
 
     suspend fun setFirstLaunchComplete() {
         context.dataStore.edit { it[Keys.IS_FIRST_LAUNCH] = false }
+    }
+
+    suspend fun setSsoMigrationNoticeShown(value: Boolean) {
+        context.dataStore.edit { it[Keys.SSO_MIGRATION_NOTICE_SHOWN] = value }
+    }
+
+    suspend fun setSsoCredentialsMigrated(value: Boolean) {
+        context.dataStore.edit { it[Keys.SSO_CREDENTIAL_MIGRATED] = value }
     }
 
     suspend fun setUseCustomColors(value: Boolean) {

@@ -43,8 +43,12 @@ object RepositoryModule {
         preferences: UserPreferences,
         authInterceptor: AuthInterceptor,
         credentialManager: CredentialManager,
-        okHttpClient: okhttp3.OkHttpClient
-    ): AuthRepository = AuthRepository(cookieJar, sessionManager, preferences, authInterceptor, credentialManager, okHttpClient)
+        okHttpClient: okhttp3.OkHttpClient,
+        sso: com.myhebnu.data.remote.sso.SsoLoginManager
+    ): AuthRepository = AuthRepository(
+        cookieJar, sessionManager, preferences, authInterceptor,
+        credentialManager, okHttpClient, sso
+    )
 
     @Provides
     @Singleton

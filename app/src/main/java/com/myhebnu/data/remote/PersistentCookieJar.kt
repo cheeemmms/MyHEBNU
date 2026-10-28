@@ -66,6 +66,22 @@ class PersistentCookieJar @Inject constructor(
         sessionManager.clearSession()
     }
 
+    /**
+     * 只清掉某个域名下的 Cookie，返回是否真的清掉了东西。
+     *
+     * 用途：统一身份认证域下残留的旧会话会让 CAS 把新表单判成「闲置时间过长」，
+     * 或者直接回「密码错误」，所以重新登录前必须先丢掉这个域的旧 Cookie。
+     */
+    fun removeHost(host: String): Boolean {
+        val inMemory = cookieStore.remove(host)?.isNotEmpty() == true
+        val storedKeys = sessionManager.loadCookies().keys.filter { it.startsWith("${host}_") }
+        if (storedKeys.isNotEmpty()) {
+            sessionManager.removeCookies(storedKeys)
+        }
+        android.util.Log.w("MyHEBNU", "removeHost: host=$host, 内存=$inMemory, 持久化=${storedKeys.size} 个")
+        return inMemory || storedKeys.isNotEmpty()
+    }
+
     private fun restoreFromStorage() {
         val storedCookies = sessionManager.loadCookies()
         android.util.Log.w("MyHEBNU", "restoreFromStorage: 从SessionManager加载了 ${storedCookies.size} 个cookie")

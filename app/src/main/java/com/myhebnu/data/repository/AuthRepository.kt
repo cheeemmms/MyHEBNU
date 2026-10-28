@@ -1,35 +1,36 @@
 package com.myhebnu.data.repository
 
 import android.webkit.CookieManager
-import com.google.gson.JsonObject
 import com.myhebnu.data.local.preferences.CredentialManager
 import com.myhebnu.data.local.preferences.UserPreferences
-import com.myhebnu.data.remote.CryptoUtil
 import com.myhebnu.data.remote.PersistentCookieJar
 import com.myhebnu.data.remote.interceptor.AuthInterceptor
+import com.myhebnu.data.remote.sso.SsoLoginManager
+import com.myhebnu.data.remote.sso.SsoOutcome
+import com.myhebnu.data.remote.sso.SsoPrep
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import okhttp3.Cookie
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
-import org.jsoup.Jsoup
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Handles SSO authentication for the custom login flow.
+ * 教务系统认证。
  *
- * Custom login flow (from HAR reverse-engineering):
- *   1. GET  login_slogin.html          → parse csrftoken from HTML
- *   2. GET  login_getPublicKey.html    → {modulus(base64), exponent(base64)}
- *   3. RSA encrypt password: base64(modulus)→hex→BigInteger→encrypt→hex→base64
- *   4. POST login_slogin.html          → yhm + mm(encrypted) + csrftoken
- *   5. 302 → success (cookies in response) / 200 → failure (HTML with error/captcha)
+ * 学校已经把教务入口统一到 CAS（`sso/zfiotlogin`），旧的 `xtgl/login_slogin.html`
+ * 自定义登录链路已废弃——现在教务与图书馆共用同一套统一身份认证，认证一次两边通用。
+ *
+ * 登录流程：
+ * ```
+ * GET  http://jwgl.hebtu.edu.cn/sso/zfiotlogin   → 302 CAS 登录页
+ * （SsoLoginManager 负责 CAS 交互：execution / 验证码 / RSA 加密 / 提交）
+ * 302 /sso/zfiotlogin?ticket=ST-...              → /ticketlogin?uid=..&verify=..
+ *                                                → /xtgl/index_initMenu.html?jsdm=xs
+ * ```
+ * 本类只负责「认证 → 落盘凭证 → 校验教务会话 → 清状态」这一层编排。
  */
 @Singleton
 class AuthRepository @Inject constructor(
@@ -38,36 +39,43 @@ class AuthRepository @Inject constructor(
     private val preferences: UserPreferences,
     private val authInterceptor: AuthInterceptor,
     private val credentialManager: CredentialManager,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val sso: SsoLoginManager
 ) {
     companion object {
-        // Mobile-friendly login page
-        const val LOGIN_URL = "http://jwgl.hebtu.edu.cn/xtgl/login_slogin.html?ydType=0"
+        private const val TAG = "MyHEBNU"
 
-        // Domain for cookie transfer
         const val JWGL_DOMAIN = "jwgl.hebtu.edu.cn"
         const val CAS_DOMAIN = "cas.hebtu.edu.cn"
 
-        // Base URL for教务 system
+        /** 教务系统根地址 */
         const val BASE_URL = "http://jwgl.hebtu.edu.cn/"
+
+        /** 教务会话探针：未登录时会被 302 到登录页 */
+        const val SESSION_PROBE_URL = "${BASE_URL}xtgl/index_initMenu.html?jsdm=xs"
     }
 
     /** Expose session expiry signal so UI can trigger auto-login or re-login prompt */
     val sessionExpired: StateFlow<Boolean> = authInterceptor.sessionExpired
 
+    /** 最近一次登录页的 `.../cas/` 前缀，供「换一张验证码」复用 */
+    @Volatile
+    private var casBase: String? = null
+
     /**
-     * Separate OkHttpClient for login requests — no AuthInterceptor (avoids recursion),
-     * follows redirects=false so we can manually extract cookies from 302 responses.
-     * Shares the same CookieJar as the main client.
+     * 缓存已准备好的登录表单。
+     *
+     * 必须缓存：验证码是**会话绑定**的，如果提交前又去重开一次登录页，
+     * 服务端会重新生成验证码，用户眼睛看到的和提交的那张就对不上了。
+     * 反过来，缓存也绝不能按时间自动失效——那等于在用户提交前偷偷换掉验证码。
+     * 只有「一次认证结束」（成功或拿到新的 execution）时才替换它。
      */
-    private val loginClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .cookieJar(cookieJar)
-            .followRedirects(false)
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
-            .build()
+    @Volatile
+    private var pendingForm: SsoPrep.LoginForm? = null
+
+    private fun cacheForm(form: SsoPrep.LoginForm) {
+        pendingForm = form
+        casBase = form.casBase
     }
 
     // ============================================================
@@ -82,126 +90,110 @@ class AuthRepository @Inject constructor(
      * first API call, where the existing autoLogin() path can recover the session.
      */
     fun hasLocalCookieSession(): Boolean {
-        val hasCookieSession = cookieJar.hasStoredSession()
-        android.util.Log.w("MyHEBNU", "hasLocalCookieSession: hasCookieSession=$hasCookieSession")
-        return hasCookieSession
+        return cookieJar.hasStoredSession()
     }
 
     /**
      * Full check: local cookie + server validation.
      *
-     * Do NOT call this during startup: [verifySessionValidity] performs a blocking
-     * network round-trip (up to 15s) and is also responsible for clearing an
-     * expired session. Startup uses [hasLocalCookieSession] instead.
+     * Do NOT call this during startup: it performs a blocking network round-trip
+     * (up to 15s) and is also responsible for clearing an expired session.
      */
     suspend fun hasValidSession(): Boolean {
         val hasCookieSession = cookieJar.hasStoredSession()
         val isLoggedInPref = preferences.isLoggedIn.first()
-        android.util.Log.w("MyHEBNU", "hasValidSession check: hasCookieSession=$hasCookieSession, isLoggedInPref=$isLoggedInPref")
-
-        if (!hasCookieSession || !isLoggedInPref) {
-            return false
-        }
-
+        if (!hasCookieSession || !isLoggedInPref) return false
         return verifySessionValidity()
     }
 
     /**
      * Verify session by checking if教务 system accepts our cookies.
-     * Fixed: with followRedirects=false, we check the Location header rather
-     * than response.request.url (which always equals the original request URL).
+     * With followRedirects=false we look at the Location header.
      */
     private suspend fun verifySessionValidity(): Boolean = withContext(Dispatchers.IO) {
         try {
-            android.util.Log.w("MyHEBNU", "正在验证 session 有效性...")
-            val request = Request.Builder()
-                .url("http://$JWGL_DOMAIN/xtgl/index_initMenu.html?jsdm=xs")
-                .get()
-                .build()
-
+            val request = Request.Builder().url(SESSION_PROBE_URL).get().build()
             val response = okHttpClient.newCall(request).execute()
             val location = response.header("Location") ?: ""
-            // If session is expired, server redirects to login_slogin.html
-            val isExpired = response.code == 302 && location.contains("login_slogin")
-            val isSuccess = !isExpired
-
-            android.util.Log.w("MyHEBNU",
-                "Session 验证结果: isSuccess=$isSuccess, code=${response.code}, location=$location")
-
-            if (!isSuccess) {
-                logout()
-            }
-
+            val code = response.code
             response.close()
-            isSuccess
+            // 改走统一身份认证后，未登录不只跳 login_slogin，也可能跳 sso/zfiotlogin 或 cas/login
+            val isExpired = (code == 302 || code == 301) && (
+                location.contains("login_slogin") ||
+                    location.contains("zfiotlogin") ||
+                    location.contains("cas/login")
+                )
+            android.util.Log.w(TAG, "会话探针: code=$code, location=${location.take(80)}, 过期=$isExpired")
+            if (isExpired) logout()
+            !isExpired
         } catch (e: Exception) {
-            android.util.Log.e("MyHEBNU", "验证 session 时出错", e)
+            android.util.Log.e(TAG, "验证 session 时出错", e)
             false
         }
     }
 
     // ============================================================
-    // Custom login (new)
+    // 登录页准备（验证码）
     // ============================================================
 
     /**
-     * Parse csrftoken from the login page HTML.
-     * The form contains: <input type="hidden" id="csrftoken" name="csrftoken" value="..."/>
+     * 登录页出现时调用一次：丢掉旧会话，取一份全新的表单并判断是否需要验证码。
+     *
+     * 登录页在进入时就应该知道要不要验证码——否则用户提交后才发现少填一项，
+     * 体验很差。所以 UI 每次进入登录页都调一次这个方法。
+     *
+     * @return true 表示需要验证码
      */
-    fun parseCsrfToken(html: String): String? {
-        return try {
-            val doc = Jsoup.parse(html)
-            val csrfInput = doc.selectFirst("input[name=csrftoken]")
-            csrfInput?.attr("value")
-        } catch (e: Exception) {
-            android.util.Log.e("MyHEBNU", "解析 csrftoken 失败", e)
-            null
-        }
-    }
-
-    /**
-     * Parse error message from a failed login response (200 with login page HTML).
-     */
-    fun parseLoginError(html: String): String? {
-        return try {
-            val doc = Jsoup.parse(html)
-            val tipsElement = doc.selectFirst("#tips")
-            if (tipsElement != null && tipsElement.text().isNotBlank()) {
-                tipsElement.text()
-            } else {
-                // Fallback: check for alert-danger
-                val alertElement = doc.selectFirst(".alert-danger")
-                alertElement?.text()?.takeIf { it.isNotBlank() }
+    suspend fun startLoginSession(): Boolean = withContext(Dispatchers.IO) {
+        pendingForm = null
+        runCatching {
+            when (val prep = sso.prepare(SsoLoginManager.EDU_SERVICE)) {
+                is SsoPrep.AlreadySignedIn -> false
+                is SsoPrep.LoginForm -> {
+                    cacheForm(prep)
+                    prep.needsCaptcha
+                }
             }
-        } catch (e: Exception) {
-            null
+        }.onFailure { android.util.Log.w(TAG, "预取登录页失败", it) }
+            .getOrDefault(false)
+    }
+
+    /**
+     * 取一份可用的登录表单：优先用已缓存的（保住用户看到的验证码），
+     * 只有缓存为空时才重新打开登录页。
+     */
+    private suspend fun resolveForm(): SsoPrep {
+        pendingForm?.let { return it }
+        return when (val prep = sso.prepare(SsoLoginManager.EDU_SERVICE)) {
+            is SsoPrep.LoginForm -> {
+                cacheForm(prep)
+                prep
+            }
+
+            is SsoPrep.AlreadySignedIn -> prep
         }
     }
 
     /**
-     * Load captcha image bytes using loginClient (which shares our CookieJar),
-     * so the server can associate the captcha answer with our login session.
+     * Load captcha image bytes. 验证码与会话绑定，所以必须复用同一个 CookieJar
+     * （[SsoLoginManager] 内部共享 [PersistentCookieJar]）。
+     *
+     * 这里**只取图，绝不重新打开登录页**：重开就会换会话、换验证码，
+     * 用户看到的那张立刻作废。
      */
     suspend fun loadCaptchaImage(): ByteArray? = withContext(Dispatchers.IO) {
-        try {
-            val request = Request.Builder()
-                .url("${BASE_URL}kaptcha?time=${System.currentTimeMillis()}")
-                .get()
-                .build()
-            val response = loginClient.newCall(request).execute()
-            val bytes = response.body?.bytes()
-            response.close()
-            bytes
-        } catch (e: Exception) {
-            android.util.Log.e("MyHEBNU", "加载验证码失败", e)
-            null
-        }
+        val base = casBase ?: return@withContext null
+        sso.refreshCaptcha(base)
     }
 
+    // ============================================================
+    // 登录
+    // ============================================================
+
     /**
-     * Execute a full custom login flow.
+     * 执行一次完整的统一身份认证登录。
      *
-     * @return LoginResult with success flag and optional error message
+     * @param captcha 验证码；不需要验证码时传 null
      */
     suspend fun performLogin(
         username: String,
@@ -209,196 +201,104 @@ class AuthRepository @Inject constructor(
         captcha: String? = null
     ): LoginResult = withContext(Dispatchers.IO) {
         try {
-            // Step 0: Logout previous account on first attempt only.
-            // Skip when retrying with captcha — logoutAccount destroys the session
-            // that the captcha was generated under, causing "验证码错误".
-            if (captcha == null) {
-                android.util.Log.w("MyHEBNU", "Step 0: 退出上一个账号...")
-                val logoutRequest = Request.Builder()
-                    .url("${BASE_URL}xtgl/login_logoutAccount.html")
-                    .header("User-Agent",
-                        "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 " +
-                        "(KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36")
-                    .header("X-Requested-With", "XMLHttpRequest")
-                    .header("Accept", "*/*")
-                    .header("Origin", BASE_URL.trimEnd('/'))
-                    .header("Referer", "${BASE_URL}xtgl/login_slogin.html")
-                    .post(okhttp3.FormBody.Builder().build())
-                    .build()
-                val logoutResp = loginClient.newCall(logoutRequest).execute()
-                logoutResp.close()
-            } else {
-                android.util.Log.w("MyHEBNU", "Step 0: 跳过 logoutAccount（验证码重试）")
+            if (password != password.trim()) {
+                return@withContext LoginResult(
+                    success = false,
+                    errorMessage = "密码开头或结尾有空格，请检查后重试",
+                    needsCaptcha = pendingForm?.needsCaptcha ?: false
+                )
             }
 
-            // Step 1: GET login page → parse csrftoken
-            android.util.Log.w("MyHEBNU", "Step 1: 获取登录页...")
-            val loginPageRequest = Request.Builder()
-                .url(LOGIN_URL)
-                .get()
-                .build()
-            val loginPageResponse = loginClient.newCall(loginPageRequest).execute()
-            val loginHtml = loginPageResponse.body?.string() ?: ""
-            loginPageResponse.close()
+            android.util.Log.w(
+                TAG,
+                "开始统一身份认证: 学号长度=${username.length}, 密码长度=${password.length}, " +
+                    "带验证码=${!captcha.isNullOrBlank()}, 表单=${if (pendingForm == null) "重新获取" else "复用缓存"}"
+            )
 
-            val csrfToken = parseCsrfToken(loginHtml)
-            if (csrfToken == null) {
-                android.util.Log.e("MyHEBNU", "无法解析 csrftoken")
-                return@withContext LoginResult(false, "无法解析登录凭证，请用浏览器登录")
-            }
-            android.util.Log.w("MyHEBNU", "csrftoken: ${csrfToken.take(20)}...")
+            when (val prep = resolveForm()) {
+                // TGC 还有效，直接复用会话
+                is SsoPrep.AlreadySignedIn -> return@withContext finishLogin(username, password)
 
-            // Step 2: GET RSA public key
-            android.util.Log.w("MyHEBNU", "Step 2: 获取RSA公钥...")
-            val pubKeyRequest = Request.Builder()
-                .url("${BASE_URL}xtgl/login_getPublicKey.html?time=${System.currentTimeMillis()}")
-                .get()
-                .build()
-            val pubKeyResponse = loginClient.newCall(pubKeyRequest).execute()
-            val pubKeyJson = pubKeyResponse.body?.string() ?: ""
-            pubKeyResponse.close()
-
-            android.util.Log.w("MyHEBNU", "公钥响应: ${pubKeyJson.take(100)}")
-
-            // Parse JSON manually (avoid Gson dependency for simple case)
-            val modulus = extractJsonString(pubKeyJson, "modulus")
-            val exponent = extractJsonString(pubKeyJson, "exponent")
-            if (modulus == null || exponent == null) {
-                android.util.Log.e("MyHEBNU", "无法解析RSA公钥")
-                return@withContext LoginResult(false, "无法获取加密密钥，请重试")
-            }
-
-            // Step 3: Encrypt password
-            val modulusHex = CryptoUtil.base64ToHex(modulus)
-            val exponentHex = CryptoUtil.base64ToHex(exponent)
-            val publicKey = CryptoUtil.parsePublicKey(modulusHex, exponentHex)
-            val encryptedPassword = CryptoUtil.encryptPasswordToBase64(password, publicKey)
-            android.util.Log.w("MyHEBNU", "密码加密完成")
-
-            // Step 4: POST login
-            val formBody = okhttp3.FormBody.Builder()
-                .add("csrftoken", csrfToken)
-                .add("language", "zh_CN")
-                .add("ydType", "")
-                .add("yhm", username)
-                .add("mm", encryptedPassword)
-                .apply {
-                    if (!captcha.isNullOrBlank()) {
-                        add("yzm", captcha)
+                is SsoPrep.LoginForm -> {
+                    if (prep.needsCaptcha && captcha.isNullOrBlank()) {
+                        // 表单是刚取的，用户还没见过这张图，让 UI 立刻补一张
+                        return@withContext LoginResult(false, "请输入验证码", needsCaptcha = true)
+                    }
+                    when (val outcome = sso.attempt(prep, username, password, captcha)) {
+                        is SsoOutcome.Success -> finishLogin(username, password)
+                        is SsoOutcome.Failure -> {
+                            // CAS 每次失败都会换 execution，缓存也要跟着换
+                            val retry = outcome.retry
+                            if (retry is SsoPrep.LoginForm) cacheForm(retry) else pendingForm = null
+                            LoginResult(
+                                success = false,
+                                errorMessage = outcome.message,
+                                needsCaptcha = retry is SsoPrep.LoginForm
+                            )
+                        }
                     }
                 }
-                .build()
-
-            val loginRequest = Request.Builder()
-                .url("${BASE_URL}xtgl/login_slogin.html?time=${System.currentTimeMillis()}")
-                .header("User-Agent",
-                    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 " +
-                    "(KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36")
-                .header("X-Requested-With", "XMLHttpRequest")
-                .header("Accept", "*/*")
-                .header("Origin", BASE_URL.trimEnd('/'))
-                .header("Referer", "${BASE_URL}xtgl/login_slogin.html")
-                .post(formBody)
-                .build()
-
-            android.util.Log.w("MyHEBNU", "Step 4: 提交登录...")
-            val loginResponse = loginClient.newCall(loginRequest).execute()
-
-            android.util.Log.w("MyHEBNU",
-                "登录响应: code=${loginResponse.code}, " +
-                "headers=${loginResponse.headers.names()}")
-
-            // Check result
-            if (loginResponse.code == 302) {
-                // Success! Cookies are already saved by CookieJar.saveFromResponse()
-                val location = loginResponse.header("Location") ?: ""
-                android.util.Log.w("MyHEBNU", "登录成功! 302 → $location")
-
-                // Follow one more redirect to get final cookies
-                loginResponse.close()
-                completeLoginRedirectChain()
-
-                // Persist credentials for auto-login
-                credentialManager.saveCredentials(username, password)
-
-                // Update login state
-                preferences.setLoggedIn(true)
-                authInterceptor.resetExpiredFlag()
-
-                return@withContext LoginResult(true, null)
-            } else {
-                // Failure — parse error from HTML
-                val responseBody = loginResponse.body?.string() ?: ""
-                loginResponse.close()
-
-                val errorMsg = parseLoginError(responseBody)
-                    ?: "用户名或密码错误"
-                android.util.Log.w("MyHEBNU", "登录失败: $errorMsg")
-
-                // Check if captcha is now required
-                val needsCaptcha = responseBody.contains("yzmDiv") ||
-                    responseBody.contains("id=\"yzm\"")
-
-                return@withContext LoginResult(false, errorMsg, needsCaptcha)
             }
         } catch (e: Exception) {
-            android.util.Log.e("MyHEBNU", "登录异常", e)
-            return@withContext LoginResult(false, "网络错误：${e.message}")
+            android.util.Log.e(TAG, "登录异常", e)
+            LoginResult(false, "网络错误：${e.message}")
         }
     }
 
-    /**
-     * After a successful login POST (302), follow the redirect chain to
-     * ensure all cookies are properly set in the CookieJar.
-     *
-     * HAR shows: POST login → 302 → /xtgl/login_slogin.html → 302 → /xtgl/index_initMenu.html
-     */
-    private fun completeLoginRedirectChain() {
-        try {
-            // Follow: GET login_slogin.html → should get 302 to index_initMenu.html
-            val request = Request.Builder()
-                .url("${BASE_URL}xtgl/login_slogin.html")
-                .get()
-                .build()
-            val response = loginClient.newCall(request).execute()
-            android.util.Log.w("MyHEBNU",
-                "Redirect chain: code=${response.code}, location=${response.header("Location")}")
-            response.close()
-        } catch (e: Exception) {
-            android.util.Log.w("MyHEBNU", "完成重定向链时出错（可能不影响登录）", e)
+    /** CAS 已放行后的收尾：校验教务会话 → 存凭证 → 置登录态 */
+    private suspend fun finishLogin(username: String, password: String): LoginResult {
+        if (!verifySessionValidity()) {
+            return LoginResult(
+                false,
+                "统一身份认证已通过，但教务系统未接受该会话，请稍后重试"
+            )
         }
+        credentialManager.saveCredentials(username, password)
+        preferences.setLoggedIn(true)
+        // 这之后保存的密码才是统一身份认证密码，静默重登才会被允许
+        preferences.setSsoCredentialsMigrated(true)
+        authInterceptor.resetExpiredFlag()
+        return LoginResult(true, null)
     }
 
     /**
-     * Auto-login using saved credentials. Called when session expiry (302) is detected.
+     * Auto-login using saved credentials. Called when session expiry is detected.
      *
      * @return true if auto-login succeeded, false otherwise
      */
     suspend fun autoLogin(): Boolean {
+        // 升级到统一身份认证之前保存的密码来自教务旧登录页，可能已经不对。
+        // 拿它静默重登只会白白消耗一次 CAS 失败次数（连续失败会开启验证码），
+        // 因此这里直接放弃，交给登录页让用户输入正确密码。
+        if (!preferences.ssoCredentialsMigrated.first()) {
+            android.util.Log.w(TAG, "autoLogin: 凭证尚未迁移到统一身份认证，跳过静默重登")
+            return false
+        }
+
         val credentials = credentialManager.loadCredentials()
         if (credentials == null) {
-            android.util.Log.w("MyHEBNU", "autoLogin: 无已保存凭证")
+            android.util.Log.w(TAG, "autoLogin: 无已保存凭证")
             return false
         }
 
         val (username, password) = credentials
-        android.util.Log.w("MyHEBNU", "autoLogin: 尝试自动登录 $username")
+        android.util.Log.w(TAG, "autoLogin: 尝试自动登录 $username")
 
+        // 静默自动登录不能有验证码；学校目前是「连续失败才要求验证码」，
+        // 正常使用时不会触发。万一真的要求了，如实报错而不是静默失败。
         val result = performLogin(username, password)
         if (result.success) {
-            android.util.Log.w("MyHEBNU", "autoLogin: 成功!")
             authInterceptor.resetExpiredFlag()
             return true
-        } else {
-            android.util.Log.w("MyHEBNU", "autoLogin: 失败 — ${result.errorMessage}")
-            // If auto-login fails due to wrong password, clear stored credentials
-            if (result.errorMessage?.contains("密码") == true ||
-                result.errorMessage?.contains("用户") == true
-            ) {
-                credentialManager.clearCredentials()
-            }
-            return false
         }
+        android.util.Log.w(TAG, "autoLogin: 失败 — ${result.errorMessage}")
+        if (result.errorMessage?.contains("密码") == true ||
+            result.errorMessage?.contains("用户") == true ||
+            result.errorMessage?.contains("学号") == true
+        ) {
+            credentialManager.clearCredentials()
+        }
+        return false
     }
 
     suspend fun logout() {
@@ -417,27 +317,6 @@ class AuthRepository @Inject constructor(
         } else {
             SessionExpiryAction.RequireLogin
         }
-    }
-
-    // ============================================================
-    // Helpers
-    // ============================================================
-
-    /**
-     * Extract a string value from a simple JSON object like {"key":"value"}.
-     * Uses indexOf to avoid regex escaping issues.
-     */
-    private fun extractJsonString(json: String, key: String): String? {
-        val searchKey = "\"$key\""
-        val keyIndex = json.indexOf(searchKey)
-        if (keyIndex < 0) return null
-        val colonIndex = json.indexOf(':', keyIndex)
-        if (colonIndex < 0) return null
-        val startQuote = json.indexOf('"', colonIndex)
-        if (startQuote < 0) return null
-        val endQuote = json.indexOf('"', startQuote + 1)
-        if (endQuote < 0) return null
-        return json.substring(startQuote + 1, endQuote)
     }
 }
 

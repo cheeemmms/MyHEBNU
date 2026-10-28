@@ -31,6 +31,14 @@ import com.myhebnu.ui.auth.LoginScreen
 import com.myhebnu.ui.exam.ExamScreen
 import com.myhebnu.ui.grade.GradeScreen
 import com.myhebnu.ui.home.HomeScreen
+import com.myhebnu.ui.library.BibDetailScreen
+import com.myhebnu.ui.library.FinesScreen
+import com.myhebnu.ui.library.LibraryHomeScreen
+import com.myhebnu.ui.library.LibraryRoutes
+import com.myhebnu.ui.library.LoansScreen
+import com.myhebnu.ui.library.ReaderCodeScreen
+import com.myhebnu.ui.library.RequestsScreen
+import com.myhebnu.ui.library.SearchScreen
 import com.myhebnu.ui.navigation.TopLevelRoute
 import com.myhebnu.ui.room.RoomScreen
 import com.myhebnu.ui.schedule.ScheduleScreen
@@ -126,6 +134,7 @@ fun MyHEBNUApp(
 ) {
     var currentScreen by remember { mutableStateOf<AppScreen?>(null) }
     var sessionExpiredMessage by remember { mutableStateOf<String?>(null) }
+    var showSsoMigrationNotice by remember { mutableStateOf(false) }
 
     // Startup decision is LOCAL ONLY — no network call before the first frame.
     // Session validity is checked lazily by AuthInterceptor on the first API call,
@@ -157,6 +166,15 @@ fun MyHEBNUApp(
                 sessionExpiredMessage = "会话已过期，请重新登录"
                 currentScreen = AppScreen.Login
             }
+        }
+    }
+
+    // 登录方式已从「教务自建登录页」切到「学校统一身份认证」，两边密码可能不同，
+    // 所以对老用户提示一次（只提示一次，装完首次进入时展示）。
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == null || currentScreen == AppScreen.Welcome) return@LaunchedEffect
+        if (!preferences.ssoMigrationNoticeShown.first()) {
+            showSsoMigrationNotice = true
         }
     }
 
@@ -216,6 +234,30 @@ fun MyHEBNUApp(
         AppScreen.Main -> {
             MainAppContent(pendingNavigation = pendingNavigation)
         }
+    }
+
+    if (showSsoMigrationNotice) {
+        val noticeScope = rememberCoroutineScope()
+        val dismissNotice: () -> Unit = {
+            showSsoMigrationNotice = false
+            noticeScope.launch { preferences.setSsoMigrationNoticeShown(true) }
+        }
+        AlertDialog(
+            onDismissRequest = dismissNotice,
+            title = { Text("登录方式已升级") },
+            text = {
+                Text(
+                    "因加入图书馆相关服务，本程序已把教务与图书馆统一到同一个身份认证入口（CAS）。" +
+                        "本次更新后请使用「统一身份认证」的密码重新登录一次——" +
+                        "它可能与你在教务系统旧登录页用过的密码不同。\n\n" +
+                        "登录一次之后，教务与图书馆会自动共用同一个会话，不需要分别登录。\n\n" +
+                        "如果你现在保持在登录状态，请清除应用数据后重新登录。"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = dismissNotice) { Text("知道了") }
+            }
+        )
     }
 }
 
@@ -328,6 +370,52 @@ fun MainAppContent(
                 "semester_setup" -> SemesterSetupScreen(
                     onBack = { goBack() }
                 )
+
+                LibraryRoutes.HOME -> LibraryHomeScreen(
+                    onBack = { goBack() },
+                    onNavigate = { target -> navigateTo(target) },
+                    sharedScope = sharedScope,
+                    animatedScope = animatedScope
+                )
+
+                LibraryRoutes.READER_CODE -> ReaderCodeScreen(
+                    onBack = { goBack() }
+                )
+
+                LibraryRoutes.LOANS -> LoansScreen(
+                    onBack = { goBack() }
+                )
+
+                LibraryRoutes.REQUESTS -> RequestsScreen(
+                    onBack = { goBack() }
+                )
+
+                LibraryRoutes.FINES -> FinesScreen(
+                    onBack = { goBack() }
+                )
+
+                LibraryRoutes.SEARCH -> SearchScreen(
+                    onBack = { goBack() },
+                    onOpenBib = { bibId, isbn, title ->
+                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title))
+                    },
+                    sharedScope = sharedScope,
+                    animatedScope = animatedScope
+                )
+
+                else -> {
+                    val detailArgs = LibraryRoutes.parseBibDetail(route)
+                    if (detailArgs != null) {
+                        BibDetailScreen(
+                            bibId = detailArgs.bibId,
+                            isbn = detailArgs.isbn,
+                            fallbackTitle = detailArgs.title,
+                            onBack = { goBack() },
+                            sharedScope = sharedScope,
+                            animatedScope = animatedScope
+                        )
+                    }
+                }
                 }
             }
         }

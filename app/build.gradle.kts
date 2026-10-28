@@ -29,8 +29,8 @@ android {
         applicationId = "com.myhebnu"
         minSdk = 31
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.6.0"
+        versionCode = 9
+        versionName = "1.7.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -136,6 +136,9 @@ dependencies {
 
     // Security
     implementation(libs.security.crypto)
+
+    // 借书码：条形码 + 二维码生成
+    implementation(libs.zxing.core)
 
     // Testing (Phase 8)
     testImplementation(libs.junit)

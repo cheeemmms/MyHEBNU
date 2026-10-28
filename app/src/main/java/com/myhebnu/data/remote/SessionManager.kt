@@ -39,6 +39,22 @@ class SessionManager @Inject constructor(
         return result
     }
 
+    /** 只删掉指定的 Cookie（用于丢弃某个域下已经失效的会话） */
+    fun removeCookies(names: Collection<String>) {
+        if (names.isEmpty()) return
+        val remaining =
+            (prefs.getStringSet(KEY_COOKIE_NAMES, emptySet()) ?: emptySet()) - names.toSet()
+        prefs.edit().apply {
+            names.forEach { remove("${KEY_COOKIE_PREFIX}$it") }
+            if (remaining.isEmpty()) {
+                remove(KEY_COOKIE_NAMES)
+                remove(KEY_LAST_SAVED)
+            } else {
+                putStringSet(KEY_COOKIE_NAMES, remaining)
+            }
+        }.apply()
+    }
+
     fun hasValidSession(): Boolean {
         val lastSaved = prefs.getLong(KEY_LAST_SAVED, 0)
         val cookieNames = prefs.getStringSet(KEY_COOKIE_NAMES, emptySet())

@@ -8,7 +8,7 @@
 [![Material Design 3](https://img.shields.io/badge/Material%20Design-3-FF7043?logo=materialdesign&logoColor=white)](https://m3.material.io)
 [![Hilt](https://img.shields.io/badge/Hilt-2.57.2-FF5722?logo=dagger&logoColor=white)](https://dagger.dev/hilt)
 [![License](https://img.shields.io/badge/License-AGPL_v3-blue)](./LICENSE)
-[![Release](https://img.shields.io/badge/Release-v1.5.0-blue)](https://github.com/cheeemmms/MyHEBNU/releases)
+[![Release](https://img.shields.io/badge/Release-v1.7.0-blue)](https://github.com/cheeemmms/MyHEBNU/releases)
 
 **河北师范大学非官方教务助手** — Material Design 3 风格的 Android 课表 · 成绩 · 空教室 · 考试 App
 
@@ -281,6 +281,7 @@ app/src/main/java/com/myhebnu/
 | 2026-09-04 | **v1.4.0 发布** — 学期设置、考试学期收敛、表头月日 |
 | 2026-09-13 | **v1.5.0 发布** — 成绩/课表缓存优先、悬浮刷新、节次起止时间 |
 | 2026-10-21 | 记忆库重整；代理对齐 7897；许可证统一为 AGPL-3.0 |
+| 2026-10-28 | **v1.7.0 发布** — 新增「我的图书馆」模块（借阅/借书码/馆藏检索/预约荐购/罚金）与统一 CAS 单点登录；检索结果改双列瀑布流、骨架屏首载 |
 
 ## 📄 许可证
 

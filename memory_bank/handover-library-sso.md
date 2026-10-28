@@ -16,7 +16,7 @@
 
 ## 一句话现状
 
-教务与图书馆已统一到学校 CAS 单点登录（一次登录两边可用），图书馆模块 7 个只读页面全部落地并已装真机跑通数据；**版本号已提到 v1.6.0**。剩余工作是图书馆写操作（续借/预约/荐购）、界面细节迭代、以及本机 `dsh-android` 插件的 adb 发现未打通。
+教务与图书馆已统一到学校 CAS 单点登录（一次登录两边可用），图书馆模块 7 个只读页面全部落地并已装真机跑通数据；**v1.7.0 已于 2026-10-28 发版**（commit `673fed7`、tag `v1.7.0`、Release 资产 `MyHEBNU-v1.7.0-release.apk`，`versionCode=9`，`releases/latest` 已指向它）。剩余工作是图书馆写操作（续借/预约/荐购）、界面细节迭代、以及本机 `dsh-android` 插件的 adb 发现未打通。
 
 ## 本轮交付物
 
@@ -77,11 +77,20 @@
 
 ```powershell
 ./gradlew.bat :app:assembleDebug
-# 产物：app/build/outputs/apk/debug/MyHEBNU-v1.6.0-debug.apk
+# 产物：app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk
 
 $adb = "D:\Software_data\Android Studio\SDK\platform-tools\adb.exe"
-& $adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.6.0-debug.apk
+& $adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk
 ```
+
+正式包与发版：
+
+```powershell
+./gradlew.bat :app:assembleRelease
+# 产物：app/build/outputs/apk/release/MyHEBNU-v1.7.0-release.apk（signingConfigs.release，密钥在 local.properties，已 R8 + shrinkResources）
+```
+
+已走通一次的发布流程：`git commit` → `git push origin HEAD`（分支 `feat/md3-ui-refresh`）→ `gh release create v1.7.0 app/build/outputs/apk/release/MyHEBNU-v1.7.0-release.apk --target feat/md3-ui-refresh --title "MyHEBNU v1.7.0" --notes-file <notes>`。应用内「检查更新」读 `GET /repos/cheeemmms/MyHEBNU/releases/latest`，所以 release 必须是正式版（不能勾预发布）。应用内更新日志在 `app/src/main/res/values/strings.xml` 的 `changelog_content`，v1.7.0 起只保留当前版本条目。
 
 真机（Xiaomi 24129PN74C，序列号 `db072f50`）验收由用户完成。代理自查时：`am force-stop` + `am start -n com.myhebnu.debug/com.myhebnu.MainActivity`，用 `input tap` 点卡片，`screencap -p` + `adb pull` 取图。
 

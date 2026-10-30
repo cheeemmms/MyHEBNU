@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -57,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.imageLoader
 import com.myhebnu.ui.components.QuickCardBoundsTransform
 import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.ui.design.GroupRow
@@ -89,6 +93,23 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    // 结果与封面一到，就按卡片尺寸把这一页的封面预热进内存缓存。
+    // 只按卡片尺寸解码（一页 20 张约 30MB）；详情页要的整屏大图不预取，
+    // 那一层交给 bookCoverRequest 的 placeholderMemoryCacheKey 做无缝过渡。
+    val preloadContext = LocalContext.current
+    val preloadLoader = preloadContext.imageLoader
+    val preloadDensity = LocalDensity.current
+    LaunchedEffect(uiState.results.size, uiState.covers.size) {
+        prefetchBookCovers(
+            context = preloadContext,
+            imageLoader = preloadLoader,
+            bibIds = uiState.results.mapNotNull { it.bibId },
+            urlOf = { bibId -> uiState.covers[bibId].orEmpty() },
+            widthPx = with(preloadDensity) { 180.dp.roundToPx() },
+            heightPx = with(preloadDensity) { 240.dp.roundToPx() }
+        )
+    }
 
     // 有检索态（输入过 / 搜过）时，返回先退回到「搜索框」，再返回才离开本页；
     // 这样从书目详情回来能先看到结果列表，而不是一步跳回图书馆首页。
@@ -205,6 +226,13 @@ private fun ResultList(
         }
     }
 
+    // 滚动过程中所有卡片都不挂共享元素：sharedBounds 会为每个组合出来的项
+    // 实例化动画状态（含预取项），瀑布流快速滑动时的额外测量/绘制就是"抽动"的来源。
+    // 停止滚动后再挂上，点击卡片时的转场不受影响。
+    val isScrolling by remember(gridState) {
+        derivedStateOf { gridState.isScrollInProgress }
+    }
+
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -249,7 +277,8 @@ private fun ResultList(
                 sharedKey = item.resultKey(index),
                 onClick = { onOpenBib(item.bibId.orEmpty(), item.isbn, item.title) },
                 sharedScope = sharedScope,
-                animatedScope = animatedScope
+                animatedScope = animatedScope,
+                enableSharedElement = !isScrolling
             )
         }
 
@@ -325,14 +354,19 @@ private fun BookCard(
     sharedKey: String,
     onClick: () -> Unit,
     sharedScope: SharedTransitionScope?,
-    animatedScope: AnimatedVisibilityScope?
+    animatedScope: AnimatedVisibilityScope?,
+    enableSharedElement: Boolean
 ) {
-    val cardTransform = sharedCardPageModifier(
-        key = "search-card-$sharedKey",
-        sharedScope = sharedScope,
-        animatedScope = animatedScope,
-        boundsTransform = QuickCardBoundsTransform
-    )
+    val cardTransform = if (enableSharedElement) {
+        sharedCardPageModifier(
+            key = "search-card-$sharedKey",
+            sharedScope = sharedScope,
+            animatedScope = animatedScope,
+            boundsTransform = QuickCardBoundsTransform
+        )
+    } else {
+        Modifier
+    }
 
     Column(
         modifier = Modifier
@@ -447,7 +481,12 @@ private fun BookCover(
             }
         } else {
             AsyncImage(
-                model = cover,
+                // 用 bibId 派生的缓存键，详情页命中同一份缓存，转场时不会重新下载
+                model = bookCoverRequest(
+                    context = LocalContext.current,
+                    url = cover,
+                    bibId = seed
+                ),
                 contentDescription = title.takeIf { it.isNotBlank() },
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

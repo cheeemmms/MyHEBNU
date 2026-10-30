@@ -413,7 +413,9 @@ fun MainAppContent(
                     onOpenBib = { bibId, isbn, title ->
                         navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title))
                     },
-                    onGoSearch = { navigateTo(LibraryRoutes.SEARCH) }
+                    onGoSearch = { navigateTo(LibraryRoutes.SEARCH) },
+                    sharedScope = sharedScope,
+                    animatedScope = animatedScope
                 )
 
                 else -> {

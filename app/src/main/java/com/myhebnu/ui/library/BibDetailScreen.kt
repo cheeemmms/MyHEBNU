@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,7 +48,6 @@ import com.myhebnu.ui.components.QuickCardBoundsTransform
 import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.ui.design.GroupRow
 import com.myhebnu.ui.design.GroupedSurface
-import com.myhebnu.ui.design.LoadingBlock
 import com.myhebnu.ui.design.Spacing
 import com.myhebnu.ui.design.StateBlock
 
@@ -68,6 +69,9 @@ private val BlurLead = 180.dp
 
 /** 过渡完成点：书名顶部距屏幕顶端还剩这么多时，背景已经是纯色。 */
 private val BlurTail = 90.dp
+
+/** 头图解码尺寸相对显示尺寸的缩放：背景大半被渐变吃掉，不需要 1:1 解码。 */
+private const val CoverDecodeScale = 0.8f
 
 /** 编目字段折叠时展示的条数。 */
 private const val CollapsedMarcCount = 5
@@ -94,7 +98,21 @@ fun BibDetailScreen(
     animatedScope: AnimatedVisibilityScope? = null,
     viewModel: BibDetailViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val rawState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // ViewModel 是 Activity 级的同一个实例，换书时它的状态会晚一帧更新。
+    // 这一帧里若直接用旧状态，封面/编者信息都会串成上一本的
+    // （更糟的是封面请求会拿「上一本的 URL + 这一本的 bibId」去缓存）。
+    // 所以这里按「状态属于当前这本书」做一次闸门。
+    val uiState = if (rawState.bibId == bibId) {
+        rawState
+    } else {
+        BibDetailUiState(
+            bibId = bibId,
+            isLoading = true,
+            title = fallbackTitle.orEmpty()
+        )
+    }
     val isWished by viewModel.isWished.collectAsStateWithLifecycle()
 
     LaunchedEffect(bibId) {
@@ -107,6 +125,9 @@ fun BibDetailScreen(
         animatedScope = animatedScope,
         boundsTransform = QuickCardBoundsTransform
     )
+
+    // uiState 已经在上面按 bibId 做过闸门，这里拿到的就是当前这本书的数据
+    val coverUrl = uiState.coverUrl
 
     var showTitleDialog by rememberSaveable(bibId) { mutableStateOf(false) }
     var holdingsExpanded by rememberSaveable(bibId) { mutableStateOf(false) }
@@ -170,17 +191,37 @@ fun BibDetailScreen(
             }
         }
 
-        /** 背景已经淡到只剩背景色时，状态栏图标要换回深色，否则白字看不清。 */
-        val darkStatusIcons by remember(blurStartPx) {
-            derivedStateOf { depthProgress.value > 0.65f }
+        /**
+         * 状态栏图标颜色。
+         *
+         * 只有「封面已经盖住顶部、且还没滚动淡出」时才用浅色；
+         * 骨架屏阶段或滚到底之后背景都是浅色，必须用深色图标。
+         */
+        val darkStatusIcons by remember(headerPx) {
+            derivedStateOf {
+                uiState.coverUrl.isBlank() || depthProgress.value > 0.65f
+            }
         }
         LaunchedEffect(darkStatusIcons) {
             insetsController?.isAppearanceLightStatusBars = darkStatusIcons
         }
 
+        // 模糊层只在真的开始过渡后才参与绘制：首次进入时省掉一帧 24dp 高斯模糊
+        val blurVisible by remember(headerPx) {
+            derivedStateOf { depthProgress.value > 0.02f }
+        }
+
         BookBackdrop(
             coverUrl = uiState.coverUrl,
-            maxHeaderHeight = headerMaxHeight,
+            bibId = bibId,
+            headerHeight = headerMaxHeight,
+            // 背景会被渐变吃掉大半、还叠着一层模糊，不需要按 1:1 解码。
+            // 取 0.8 倍：视觉几乎没有差别，解码耗时和内存都降三成。
+            imageSizePx = with(density) {
+                (screenWidth * CoverDecodeScale).roundToPx() to
+                    (headerMaxHeight * CoverDecodeScale).roundToPx()
+            },
+            blurVisible = blurVisible,
             progress = { depthProgress.value },
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -191,10 +232,9 @@ fun BibDetailScreen(
         )
 
         when {
-            uiState.isLoading && uiState.title.isBlank() -> LoadingBlock(
-                modifier = Modifier.align(Alignment.Center)
-            )
-
+            // 不做骨架屏：封面已经通过预取/占位缓存先出来了，
+            // 再插一段「骨架 → 内容」的替换反而多一次跳变。
+            // 加载期间直接按已有数据渲染（标题用路由带过来的），数据到了原地补齐。
             uiState.error != null && uiState.title.isBlank() -> StateBlock(
                 title = uiState.error.orEmpty(),
                 description = "书目详情需要联网获取。",

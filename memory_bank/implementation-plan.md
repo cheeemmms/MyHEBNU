@@ -32,6 +32,12 @@
 
 ## 任务清单
 
+### P0 · 构建链（最高优先级，管理员 2026-10-30 指定）
+
+| # | 任务 | 状态 | 说明 |
+| --- | --- | --- | --- |
+| 0 | **迁移到 Compose 1.9**（BOM → 2025.10.00 一档） | 待办（最高优先级） | 收益：① `Modifier.onVisibilityChanged`（1.9 新增）让瀑布流卡片按真实可见性挂载共享元素，替代当前用 `isScrollInProgress` 的妥协——滚动中点卡片也能有转场；② `Text(autoSize=)`（1.8 新增）可删掉 `BibDetailHeader` 里约 40 行书名自适应测量。前置条件：`compileSdk` 35→36；AGP 8.7.3→8.8.2+，或用 `android.experimental.lint.version=8.8.2` 只升 Lint（AGP 8.7.0+ 本身已支持 compileSdk 36）。已核查：全项目 **0 处自定义 Indication**，1.9 唯一的破坏性变更（无 Indication 参数的 clickable 只支持 `IndicationNodeFactory`）对我们无影响。代价：M3 1.3→1.4 的视觉回归、Glance 与 Compose 版本耦合需单独验 Widget；需要全量回归四 Tab / 图书馆 7 页 / Widget / 提醒。详见 handover 与 2026-10-30 日志的评估结论 |
+
 ### P0 · 安全项（2026-10-21 暂时搁置）
 
 | # | 任务 | 状态 | 阻塞 | 关联文件 |

@@ -36,6 +36,18 @@ interface WishlistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: WishlistEntity)
 
+    /**
+     * 备份导入专用：已存在的 bibId 直接跳过（返回 -1），不会被覆盖。
+     *
+     * 这让「导入」变成幂等操作——同一个文件导两次结果一样，
+     * 也不会把本地较新的记录冲掉。
+     */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIgnoringDuplicates(entries: List<WishlistEntity>): List<Long>
+
+    @Query("SELECT * FROM wishlist ORDER BY addedAt DESC")
+    suspend fun getAll(): List<WishlistEntity>
+
     @Query("DELETE FROM wishlist WHERE bibId = :bibId")
     suspend fun deleteById(bibId: String): Int
 

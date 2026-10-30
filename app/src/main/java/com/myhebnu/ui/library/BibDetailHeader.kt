@@ -11,12 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,7 +24,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -70,106 +72,132 @@ private val TopBarScrim = Color.Black.copy(alpha = 0.32f)
 /** 模糊半径。固定值，只改透明度——动态改半径会每次重建离屏缓冲。 */
 private val BlurRadius = 24.dp
 
-/** 未滚动时渐变开始的位置（容器高度的比例）。 */
-private const val ScrimEnd = 0.70f
+/** 底部渐变覆盖的高度，占图片可见高度的比例（从图片底边往上算）。 */
+private const val ScrimSpan = 0.35f
 
 /**
  * 顶部背景：清晰封面 + 模糊封面 + 渐变压暗，三层叠加。
  *
- * 高度**跟着图片走**而不是固定成屏高的比例：`FillWidth` 之后图片高度取决于封面自身比例
- * （方形封面只占容器的一半，竖长封面会超出）。如果渐变按固定容器高度铺，方形封面的下边缘
- * 会落在渐变还很浅的位置，出现一条「图片突然被切断」的硬边。
+ * 三条硬约束（都来自真机踩坑）：
+ * 1. **容器高度固定**。若让高度跟着图片比例走，图片到达那一刻容器尺寸会突变，
+ *    共享元素转场没有稳定的落点，观感就是"卡一下"。
+ * 2. **必须给 Coil 明确的解码尺寸**。`wrapContentHeight` 会让它推断不出目标边界，
+ *    退化成按原图分辨率解码，内存和首次加载都遭殃。
+ * 3. 模糊半径固定、只改透明度——动态改半径每次都要重建离屏缓冲。
  *
- * 模糊半径是固定的（24dp），滚动只改透明度——动态改半径每次都要重建离屏缓冲，
- * 滚动时会明显掉帧。这是本效果能跑顺的关键。
+ * 至于「封面的底边不能露出来」：容器固定后，矮封面底部会留白，
+ * 所以渐变终点**跟着图片实际底边走**（按封面宽高比算出），而不是写死容器百分比。
  *
- * @param progress 滚动加深进度 0..1，必须只在绘制阶段读取（不要在组合期读，否则每帧重组）
+ * @param progress 滚动加深进度 0..1，必须只在绘制阶段读取
  */
 @Composable
 fun BookBackdrop(
     coverUrl: String,
-    maxHeaderHeight: Dp,
+    bibId: String,
+    headerHeight: Dp,
+    imageSizePx: Pair<Int, Int>,
+    /** 模糊层是否参与绘制。进度接近 0 时省掉它：一帧 24dp 高斯模糊在首次进入时是实打实的开销。 */
+    blurVisible: Boolean,
     progress: () -> Float,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val backgroundColor = MaterialTheme.colorScheme.background
     val hasCover = coverUrl.isNotBlank()
+
+    // 封面宽高比（宽 / 高）：用来算图片在容器里的实际显示高度，渐变才能贴着图片底边收
+    var coverAspect by remember(coverUrl) { mutableStateOf(0f) }
+
+    val request = remember(coverUrl, bibId, imageSizePx) {
+        if (!hasCover) null else bookCoverRequest(
+            context = context,
+            url = coverUrl,
+            bibId = bibId,
+            size = imageSizePx,
+            large = true,
+            // 列表里已缓存的那张小图先顶着，大图到了再替换
+            placeholderFromCache = true
+        )
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (hasCover) {
-                    Modifier.heightIn(max = maxHeaderHeight)
-                } else {
-                    // 没有封面时保留一块底色，避免头部塌成 0 高
-                    Modifier.height(maxHeaderHeight)
-                }
-            )
+            .height(headerHeight)
             .clipToBounds()
-            // 有封面时给一块底色垫底，避免图片加载过程中露出透明；
-            // 没有封面时直接用页面背景色——否则会变成一条突兀的深灰渐变带
             .background(
                 if (hasCover) MaterialTheme.colorScheme.surfaceVariant
                 else MaterialTheme.colorScheme.background
             )
     ) {
-        if (hasCover) {
-            // 第一层：清晰封面。宽度优先，左右一定完整（原图自带白边的另说）。
+        if (request != null) {
+            // 第一层：清晰封面。固定高度 + FillWidth：宽度一定完整，超出的高度被裁掉，
+            // 不足时底部留背景色（由下面的渐变收口）。
             AsyncImage(
-                model = coverUrl,
+                model = request,
                 contentDescription = null,
                 contentScale = ContentScale.FillWidth,
                 alignment = Alignment.TopCenter,
+                onSuccess = { state ->
+                    val size = state.painter.intrinsicSize
+                    if (size.width > 0f && size.height > 0f) {
+                        coverAspect = size.width / size.height
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentHeight()
+                    .height(headerHeight)
             )
 
-            // 第二层：模糊版。**整幅**一起模糊，不做「上清下糊」——
-            // 封面本身印着书名，若顶部一直保持清晰，它就会和页面标题叠在一起变成双重标题。
-            // 透明度跟着滚动进度走，只在绘制阶段读 progress()。
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .graphicsLayer { alpha = progress() }
-            ) {
-                AsyncImage(
-                    model = coverUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    alignment = Alignment.TopCenter,
+            // 第二层：模糊版。整幅一起模糊——封面本身印着书名，
+            // 顶部若保持清晰会和页面标题叠成双重标题。
+            // 进度接近 0 时不参与绘制，省掉首次进入时那一帧高斯模糊。
+            if (blurVisible) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                        .blur(BlurRadius, BlurredEdgeTreatment.Rectangle)
-                )
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = progress() }
+                ) {
+                    AsyncImage(
+                        model = request,
+                        contentDescription = null,
+                        contentScale = ContentScale.FillWidth,
+                        alignment = Alignment.TopCenter,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(headerHeight)
+                            .blur(BlurRadius, BlurredEdgeTreatment.Rectangle)
+                    )
+                }
             }
         }
 
-        // 第三层：静止时的底部柔化。固定不动，只为了让书名压在图上时不糊在一起。
+        // 第三层：贴着图片底边的渐变 + 滚动时整幅淡向背景色
         Box(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxSize()
                 .drawWithContent {
                     drawContent()
+
+                    // 图片在本容器里的实际底边（px）：宽固定，高按封面比例换算
+                    val imageBottom = if (coverAspect > 0f) {
+                        (size.width / coverAspect).coerceAtMost(size.height)
+                    } else {
+                        size.height
+                    }
+                    // 渐变只在图片最后 35% 里走完，图片底边处正好全不透明 ⇒ 不会露出断口
+                    val start = imageBottom - (imageBottom * ScrimSpan)
                     drawRect(
                         brush = Brush.verticalGradient(
-                            ScrimEnd to Color.Transparent,
-                            1f to backgroundColor
+                            colorStops = arrayOf(
+                                0f to Color.Transparent,
+                                1f to backgroundColor
+                            ),
+                            startY = start,
+                            endY = imageBottom
                         )
                     )
-                }
-        )
 
-        // 第四层：滚动时整幅淡向背景色。全部一起变，而不是从下往上追，
-        // 进度到 1 时整块就是纯背景色——读者不会再看到任何封面残留。
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .drawWithContent {
-                    drawContent()
                     val p = progress()
                     if (p > 0.001f) {
                         drawRect(backgroundColor.copy(alpha = p))

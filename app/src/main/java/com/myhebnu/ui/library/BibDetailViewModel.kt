@@ -18,6 +18,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class BibDetailUiState(
+    /**
+     * 当前这份数据属于哪本书。
+     *
+     * 界面必须靠它来判断「封面等信息是不是当前这本的」：换书的那一帧里，
+     * 路由的 bibId 已经是 B，而 uiState 还停在 A，两者混用会把 A 的封面
+     * 请求成 B 的封面（缓存键也跟着错）。
+     */
+    val bibId: String = "",
     val isLoading: Boolean = true,
     val error: String? = null,
     val title: String = "",
@@ -63,15 +71,29 @@ class BibDetailViewModel @Inject constructor(
      * 加载一本书。
      *
      * `hiltViewModel()` 在手写返回栈下拿到的始终是 Activity 级的同一个实例，
-     * 所以换一本书进来时必须重新订阅 [isWished]，否则爱心会停留在上一本的状态。
+     * 所以换一本书进来时必须做两件事：
+     * 1. **把上一本的状态整个丢掉**——否则界面会先按旧数据渲染一帧，
+     *    表现为「打开 B 书时先闪一下 A 书的页面」；
+     * 2. 重新订阅 [isWished]，爱心才不会是上一本的状态。
      */
     fun load(bibId: String, isbn: String?, fallbackTitle: String?) {
         if (bibId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, error = "缺少书目标识") }
             return
         }
-        if (loadedBibId == bibId && !_uiState.value.isLoading) return
+
+        val switchedBook = loadedBibId != bibId
+        if (!switchedBook && !_uiState.value.isLoading) return
         loadedBibId = bibId
+
+        if (switchedBook) {
+            // 只保留路由带来的标题做占位，其余全部清空
+            _uiState.value = BibDetailUiState(
+                isLoading = true,
+                title = fallbackTitle.orEmpty()
+            )
+            _isWished.value = false
+        }
 
         observeWished(bibId)
         loadDetail(bibId, isbn, fallbackTitle)
@@ -146,6 +168,7 @@ class BibDetailViewModel @Inject constructor(
                     onSuccess = { (bundle, copies, extra) ->
                         val base = bundle.base
                         state.copy(
+                            bibId = bibId,
                             isLoading = false,
                             error = null,
                             title = base?.title?.takeIf { it.isNotBlank() }
@@ -169,6 +192,9 @@ class BibDetailViewModel @Inject constructor(
                     },
                     onFailure = { error ->
                         state.copy(
+                            // 失败也要认领这本书，否则界面的闸门会一直把它当成"别人的状态"，
+                            // 错误提示就永远显示不出来
+                            bibId = bibId,
                             isLoading = false,
                             error = error.message ?: "书目详情加载失败",
                         )

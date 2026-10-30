@@ -39,4 +39,17 @@ class WishlistRepository @Inject constructor(
 
     /** 从列表里移除。返回删除的行数，0 表示本来就不在。 */
     suspend fun remove(bibId: String): Int = dao.deleteById(bibId)
+
+    /** 导出用：一次性取全部条目。 */
+    suspend fun allEntries(): List<WishlistEntity> = dao.getAll()
+
+    /**
+     * 备份导入用：按 bibId 合并，本地已有的跳过。
+     *
+     * 返回实际新增的条数（重复的被数据库忽略，对应返回 -1）。
+     */
+    suspend fun mergeAll(entries: List<WishlistEntity>): Int {
+        if (entries.isEmpty()) return 0
+        return dao.insertIgnoringDuplicates(entries).count { it != -1L }
+    }
 }

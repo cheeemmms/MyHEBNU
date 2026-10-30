@@ -1,18 +1,27 @@
 package com.myhebnu.ui.library
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.local.db.entity.WishlistEntity
 import com.myhebnu.data.repository.OpacRepository
+import com.myhebnu.data.repository.WishlistBackup
+import com.myhebnu.data.repository.WishlistImportResult
 import com.myhebnu.data.repository.WishlistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class WishlistItemUi(
@@ -36,6 +45,7 @@ data class WishlistUiState(
  */
 @HiltViewModel
 class WishlistViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val wishlistRepository: WishlistRepository,
     private val opacRepository: OpacRepository,
 ) : ViewModel() {
@@ -44,6 +54,10 @@ class WishlistViewModel @Inject constructor(
     private val _refreshedCovers = MutableStateFlow<Map<String, String>>(emptyMap())
 
     private val _isLoading = MutableStateFlow(true)
+
+    /** 导入/导出的结果提示，由界面转成 Toast。 */
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 2)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
 
     val uiState: StateFlow<WishlistUiState> = combine(
         wishlistRepository.observeAll(),
@@ -91,5 +105,63 @@ class WishlistViewModel @Inject constructor(
 
     fun remove(bibId: String) {
         viewModelScope.launch { wishlistRepository.remove(bibId) }
+    }
+
+    /**
+     * 导出到用户选定的文件。
+     *
+     * 用 SAF 给的 `content://` 直接写，不申请存储权限、也不碰具体路径。
+     */
+    fun export(uri: Uri) {
+        viewModelScope.launch {
+            val result = runCatching {
+                val entries = wishlistRepository.allEntries()
+                val json = WishlistBackup.encode(entries, System.currentTimeMillis())
+                withContext(Dispatchers.IO) {
+                    val stream = context.contentResolver.openOutputStream(uri)
+                        ?: error("无法写入所选文件")
+                    stream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                }
+                entries.size
+            }
+            _messages.tryEmit(
+                result.fold(
+                    onSuccess = { count -> "已导出 $count 本" },
+                    onFailure = { "导出失败：${it.message ?: "无法写入文件"}" }
+                )
+            )
+        }
+    }
+
+    /**
+     * 从用户选定的文件导入，按 bibId 合并（本地已有的跳过）。
+     *
+     * 整个流程包在 runCatching 里：文件被改坏、不是本应用导出的 JSON、
+     * 权限被回收……都只会得到一条提示，不会把页面炸掉。
+     */
+    fun import(uri: Uri) {
+        viewModelScope.launch {
+            val result = runCatching {
+                val json = withContext(Dispatchers.IO) {
+                    val stream = context.contentResolver.openInputStream(uri)
+                        ?: error("无法读取所选文件")
+                    stream.bufferedReader().use { it.readText() }
+                }
+                val decoded = WishlistBackup.decode(json).getOrThrow()
+                val (entries, dropped) = decoded
+                WishlistImportResult(
+                    added = wishlistRepository.mergeAll(entries),
+                    skippedInFile = dropped
+                )
+            }
+            _messages.tryEmit(
+                result.fold(
+                    onSuccess = { r ->
+                        if (r.added > 0) "已导入 ${r.added} 本" else "没有新增条目（都已在列表中）"
+                    },
+                    onFailure = { "导入失败：${it.message ?: "文件格式不正确"}" }
+                )
+            )
+        }
     }
 }

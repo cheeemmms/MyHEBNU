@@ -131,11 +131,12 @@ fun LibraryHomeScreen(
                             label = "逾期",
                             tone = if (uiState.expireCount > 0) Tone.Critical else Tone.Neutral
                         ),
+                        // 罚金大多数时候是 0，占一格没意义；换成「想看」更常用。
+                        // 罚金仍可从下方「罚金与违约」入口进入。
                         MetricItem(
-                            value = LibraryFormat.money(uiState.fineSum),
-                            label = "罚金",
-                            tone = if (uiState.fineSum > 0) Tone.Warning else Tone.Neutral,
-                            onClick = { onNavigate(LibraryRoutes.FINES) }
+                            value = wishCount.toString(),
+                            label = "想看",
+                            onClick = { onNavigate(LibraryRoutes.WISHLIST) }
                         )
                     )
                 )
@@ -180,7 +181,6 @@ fun LibraryHomeScreen(
                     GroupRow(
                         title = "我想看的书",
                         leadingIcon = Icons.Outlined.FavoriteBorder,
-                        trailingText = if (wishCount > 0) "$wishCount 本" else null,
                         onClick = { onNavigate(LibraryRoutes.WISHLIST) },
                         showDivider = true
                     )

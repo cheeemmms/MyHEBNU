@@ -87,8 +87,6 @@ fun SearchScreen(
     onBack: () -> Unit,
     onOpenBib: (bibId: String, isbn: String?, title: String?) -> Unit,
     modifier: Modifier = Modifier,
-    sharedScope: SharedTransitionScope? = null,
-    animatedScope: AnimatedVisibilityScope? = null,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -189,9 +187,7 @@ fun SearchScreen(
                     onScrolledToTop = viewModel::onScrolledToTop,
                     onGoToPage = viewModel::goToPage,
                     onRetry = viewModel::reloadCurrentPage,
-                    onOpenBib = onOpenBib,
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
+                    onOpenBib = onOpenBib
                 )
             }
         }
@@ -205,7 +201,6 @@ fun SearchScreen(
  * 卡片本身挂在共享元素 `search-card-<bibId>` 上，点开后与 [BibDetailScreen] 做容器变换，
  * 与首页卡片进各模块的动画是同一套。
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ResultList(
     uiState: SearchUiState,
@@ -213,9 +208,7 @@ private fun ResultList(
     onScrolledToTop: () -> Unit,
     onGoToPage: (Int) -> Unit,
     onRetry: () -> Unit,
-    onOpenBib: (bibId: String, isbn: String?, title: String?) -> Unit,
-    sharedScope: SharedTransitionScope?,
-    animatedScope: AnimatedVisibilityScope?
+    onOpenBib: (bibId: String, isbn: String?, title: String?) -> Unit
 ) {
     // 只在「换关键词 / 翻页」这类一次性请求后滚回顶部；从书目详情返回时保留离场位置，
     // 滚动状态本身由 ViewModel 持有（见 SearchViewModel.gridState），页面重建也不会丢。
@@ -229,10 +222,6 @@ private fun ResultList(
     // 滚动过程中所有卡片都不挂共享元素：sharedBounds 会为每个组合出来的项
     // 实例化动画状态（含预取项），瀑布流快速滑动时的额外测量/绘制就是"抽动"的来源。
     // 停止滚动后再挂上，点击卡片时的转场不受影响。
-    val isScrolling by remember(gridState) {
-        derivedStateOf { gridState.isScrollInProgress }
-    }
-
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -275,10 +264,7 @@ private fun ResultList(
                 pubYear = item.pub_year.orEmpty(),
                 cover = coverOf(item, uiState.covers),
                 sharedKey = item.resultKey(index),
-                onClick = { onOpenBib(item.bibId.orEmpty(), item.isbn, item.title) },
-                sharedScope = sharedScope,
-                animatedScope = animatedScope,
-                enableSharedElement = !isScrolling
+                onClick = { onOpenBib(item.bibId.orEmpty(), item.isbn, item.title) }
             )
         }
 
@@ -352,26 +338,15 @@ private fun BookCard(
     pubYear: String,
     cover: String,
     sharedKey: String,
-    onClick: () -> Unit,
-    sharedScope: SharedTransitionScope?,
-    animatedScope: AnimatedVisibilityScope?,
-    enableSharedElement: Boolean
+    onClick: () -> Unit
 ) {
-    val cardTransform = if (enableSharedElement) {
-        sharedCardPageModifier(
-            key = "search-card-$sharedKey",
-            sharedScope = sharedScope,
-            animatedScope = animatedScope,
-            boundsTransform = QuickCardBoundsTransform
-        )
-    } else {
-        Modifier
-    }
-
+    // 检索结果 → 详情页刻意**不走共享元素容器变换**：卡片（整卡封面+横排文字）
+    // 与详情页（满屏背景+居中标题）的内容结构和长宽比差异都太大，
+    // 容器变换只会放大这种不协调。页面级的 fade through（见 MainActivity）
+    // 已经足够平滑，空间连续性由想看列表等入口保留。
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .then(cardTransform)
             .clip(MaterialTheme.shapes.large)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)
             .clickable(onClick = onClick)

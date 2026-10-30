@@ -429,9 +429,7 @@ fun MainAppContent(
                     onBack = { goBack() },
                     onOpenBib = { bibId, isbn, title ->
                         navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title))
-                    },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
+                    }
                 )
 
                 LibraryRoutes.WISHLIST -> WishlistScreen(

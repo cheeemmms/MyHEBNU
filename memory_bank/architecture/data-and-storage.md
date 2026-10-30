@@ -2,7 +2,7 @@
 
 - **用途**：记录本地数据模型、缓存写入规则、DataStore 键、凭证/Cookie 存储与迁移方式。
 - **阅读时机**：改实体/表结构、排查缓存不更新或迁移失败、处理登录态与敏感数据。
-- **最后更新**：2026-10-21
+- **最后更新**：2026-10-30
 - **状态**：稳定（Room v4，与 v1.5.0 代码一致）
 
 > 凭证/Cookie/备份/日志的安全评估见 [security.md](security.md)。
@@ -32,7 +32,7 @@
 
 ## Room 数据库
 
-`AppDatabase`（`version = 4`，`exportSchema = false`）注册 3 个实体、3 个 DAO。
+`AppDatabase`（`version = 5`，`exportSchema = false`）注册 3 个实体、3 个 DAO。
 
 ### courses（课表缓存）
 
@@ -41,9 +41,10 @@
 | `id` | String PK | `year-term-课程名-星期-节次-周次文本` 拼接 |
 | `courseName` / `teacher` / `classroom` | String | 课程名（kcmc）/ 教师（xm/jsxm）/ 教室（cdmc） |
 | `dayOfWeek` | Int | 1–7（xqj） |
-| `startPeriod` / `endPeriod` | Int | 起止节次（由 `jcs` 如 `3-5` 解析） |
-| `startWeek` / `endWeek` | Int | 起止教学周（由 `zcd` 解析） |
-| `oddEven` | Int | 0=全周，1=单周，2=双周 |
+| `startPeriod` / `endPeriod` | Int | 起止节次；有位掩码时由 `oldjc` 反推，否则由 `jcs` 如 `3-5` 解析 |
+| `startWeek` / `endWeek` | Int | 起止教学周；有位掩码时由 `oldzc` 反推，否则由 `zcd` 文本解析 |
+| `oddEven` | Int | 0=全周，1=单周，2=双周；**新数据不再依赖**，仅老数据（`weekBits=0`）兜底 |
+| `weekBits` / `periodBits` | Int | 周次/节次位掩码（bit0=第 1 周/第 1 节），来自教务 `oldzc`/`oldjc`；0 表示未采集 |
 | `weekText` / `category` | String | 原始周次文本 / 课程类别（kclb） |
 | `color` | Int | 课程名 hash 得到的稳定 hue（0–359），非最终 ARGB |
 | `semesterYear` / `semesterTerm` / `semesterName` | String | 学年、学期码、展示名 |
@@ -155,9 +156,10 @@ DAO：`observeAll`（Flow，驱动成绩页）、`getAll`、`count`、`getBySeme
 | 1 → 2 | `MIGRATION_1_2` | `courses` 增加 `oddEven INTEGER NOT NULL DEFAULT 0` |
 | 2 → 3 | `MIGRATION_2_3` | 新建 `exams` 表 + `(semesterYear, semesterTerm)` 索引 |
 | 3 → 4 | `MIGRATION_3_4` | 新建 `grades` 表 + `(semesterYear, semesterTerm)` 索引 |
+| 4 → 5 | `MIGRATION_4_5` | `courses` 增加 `weekBits`、`periodBits`（`INTEGER NOT NULL DEFAULT 0`） |
 
 - `exportSchema = false`，仓库中没有 schema JSON；改表时需手写 Migration 并真机验证升级安装。
-- `DatabaseModule` 显式注册 3 个 Migration；新增版本时同步修改 `AppDatabase.version` 与迁移列表。
+- `DatabaseModule` 显式注册 4 个 Migration；新增版本时同步修改 `AppDatabase.version` 与迁移列表。
 - 发布包升级兼容性另见 [../history/change-log.md](../history/change-log.md) 的 v1.5.0 校验记录。
 
 ## 已知风险

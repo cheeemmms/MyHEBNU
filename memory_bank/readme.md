@@ -29,8 +29,8 @@
 | 项目类型 | 既有仓库 · 接手维护（GitHub `cheeemmms/MyHEBNU`，107 次提交，2026-06-04 起） |
 | 当前版本 | **v1.7.0**（2026-10-28 已发 GitHub Release，commit `673fed7`、tag `v1.7.0`）：v1.6.0 之上增加「我的图书馆」模块与统一身份认证改造 |
 | 当前阶段 | Phase 0–7 与 v1.6.0/v1.7.0 已交付；**图书馆写操作（续借/荐购/预约）与 Phase 8「打磨/收尾」未完成** |
-| 最近一次实质进展 | 2026-10-28 发版 v1.7.0：图书馆模块与本轮 UI 调试整体提交（`673fed7`）并推送到 `feat/md3-ui-refresh`，`assembleRelease` 产出 `MyHEBNU-v1.7.0-release.apk`（7.93 MB，versionCode 9），已发布 GitHub Release 并置为 latest；应用内更新日志只保留 v1.7.0「解决了一些已知问题」。同日前四轮图书馆界面调试：检索页改为「详情→结果→搜索框→图书馆」逐级返回、结果列表换搜索引擎式页码翻页（替掉只会转圈的「上滑加载更多」）、荐购状态标签按「不订购/退订=红、入藏/订购=绿」分级（新增 `theme/SemanticColors.kt`）、图书馆首页补共享元素转场；随后检索结果改为双列交错瀑布流卡片（缺封面用占位图、卡片→详情复用首页那套共享元素动画）；第三轮修瀑布流体验：封面改用按书目标识取固定比例档位（消除加载后重排导致的滑动卡顿）、滚动位置移到 ViewModel 使从详情返回停在原位、出版者/出版年降为 12sp 单行且优先省略出版社；第四轮把图书馆首页首载改成骨架屏（`SkeletonBox`，不再转圈、打开动画不卡）、瀑布流卡片共享元素补间提速到 220ms；已 `assembleDebug` + 装机到 `com.myhebnu.debug`，见 [architecture/library-and-sso.md](architecture/library-and-sso.md) |
-| 2026-10-28 记忆库维护 | 把一次性交接文档 `handover-library-sso.md` 的长期内容并入 [architecture/library-and-sso.md](architecture/library-and-sso.md) 并删除该文件，未完成项并入实施计划，`ea-api.md` 的登录章节改写成 CAS 单点登录。 |
+| 最近一次实质进展 | 2026-10-30 课表周次判定重构（commit `01b9bce`，已验收并推送）：解析改用教务 `oldzc`/`oldjc` 位掩码并由掩码反推起止周与节次，`zcd` 文本解析降为兜底；同时修掉「第N周」写法被回退成整学期（1–18 周）导致该课全学期显示的缺陷。`CourseEntity` 新增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，课表过滤、当前课高亮、首页今日课程、桌面小组件、上课提醒五处统一改调；Room 4→5。真机 20 行课程掩码与教务文本逐周比对 0 差异。同日上午先把 v1.7.0 遗留文档补提交并入主线（`7580673`/`1e66d1b`/`ae4689a`）。 |
+| 最近一次实质进展（更早） | 2026-10-28 发版 v1.7.0（`673fed7`，versionCode 9）：图书馆模块与本轮 UI 四轮迭代整体落地并发布 GitHub Release；同日把一次性交接文档 `handover-library-sso.md` 的长期内容并入 [architecture/library-and-sso.md](architecture/library-and-sso.md) 并删除该文件。细节见该文档与 [history/change-log.md](history/change-log.md) |
 | 最近一次实质进展（更早） | 2026-10-27 图书馆模块上线：汇文 OPAC 只读 7 页（首页/当前借阅/动态借书码/馆藏检索/书目详情/预约与荐购/罚金与违约）已装真机跑通数据；同一轮把教务登录从旧 xtgl 表单切到学校 CAS 单点登录，图书馆复用同一会话，旧的 xtgl 登录代码整段删除、无双路径 |
 | 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
 | 下一步 | 图书馆写操作（续借/荐购/预约委托，用户已明确留到下一期）；图书馆页面英文资源；Phase 8 收尾 |
@@ -58,8 +58,8 @@
 | 文件 | 内容 | 何时读 | 最后更新 |
 | --- | --- | --- | --- |
 | [architecture/modules-and-ui.md](architecture/modules-and-ui.md) | 包结构、模块职责、导航与页面状态、主题与 DI | 新增页面/模块、改导航或主题 | 2026-10-28 |
-| [architecture/data-and-storage.md](architecture/data-and-storage.md) | Room 实体/DAO/迁移、DataStore 键、凭证与 Cookie、缓存策略 | 改数据模型、排查缓存/迁移问题 | 2026-10-21 |
-| [architecture/ea-api.md](architecture/ea-api.md) | 教务系统认证、请求门控、课程/成绩/空教室/考试接口与响应结构 | 对接教务、排查请求失败、扩展接口 | 2026-10-28 |
+| [architecture/data-and-storage.md](architecture/data-and-storage.md) | Room 实体/DAO/迁移、DataStore 键、凭证与 Cookie、缓存策略 | 改数据模型、排查缓存/迁移问题 | 2026-10-30 |
+| [architecture/ea-api.md](architecture/ea-api.md) | 教务系统认证、请求门控、课程/成绩/空教室/考试接口与响应结构 | 对接教务、排查请求失败、扩展接口 | 2026-10-30 |
 | [architecture/library-and-sso.md](architecture/library-and-sso.md) | 图书馆模块的结构、OPAC 接口、CAS 单点登录链路与 UI 约定 | 改图书馆页面、排查 OPAC/登录问题、加写操作 | 2026-10-28 |
 | [architecture/widget-and-reminders.md](architecture/widget-and-reminders.md) | Glance Widget、跨进程数据、WorkManager 提醒、更新检查 | 改 Widget/通知/后台任务 | 2026-10-21 |
 | [architecture/security.md](architecture/security.md) | 威胁模型、明文 HTTP、Cookie/日志/备份风险与修复优先级 | 发布前安全检查、处理凭证/隐私问题 | 2026-10-21 |
@@ -94,6 +94,7 @@
 
 ## 历史记录
 
-- **2026-10-30**：补提交上一轮遗留的文档改动并收口分支。`CHANGELOG.md` 的 v1.7.0 段（`7580673`）与记忆库重整（`1e66d1b`：新建 [architecture/library-and-sso.md](architecture/library-and-sso.md)、删除 `handover-library-sso.md`、7 个文件同步）此前只存在于工作区，本次按主题拆成两次提交入库；`feat/md3-ui-refresh` 快进合并进 `main`，两条分支同指并推送。未改动任何 `app/` 源码，与已发布的 v1.7.0 二进制一致。
+- **2026-10-30**：课表周次判定重构。新增 [architecture/ea-api.md](architecture/ea-api.md) 的位掩码说明（`oldzc`/`oldjc` 为权威周次/节次来源、`zcd` 会出现「第N周」写法、`xslxbj` 是课名尾部符号、换教师为同日同节多条条目）；[architecture/data-and-storage.md](architecture/data-and-storage.md) 更新 `courses` 表（增 `weekBits`/`periodBits`、`oddEven` 降级为兜底）与 Room 4→5 迁移表。上午另有一轮仓库收口：v1.7.0 遗留文档补提交与 `feat/md3-ui-refresh` 快进并入 `main`。
+- **2026-10-30（仓库收口）**：`CHANGELOG.md` 的 v1.7.0 段（`7580673`）与记忆库重整（`1e66d1b`）此前只存在于工作区，本次按主题拆成两次提交入库；`feat/md3-ui-refresh` 快进合并进 `main`，两条分支同指并推送。未改动任何 `app/` 源码，与已发布的 v1.7.0 二进制一致。
 - **2026-10-28**：随 v1.7.0 发版同步。删除一次性交接文档 `handover-library-sso.md`（长期技术内容并入新建的 [architecture/library-and-sso.md](architecture/library-and-sso.md)，未完成项并入 [implementation-plan.md](implementation-plan.md)，构建/发版命令并入 [tech-stack.md](tech-stack.md)）；[architecture.md](architecture.md) 补图书馆与 CAS 模块、关键决策 9–11；[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 补图书馆页面、逐级返回、`SemanticColors`/`SkeletonBox`/共享元素约定；[architecture/ea-api.md](architecture/ea-api.md) 的登录章节从 xtgl 表单直登改写为 CAS 单点登录；[tech-stack.md](tech-stack.md) 新增「版本与发布」；[handover-notes.md](handover-notes.md) 刷新状态、文件地图与发版流程。
 - **2026-10-21**：按团队 memory_bank 规范重整。目录由 `memory-bank/` 改为 `memory_bank/`；`progress.md` 拆分为当前路线图（[implementation-plan.md](implementation-plan.md)）与变更日志（[history/change-log.md](history/change-log.md)）；`architecture.md` 拆为主题子文档；`batch4-requirements.md` 的有效需求并入 [design-document.md](design-document.md)，过程记录归档到变更日志；`HTTP901-诊断与日志采集.md` 与 `glance-api-research.md` 移入 `diagnostics/` 并规范化；新增本入口文件、`tech-stack.md`、`handover-notes.md`、`architecture/security.md`。同日对齐代理端口 7897、统一许可证为 AGPL-3.0、关闭考试分页项、将小学期成绩改为待验证、i18n 搁置、安全项搁置、修正课表长按发布说明。启动改为本地判定并移除启动网络校验，详见 [startup-latency.md](diagnostics/startup-latency.md)。

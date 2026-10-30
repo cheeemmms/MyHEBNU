@@ -26,13 +26,14 @@
 | 项目 | 内容 |
 | --- | --- |
 | 项目 | **MyHEBNU** — 河北师范大学非官方 Android 教务助手（包名 `com.myhebnu`） |
-| 项目类型 | 既有仓库 · 接手维护（GitHub `cheeemmms/MyHEBNU`，107 次提交，2026-06-04 起） |
+| 项目类型 | 既有仓库 · 接手维护（GitHub `cheeemmms/MyHEBNU`，132 次提交，2026-06-04 起） |
 | 当前版本 | **v1.7.0**（2026-10-28 已发 GitHub Release，commit `673fed7`、tag `v1.7.0`）：v1.6.0 之上增加「我的图书馆」模块与统一身份认证改造 |
 | 当前阶段 | Phase 0–7 与 v1.6.0/v1.7.0 已交付；**图书馆写操作（续借/荐购/预约）与 Phase 8「打磨/收尾」未完成** |
+| 最近一次整理 | 2026-10-30 记忆库精简：删除 `design-document.md` 与仓库根 `widget/HyperOS-Widget-Adaptation-Plan.md`（内容过期），有效内容并入 handover/architecture/tech-stack；同时校正「无底部导航栏」「Room v6 四张表」「首页五张卡片」等与代码不符的描述。详见 [history/change-log.md](history/change-log.md) |
 | 最近一次实质进展 | 2026-10-30（晚）**「想看」功能闭环 + 书籍详情页重设计 + 动画定案**，7 个 commit（`0a7a119`→`31c914e`）全部真机验收并推送：① 想看数据层（Room 5→6，wishlist 快照表）→ 详情页收藏胶囊 → 想看列表页（封面/移除确认/空态）→ 图书馆首页入口与指标（「罚金」格改「想看」）→ JSON 导出导入（SAF、按 bibId 幂等合并）；② 详情页重设计：沉浸头图（高度固定、渐变按封面比例贴图收口）+ 45% 视差 + 滚动模糊淡出 + 状态栏图标随深度反色 + 首帧性能优化（0.8 倍解码、模糊层条件渲染）；③ 封面缓存键分层（`BookCovers.kt`）与检索/想看列表预取；④ 修「换书显示上本书封面」（uiState.bibId 闸门）等三个严重缺陷；⑤ 动画最终定案：容器变换（sharedBounds 整页展开、默认参数）保留为最重视的动画，检索结果 → 详情页不走共享元素，内容级动画用 M3 emphasized 曲线。其间否决的实验：fade through 错开（拉长转场）、RemeasureToBounds（每帧重测整页掉帧）、封面 sharedElement、纯模糊过渡（与共享元素互斥）。Compose 1.9 迁移列为 P0 待办 |
 | 最近一次实质进展（更早） | 2026-10-30（晨）课表周次判定重构（commit `01b9bce`，已验收并推送）：解析改用教务 `oldzc`/`oldjc` 位掩码并由掩码反推起止周与节次，`zcd` 文本解析降为兜底。`CourseEntity` 新增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，五处统一改调；Room 4→5。同日上午先把 v1.7.0 遗留文档补提交并入主线（`7580673`/`1e66d1b`/`ae4689a`）。 |
 | 最近一次实质进展（更早） | 2026-10-27 图书馆模块上线：汇文 OPAC 只读 7 页（首页/当前借阅/动态借书码/馆藏检索/书目详情/预约与荐购/罚金与违约）已装真机跑通数据；同一轮把教务登录从旧 xtgl 表单切到学校 CAS 单点登录，图书馆复用同一会话，旧的 xtgl 登录代码整段删除、无双路径 |
-| 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
+| 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`；该底部导航同日在 `54557e5` 被首页卡片共享展开动画取代，现状无 tab）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
 | 下一步 | **P0：迁移 Compose 1.9**（详见 [implementation-plan.md](implementation-plan.md)）；图书馆写操作（续借/荐购/预约委托）；发版前收尾（CHANGELOG/versionCode——main 已积累一整批未发版功能） |
 | 已知阻塞 | `dsh-android` 插件的 adb 发现未打通（`ADB`/`ANDROID_HOME` 未设、SDK 不在默认位置），需用户在启动 DSH 前配置环境变量；Gradle 与 adb 需要 `danger-full-access` |
 | 交接状态 | **可交接**：先读 [handover-notes.md](handover-notes.md)；图书馆与 CAS 的技术细节在 [architecture/library-and-sso.md](architecture/library-and-sso.md)；未完成项在 [implementation-plan.md](implementation-plan.md) |
@@ -45,13 +46,12 @@
 
 | 文件 | 内容 | 何时读 | 最后更新 |
 | --- | --- | --- | --- |
-| [architecture.md](architecture.md) | 系统全景、模块边界、关键架构决策与子文档导航 | 改结构、找代码位置、评估影响面 | 2026-10-28 |
-| [design-document.md](design-document.md) | 产品目标、用户场景、功能需求与 UI/UX 规范 | 讨论需求、判断「应该做成什么样」 | 2026-10-21 |
-| [implementation-plan.md](implementation-plan.md) | 当前里程碑、未完成任务、验证方式与风险 | 排期、接续未完成的活、确认验收标准 | 2026-10-28 |
-| [tech-stack.md](tech-stack.md) | 技术栈、版本矩阵、构建/运行命令、本机环境与编码规范 | 配环境、跑构建测试、加依赖、判断该用什么写法 | 2026-10-28 |
-| [handover-notes.md](handover-notes.md) | 上手路径、关键文件地图、工作流约定、坑与未决问题 | 刚接手、久未参与、准备交接 | 2026-10-30 |
+| [architecture.md](architecture.md) | 系统全景、模块边界、关键架构决策与子文档导航 | 改结构、找代码位置、评估影响面 | 2026-10-30 |
+| [implementation-plan.md](implementation-plan.md) | 当前里程碑、未完成任务、验证方式与风险 | 排期、接续未完成的活、确认验收标准 | 2026-10-30 |
+| [tech-stack.md](tech-stack.md) | 技术栈、版本矩阵、构建/运行命令、本机环境与编码规范 | 配环境、跑构建测试、加依赖、判断该用什么写法 | 2026-10-30 |
+| [handover-notes.md](handover-notes.md) | 上手路径、产品定位与边界、关键文件地图、工作流约定、坑与未决问题 | 刚接手、久未参与、准备交接 | 2026-10-30 |
 
-> 项目按「既有仓库 · 接手维护」维护，因此补齐了 `handover-notes.md`；`design-document.md` 与 `implementation-plan.md` 是新建期留下的长期资产，继续保留并维护。
+> 项目按「既有仓库 · 接手维护」维护，核心文件是 `readme.md`、`architecture.md`、`tech-stack.md`、`handover-notes.md` 加主题子文档。`implementation-plan.md` 因承载「当前路线图 + 验收标准 + 验证结果」而保留为独立主题；原 `design-document.md` 已于 2026-10-30 删除——它的有效内容（产品定位、目标与非目标、已放弃项、状态表达约定）分别并入 `handover-notes.md`、`architecture.md`、`tech-stack.md`，其余是与代码重复的需求台账。
 
 ### 架构子文档
 
@@ -89,13 +89,15 @@
 - 废弃内容直接删除或移入文件末尾的「历史记录」，不要写成「已从 X 改为 Y」的补丁式叙述。
 - 文件之间用相对链接互相引用；同一段内容只保留一处。
 - 新增主题文件或子目录时，在本文件「文件清单」登记，并写明「何时读」。
+- 文件集按「核心文件 + 主题子文档」维护：一个主题只允许有一个家；一次性文档（需求台账、计划书、交接纪要）用完即删或并入对应文档，不留档。
 - 只写有依据的内容。不确定的标 `待验证`，并注明需要什么才能确定，不猜测。
 - 项目既有约定：**构建与真机验收由用户在 Android Studio 完成**，除非用户明确要求，代理不自动执行 Gradle 构建。
 
 ## 历史记录
 
+- **2026-10-30（记忆库整理）**：按「不得有多余文件」精简——删除 `design-document.md`（v1.5.0 需求台账，与代码重复且缺图书馆/想看）与仓库根 `widget/HyperOS-Widget-Adaptation-Plan.md`（按 4 尺寸 + Fragment 写，待办已全部落地）；[handover-notes.md](handover-notes.md) 新增「产品定位与边界」、任务清单改为指向 [implementation-plan.md](implementation-plan.md)；[architecture.md](architecture.md) 补决策 12/13；[tech-stack.md](tech-stack.md) 补「状态表达」；[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 校正导航（无底部栏/无抽屉）、127 个 Kotlin 文件、Room v6、首页五卡。
 - **2026-10-30（晚）**：随「想看」功能闭环与详情页重设计同步——快照换最新进展并压缩旧条目；[data-and-storage.md](architecture/data-and-storage.md) 登记 wishlist 表与 Room 5→6；[library-and-sso.md](architecture/library-and-sso.md) 补想看/详情页/BookCovers 文件与"云端同步未立项"；[modules-and-ui.md](architecture/modules-and-ui.md) 更新共享元素约定（容器变换定案 + 检索路径例外）；[handover-notes.md](handover-notes.md) 刷新状态/文件地图/工作流约定并新增 P0 与四个新坑；[history/change-log.md](history/change-log.md) 新增「2026-10 下旬」章节。
 - **2026-10-30**：课表周次判定重构。新增 [architecture/ea-api.md](architecture/ea-api.md) 的位掩码说明（`oldzc`/`oldjc` 为权威周次/节次来源、`zcd` 会出现「第N周」写法、`xslxbj` 是课名尾部符号、换教师为同日同节多条条目）；[architecture/data-and-storage.md](architecture/data-and-storage.md) 更新 `courses` 表（增 `weekBits`/`periodBits`、`oddEven` 降级为兜底）与 Room 4→5 迁移表。上午另有一轮仓库收口：v1.7.0 遗留文档补提交与 `feat/md3-ui-refresh` 快进并入 `main`。
 - **2026-10-30（仓库收口）**：`CHANGELOG.md` 的 v1.7.0 段（`7580673`）与记忆库重整（`1e66d1b`）此前只存在于工作区，本次按主题拆成两次提交入库；`feat/md3-ui-refresh` 快进合并进 `main`，两条分支同指并推送。未改动任何 `app/` 源码，与已发布的 v1.7.0 二进制一致。
 - **2026-10-28**：随 v1.7.0 发版同步。删除一次性交接文档 `handover-library-sso.md`（长期技术内容并入新建的 [architecture/library-and-sso.md](architecture/library-and-sso.md)，未完成项并入 [implementation-plan.md](implementation-plan.md)，构建/发版命令并入 [tech-stack.md](tech-stack.md)）；[architecture.md](architecture.md) 补图书馆与 CAS 模块、关键决策 9–11；[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 补图书馆页面、逐级返回、`SemanticColors`/`SkeletonBox`/共享元素约定；[architecture/ea-api.md](architecture/ea-api.md) 的登录章节从 xtgl 表单直登改写为 CAS 单点登录；[tech-stack.md](tech-stack.md) 新增「版本与发布」；[handover-notes.md](handover-notes.md) 刷新状态、文件地图与发版流程。
-- **2026-10-21**：按团队 memory_bank 规范重整。目录由 `memory-bank/` 改为 `memory_bank/`；`progress.md` 拆分为当前路线图（[implementation-plan.md](implementation-plan.md)）与变更日志（[history/change-log.md](history/change-log.md)）；`architecture.md` 拆为主题子文档；`batch4-requirements.md` 的有效需求并入 [design-document.md](design-document.md)，过程记录归档到变更日志；`HTTP901-诊断与日志采集.md` 与 `glance-api-research.md` 移入 `diagnostics/` 并规范化；新增本入口文件、`tech-stack.md`、`handover-notes.md`、`architecture/security.md`。同日对齐代理端口 7897、统一许可证为 AGPL-3.0、关闭考试分页项、将小学期成绩改为待验证、i18n 搁置、安全项搁置、修正课表长按发布说明。启动改为本地判定并移除启动网络校验，详见 [startup-latency.md](diagnostics/startup-latency.md)。
+- **2026-10-21**：按团队 memory_bank 规范重整。目录由 `memory-bank/` 改为 `memory_bank/`；`progress.md` 拆分为当前路线图（[implementation-plan.md](implementation-plan.md)）与变更日志（[history/change-log.md](history/change-log.md)）；`architecture.md` 拆为主题子文档；`batch4-requirements.md` 的有效需求并入 `design-document.md`（该文件已于 2026-10-30 删除，有效内容转入 handover-notes / architecture / tech-stack），过程记录归档到变更日志；`HTTP901-诊断与日志采集.md` 与 `glance-api-research.md` 移入 `diagnostics/` 并规范化；新增本入口文件、`tech-stack.md`、`handover-notes.md`、`architecture/security.md`。同日对齐代理端口 7897、统一许可证为 AGPL-3.0、关闭考试分页项、将小学期成绩改为待验证、i18n 搁置、安全项搁置、修正课表长按发布说明。启动改为本地判定并移除启动网络校验，详见 [startup-latency.md](diagnostics/startup-latency.md)。

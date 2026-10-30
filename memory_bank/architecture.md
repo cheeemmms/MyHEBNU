@@ -2,8 +2,8 @@
 
 - **用途**：给出 MyHEBNU 的整体结构、模块边界与关键架构决策，作为架构子文档的索引。
 - **阅读时机**：改结构、加模块、找代码位置、评估改动影响面。
-- **最后更新**：2026-10-28
-- **状态**：稳定（与 v1.5.0 代码一致）
+- **最后更新**：2026-10-30
+- **状态**：稳定（与 `main` 当前代码一致：v1.7.0 + 未发版的「想看」闭环与书籍详情页重设计）
 
 ## 目录
 
@@ -25,7 +25,7 @@ MyHEBNU 是一个单 Activity 的 Android 12+ 应用：Kotlin + Jetpack Compose�
 | 层/模块 | 职责 | 关键位置 |
 | --- | --- | --- |
 | 应用入口 | 单 Activity；欢迎页 → 登录页 → 主界面；会话过期自愈；Widget 深链 | `MainActivity.kt`、`MyHebnuApplication.kt` |
-| 首页 | 问候语、下一节课/空教室/下一场考试/成绩四张卡片；**纯本地读取，启动零联网** | `ui/home/` |
+| 首页 | 问候语、下一节课/空教室/下一场考试/成绩/我的图书馆五张卡片；**纯本地读取，启动零联网** | `ui/home/` |
 | 课表 | 周视图网格、5/7 列切换、当前周/假期识别、学期末下学期课表面板、悬浮刷新 | `ui/schedule/`、`data/repository/ScheduleRepository.kt` |
 | 成绩 | 按学期展开、GPA 4.0/5.0/百分制、趋势图、成绩明细、缓存优先 | `ui/grade/`、`data/repository/GradeRepository.kt` |
 | 空教室 | 双校区、楼栋/周次/星期/节次筛选、分页；**每次实时查询** | `ui/room/`、`data/repository/RoomRepository.kt` |
@@ -33,7 +33,7 @@ MyHEBNU 是一个单 Activity 的 Android 12+ 应用：Kotlin + Jetpack Compose�
 | 我的图书馆 | 汇文 OPAC 只读 7 页：首页指标、当前借阅、动态借书码、馆藏检索、书目详情、预约与荐购、罚金与违约；独立 OkHttp + 同一 CookieJar | `ui/library/`、`data/repository/OpacRepository.kt`、`data/remote/opac/` |
 | 统一身份认证 | 学校 CAS：教务（`sso/zfiotlogin`）与图书馆共用 `cas.hebtu.edu.cn` 的 TGC，一次登录两边可用 | `data/remote/sso/SsoLoginManager.kt`、`data/repository/AuthRepository.kt` |
 | 设置 | 主题模式、学期设置、高级功能（自由主题色、显示周末列）、关于/更新 | `ui/settings/`、`ui/about/` |
-| 数据本地层 | Room v4（课程/考试/成绩）、DataStore 偏好、EncryptedSharedPreferences 凭证 | `data/local/` |
+| 数据本地层 | Room v6（课程/考试/成绩/想看）、DataStore 偏好、EncryptedSharedPreferences 凭证 | `data/local/` |
 | 数据远端层 | Retrofit 接口、持久 CookieJar、浏览器伪装与 901 识别拦截器、RSA 加密 | `data/remote/` |
 | 依赖注入 | Hilt：Network / Database / Repository 模块 | `di/` |
 | 桌面 Widget | 3 种 Glance 尺寸；跨进程读 Room + DataStore；深链回 App | `widget/` |
@@ -68,7 +68,7 @@ Repository
 | 成绩 | 缓存优先；无缓存才拉全部学期 | 短按刷最新学期 + 当前学期，长按拉近 3 学年 | v1.5.0 新增 Room 成绩表 |
 | 考试 | **联网优先**（每次进页拉取） | 成功后写穿 Room；首页“下一场考试”读缓存 | 分页项用户实测正常，已关闭 |
 | 空教室 | 实时查询，不缓存 | 每次筛选/翻页请求 | 分页参数 `queryModel.showCount` |
-| Widget | 本地 Room + DataStore | XML 1 小时 + 午夜 Worker + App 内更新 | 无分钟级更新 |
+| Widget | 本地 Room + DataStore | XML 1 小时兜底 + 事件边界 tick 链（节次起止 + 次日 00:00）+ App 内更新 | 不做分钟级轮询 |
 
 ## 关键架构决策
 
@@ -85,6 +85,8 @@ Repository
 | 9 | **登录改走学校 CAS 单点登录**，旧的 xtgl 表单直登整段删除、不留双路径 | 学校把教务入口换成 `sso/zfiotlogin`，图书馆（汇文 OPAC）共用同一 TGC；一次认证两边可用，也省掉维护两套加密分支 | 生效（v1.7.0） |
 | 10 | **图书馆用独立 OkHttpClient（共用 CookieJar）** | 教务 `AuthInterceptor` 会给所有 host 强塞教务 Referer，并把 CAS 的 `302 → cas/login` 误判成教务会话过期；OPAC 还需自己的 `X-Hw-*` 头 | 生效（v1.7.0） |
 | 11 | **图书馆内部导航全部压栈、逐级返回** | 用户明确要求「详情 → 检索结果 → 搜索框 → 图书馆首页」，不要越级；检索态清空只能由返回动作触发，不能靠 `DisposableEffect(onDispose)` | 生效（v1.7.0） |
+| 12 | **不做 WebView 登录兜底**（#23 已删除浏览器登录） | 部分机型 WebView 登录后会退回桌面，且与「自定义登录页 + 会话自愈」双轨维护成本高；代价是验证码与错误提示必须自己实现 | 生效 |
+| 13 | **课表不横向滑动**，5/7 列铺满屏宽 | 横向滑动与课程卡的点击/长按冲突，且周视图信息密度已够；代价是 7 列时节次列收窄到 28dp | 生效 |
 
 ## 子文档导航
 
@@ -107,7 +109,7 @@ Repository
 | Cookie 明文持久化 + BODY 日志 | 会话可被备份/root/日志读取 | 详见 [security.md](architecture/security.md)（修复已搁置） |
 | `navigation-compose` 已引入但未使用 | 依赖冗余，易误以为使用官方导航 | `app/build.gradle.kts`、无 `NavHost` |
 | 无自动化测试与 CI；Room `exportSchema=false` | 回归依赖手工真机验收，schema 无版本化产物 | `AppDatabase.kt`、`app/src` 仅 `main` |
-| 国际化未完成（搁置） | `values-en` 126 条 vs 默认 133 条，且部分界面硬编码中文；用户决定暂缓 | `res/values-en/`、`AdvancedSettingsScreen.kt` |
+| 国际化未完成（搁置） | `values-en` 128 条 vs 默认 135 条，且部分界面硬编码中文；用户决定暂缓 | `res/values-en/`、`AdvancedSettingsScreen.kt` |
 | 图书馆只读 | 续借/预约/荐购等写操作接口未接（续借与荐购路径已知，预约下单未抓到）；用户明确留到下一期 | [library-and-sso.md](architecture/library-and-sso.md) 的「未完成」 |
 | README 仍有旧信息 | 架构图/技术栈表有旧值；版本、变更日志、许可证、缓存策略、Widget 状态已同步 | `README.md` |
 
@@ -118,5 +120,6 @@ Repository
 
 ## 历史记录
 
+- **2026-10-30（记忆库整理）**：状态改为与 `main` 当前代码一致；系统全景的首页改为五张卡片、数据本地层改为 Room v6；关键决策补 12（不做 WebView 登录兜底）与 13（课表不横向滑动），这两条取舍原载于已删除的 `design-document.md`；i18n 条数按当前资源更新为 128/135。
 - **2026-10-28**：新增「我的图书馆」模块与 CAS 单点登录条目，关键决策补 9–11（CAS 单点登录、图书馆独立 client、逐级返回）；图书馆细节与 OPAC 接口集中到 [library-and-sso.md](architecture/library-and-sso.md)。
 - **2026-10-21**：原 `architecture.md`（621 行，含技术栈、包结构、数据模型、API、导航、Widget、通知、错误处理、逆向工程、Compose 规则）按主题拆分。技术栈与构建命令移至 [tech-stack.md](tech-stack.md)；数据模型移至 [data-and-storage.md](architecture/data-and-storage.md)；API 与请求门控移至 [ea-api.md](architecture/ea-api.md)；Widget/提醒移至 [widget-and-reminders.md](architecture/widget-and-reminders.md)；安全项移至 [security.md](architecture/security.md)；诊断复盘移至 [diagnostics/](diagnostics/)。同时修正了“Drawer 导航”“4 种 Widget”“HTTPS 强制”等与当前代码不符的描述；关闭考试分页项，小学期成绩改为待验证。

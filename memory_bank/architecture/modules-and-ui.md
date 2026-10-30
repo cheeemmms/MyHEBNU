@@ -3,7 +3,7 @@
 - **用途**：说明代码如何按包分层、页面如何导航、各屏状态由谁持有，以及主题与依赖注入的位置。
 - **阅读时机**：新增页面/模块、修改导航或主题、定位某个界面逻辑。
 - **最后更新**：2026-10-30
-- **状态**：稳定（含 2026-10-21 MD3 前端整改，分支 `feat/md3-ui-refresh`）
+- **状态**：稳定（2026-10-21 MD3 前端整改后持续维护；`feat/md3-ui-refresh` 已并入 `main`）
 
 ## 目录
 
@@ -16,7 +16,7 @@
 
 ## 包结构
 
-`app/src/main/java/com/myhebnu/`（84 个 Kotlin 文件，2026-10-21 统计）：
+`app/src/main/java/com/myhebnu/`（127 个 Kotlin 文件，2026-10-30 统计）：
 
 ```text
 com.myhebnu
@@ -25,7 +25,7 @@ com.myhebnu
 ├── di/                         # NetworkModule / DatabaseModule / RepositoryModule
 ├── data/
 │   ├── local/
-│   │   ├── db/                 # AppDatabase(v4)、dao/、entity/、migrations/
+│   │   ├── db/                 # AppDatabase(v6)、dao/、entity/、migrations/
 │   │   └── preferences/        # UserPreferences(DataStore)、CredentialManager(加密凭证)
 │   ├── model/                  # GitHubRelease
 │   ├── remote/                 # EASystemApi、GitHubApi、CasApi、SessionManager、
@@ -39,7 +39,7 @@ com.myhebnu
 │   ├── exam/                   # ExamScreen、ExamViewModel、components/ExamCard
 │   ├── grade/                  # GradeScreen、GradeViewModel、components/*
 │   ├── home/                   # HomeScreen、HomeViewModel、components/HomeCardPanel
-│   ├── navigation/             # TopLevelRoute 路由常量
+│   ├── navigation/             # AppNavigation.kt（TopLevelRoute 路由常量）
 │   ├── room/                   # RoomScreen、RoomViewModel、components/FilterPanel、RoomList
 │   ├── schedule/               # ScheduleScreen、ScheduleViewModel、components/*
 │   ├── settings/               # Settings、Advanced、ColorTheme、SemesterSetup
@@ -73,21 +73,21 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 
 - `MainAppContent` 持有 `currentRoute: String` + `backStack: SnapshotStateList<String>`。
 - `navigateTo` 压栈前进，`goBack` 弹栈；栈空回 `home`。
-- **底层导航（2026-10-21 起）**：5 个顶层目的地（首页/课表/成绩/空教室/考试）显示 `NavigationBar`，选中态用 `primaryContainer` 指示器；切换 tab 视为一级导航并清空回退栈。
-- `isTopLevel` 判定：`currentRoute in topLevelRoutes`；`BackHandler(enabled = !isTopLevel)` 只拦二级页返回。
-- 页面切换用 `AnimatedContent`，外层 `Column` 用 `Modifier.background(surface)` 兜底，避免暗色下交叉淡入透出白底。
+- **没有底部导航栏，也没有抽屉**：唯一入口是首页卡片面板（`HomeCardPanel`，按 `card.route` 逐张挂共享元素 `home-card-<route>`）；各页面自带 `TopAppBar`。
+- 返回拦截：`BackHandler(enabled = currentRoute != TopLevelRoute.Home.route) { goBack() }` —— 除首页外任何路由都被系统返回手势拦下先弹栈，栈空回 `home`。
+- 页面切换用 `SharedTransitionLayout { AnimatedContent(targetState = currentRoute) }`，每个页面都接收 `sharedScope`/`animatedScope`；外层 `Box` 用 `Modifier.background(MaterialTheme.colorScheme.background)` 兜底，避免暗色下交叉淡入透出白底，并只给横向 `displayCutout` 加 inset（纵向留给页面自己处理，书籍详情页封面要铺到状态栏下面）。
 - 路由集合（`TopLevelRoute` + 字符串）：`home`、`schedule`、`grade`、`empty_room`、`exam`、`settings`、`advanced_settings`、`color_theme`、`about`、`system_update`、`semester_setup`，以及图书馆的 `library`、`library_reader_code`、`library_loans`、`library_requests`、`library_fines`、`library_search`、`library_bib\u0001…`（见 [library-and-sso.md](library-and-sso.md#页面与路由)）。
 - 二级页一律压栈前进、弹栈返回；图书馆检索页额外约定「详情 → 检索结果 → 搜索框 → 图书馆首页」的逐级返回，用 `BackHandler(enabled = hasSearchState)` 拦一次返回先 `reset()` 检索态。
-- 每个页面自带 `Scaffold` + `TopAppBar`；顶层页传 `onBack = null` 不显示返回箭头，二级页传 lambda 显示。
+- 每个页面自带 `Scaffold` + `TopAppBar`；首页不接 `onBack`（无返回箭头），课表/成绩/空教室/考试/设置等其余页面都接 `onBack = { goBack() }`，因此在这个「无 tab」结构里都能看到返回箭头。
 - Widget 深链：`myhebnu://navigate/{route}`，由 `MainActivity.handleDeepLink()` 写入 `pendingNavigation`，主界面消费后清空返回栈并跳转。
 
-> 注意：`ui/navigation/TopLevelRoute` 只是路由常量集合；项目**没有使用** Navigation Compose 的 `NavHost`，尽管 `libs.navigation.compose` 仍在依赖中。
+> 注意：`ui/navigation/AppNavigation.kt` 里的 `TopLevelRoute` 只是路由常量集合（其 KDoc 还写着「for the Navigation Drawer」，是历史注释，项目里并没有抽屉）；项目**没有使用** Navigation Compose 的 `NavHost`，尽管 `libs.navigation.compose` 仍在依赖中。
 
 ## 页面与状态
 
 | 页面 | ViewModel / 状态 | 关键行为 |
 | --- | --- | --- |
-| 首页 `HomeScreen` | `HomeViewModel` + `HomeUiState` | 问候语按 6–11/12–13/14–17/其余分四档；`NextClassState` = IN_CLASS / HAS_CLASS / ALL_DONE / WEEKEND / HOLIDAY；四张卡片入口；显示更新横幅/学期设置横幅 |
+| 首页 `HomeScreen` | `HomeViewModel` + `HomeUiState` | 问候语按 6–11/12–13/14–17/其余分四档；`NextClassState` = IN_CLASS / HAS_CLASS / ALL_DONE / WEEKEND / HOLIDAY；五张卡片入口（下一节课/空教室/下一场考试/成绩/我的图书馆）；显示更新横幅/学期设置横幅 |
 | 课表 `ScheduleScreen` | `ScheduleViewModel` + `ScheduleUiState`（881 行，项目最复杂） | Room Flow + 展示周 + 颜色偏好 `combine`；`dayLabels` 随“显示周末列”在 5/7 列切换；`currentWeek` 与 `displayWeek` 分离；假期周用 `isVacation` 提示；学期末 `SemesterPanelMode` 三态浮层（DISCOVERY/REENTRY/BACK） |
 | 成绩 `GradeScreen` | `GradeViewModel` | 观察 Room 全量成绩 → 按学期分组 → 计算 4.0/5.0/加权百分制；首帧保持 loading 防闪“无成绩”；短按/长按悬浮刷新；明细走 `getGradeDetail()` |
 | 空教室 `RoomScreen` | `RoomViewModel` | 校区/楼栋/周次/星期/节次筛选；分页 `currentPage/totalPage`；每次查询实时请求 |
@@ -128,7 +128,7 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | 模块 | 提供 |
 | --- | --- |
 | `NetworkModule` | 主 OkHttp（CookieJar + AuthInterceptor + BODY 日志 + 15s 超时 + 禁止自动重定向）、Retrofit（教务 BASE_URL）、CAS Retrofit、GitHub Retrofit（独立 UA/超时） |
-| `DatabaseModule` | Room `AppDatabase` v4，注册 `MIGRATION_1_2`、`MIGRATION_2_3`、`MIGRATION_3_4` |
+| `DatabaseModule` | Room `AppDatabase` v6（courses/exams/grades/wishlist），注册 `MIGRATION_1_2`、`MIGRATION_2_3`、`MIGRATION_3_4`、`MIGRATION_4_5`、`MIGRATION_5_6` |
 | `RepositoryModule` | 绑定各 Repository 到 Singleton |
 | `OpacModule` | 图书馆专用 `@Named("opac")` OkHttpClient（同一 `PersistentCookieJar`、不挂 `AuthInterceptor`、带 `X-Hw-*` 头）+ Retrofit（`https://hwdw.hebtu.edu.cn/meta-local/opac/`） |
 
@@ -143,3 +143,7 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 - 新增弹窗/选择器：使用 M3 `AlertDialog` / `ExposedDropdownMenuBox` / `SegmentedButton` / `Slider`。
 - 新增滚动容器：先读 [../diagnostics/compose-nested-scroll.md](../diagnostics/compose-nested-scroll.md)。
 - 字符串：新增文案优先加到 `values/strings.xml` 与 `values-en/strings.xml`；当前仍有硬编码中文，改动时顺手补齐。
+
+## 历史记录
+
+- **2026-10-30（记忆库整理）**：按当前代码校正——删掉「底层 5 目的地 NavigationBar」这一已不存在的描述，改为首页卡片面板 + 手写返回栈 + 共享元素转场；`TopLevelRoute` 注明位于 `AppNavigation.kt`；Kotlin 文件数 84→127、Room v4→v6、迁移补到 `MIGRATION_5_6`、首页四卡→五卡。

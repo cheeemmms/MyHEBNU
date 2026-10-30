@@ -8,6 +8,7 @@
 ## 目录
 
 - [项目来源与当前状态](#项目来源与当前状态)
+- [产品定位与边界](#产品定位与边界)
 - [五分钟上手路径](#五分钟上手路径)
 - [关键文件地图](#关键文件地图)
 - [构建、运行与调试](#构建运行与调试)
@@ -23,13 +24,24 @@
 | 项 | 内容 |
 | --- | --- |
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
-| 分支/提交 | **工作分支 `main`**（2026-10-30 `feat/md3-ui-refresh` 已快进并入并停更）；本轮维护 HEAD = `31c914e`，远端同步 |
-| 历史规模 | 2026-06-04 起，110+ 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
+| 分支/提交 | **工作分支 `main`**（`feat/md3-ui-refresh` 已于 2026-10-30 快进并入并停更，停在 `ae4689a`）；记忆库整理前 HEAD = `dae920c`，远端同步 |
+| 历史规模 | 2026-06-04 起，132 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
 | 当前版本 | **v1.7.0**（versionCode 9，2026-10-28 发布）；main 在其上已积累一整批未发版功能（见下） |
 | v1.7.0 后新功能 | **「想看」闭环**（Room v6 wishlist → 详情页胶囊 → 列表页 → 首页入口/指标 → JSON 导出导入）；**详情页重设计**（沉浸头图 + 视差 + 滚动模糊淡出 + 状态栏反色）；**动画定案**（容器变换保留默认实现且最受重视；检索路径不走共享元素；内容动画用 M3 emphasized 曲线） |
 | 当前可用程度 | **能构建、已上真机**：以上功能全部在 24129PN74C 真机验收通过 |
 | 最近一次验证 | 2026-10-30 多轮 `assembleDebug` + `adb install -r`；`dumpsys gfxinfo` 实测确认首次进入页面的掉帧为首帧组合固有成本，与转场配置无关 |
 | 工作区状态 | 代码与记忆库均已提交推送 |
+
+## 产品定位与边界
+
+| 项 | 内容 |
+| --- | --- |
+| 定位 | 河北师范大学**非官方** Android 教务助手：把 ZFSOFT 教务与汇文 OPAC 封装成 Material 3 界面；单用户，无账号体系，不替代学校官方系统 |
+| 主用户 | 作者本人与在校生；不做多账号切换 |
+| 平台/分发 | Android 12+（`minSdk 31`），GitHub Releases 签名 APK |
+| 目标 | ① **快**：启动零联网，课表/成绩缓存优先；② **清楚**：课表周视图、成绩按学期折叠、考试倒计时、空教室分页筛选；③ **贴本校**：三学期（含小学期 `16`）、双校区、13 节真实节次；④ **可离线**：课表/成绩/考试/想看均有本地缓存 |
+| 非目标 | 不做多学校适配（接口与学期编码按本校定制）；不做云端同步/社交分享；不做桌面端/网页版；不承诺与教务系统实时一致，以本地缓存 + 手动刷新为准 |
+| 已放弃 | 课表横向滑动（改为 5/7 列铺满）；浏览器 WebView 登录兜底（#23 删除）；Widget 的分钟级刷新/跟随自定义主题色/App 内添加三项取舍见 [widget-and-reminders.md](architecture/widget-and-reminders.md) |
 
 ## 五分钟上手路径
 
@@ -58,7 +70,7 @@
 | 考试 | `data/repository/ExamRepository.kt`、`ui/exam/` | 每次进页联网；分页项用户实测正常，暂不修改 |
 | 首页 | `ui/home/HomeViewModel.kt`、`HomeScreen.kt`、`components/HomeCardPanel.kt` | 首页纯本地；卡片逐张挂共享元素 `home-card-<route>`；目标页必须接 `sharedScope`/`animatedScope` |
 | 设计系统 | `ui/design/Components.kt`、`DesignTokens.kt`、`ui/theme/{Theme,Color,Shapes,SemanticColors}.kt` | 颜色/形状/间距只用令牌；成功色走 `LocalSemanticColors`；骨架屏 `SkeletonBox` |
-| 数据库 | `data/local/db/AppDatabase.kt`、`entity/`、`dao/`、`migrations/Migrations.kt` | 改表必须写 Migration；**v6** 当前 5 张表（courses/exams/grades/wishlist + 索引） |
+| 数据库 | `data/local/db/AppDatabase.kt`、`entity/`、`dao/`、`migrations/Migrations.kt` | 改表必须写 Migration 并在 `DatabaseModule` 注册；**v6** 共 4 张表（courses/exams/grades/wishlist）+ 学期索引 |
 | DataStore | `data/local/preferences/UserPreferences.kt` | 新增键要提供默认值；跨进程读取要能被 Widget 使用 |
 | Widget | `widget/ScheduleWidgetData.kt`、`widget/Schedule*Widget.kt`、`res/xml/schedule_widget_*.xml` | 尺寸/颜色/圆角一律用 `R.dimen`/`R.color`；见 [diagnostics/glance-miui-resources.md](diagnostics/glance-miui-resources.md) |
 | 提醒 | `MyHebnuApplication.kt`、`worker/ReminderManager.kt`、`worker/*Worker.kt` | 周期任务唯一名不要改；异常要消化为 `Result.success()` |
@@ -125,32 +137,19 @@
 
 ## 待办与坑
 
+> 任务清单（P0 Compose 1.9、图书馆写操作、Phase 8 收尾、安全项、测试/CI、README 同步等）及验收标准统一在 [implementation-plan.md](implementation-plan.md) 维护，本表只保留**交接时必须知道的行为约定与坑**。
+
 | # | 事项 | 类型 | 优先级 | 线索 |
 | --- | --- | --- | --- | --- |
-| 0 | **迁移 Compose 1.9**（BOM 2025.10.00 一档） | 待办 | **P0** | 解锁 `onVisibilityChanged`（瀑布流共享元素按可见性挂载）与 `Text(autoSize)`；前置：compileSdk 36、AGP/Lint 升级；已确认无自定义 Indication。详见 [implementation-plan.md](implementation-plan.md) |
-| 1 | 图书馆写操作：续借 `POST users/renew` | 待办 | 高 | `data/remote/opac/OpacApi.kt`、`ui/library/Loans*` |
-| 2 | 图书馆写操作：荐购提交 `users/requests?type=req.acq.suggest` | 待办 | 中 | `OpacRepository`、`ui/library/Requests*` |
-| 3 | 图书馆写操作：预约/委托下单（接口未抓到） | 阻塞 | 中 | 需先抓包 `requests/item_copies` 之后的请求 |
-| 4 | 想看数据无云端同步（仅本机 + 手动导出导入） | 设计决策 | — | 2026-10-30 管理员确认先做手动备份；如需自动同步另立项 |
-| 5 | 发布构建关闭 BODY 日志并脱敏 Cookie 日志 | 安全·搁置 | — | `di/NetworkModule.kt`、`PersistentCookieJar.kt` |
-| 6 | Cookie 持久化加密 | 安全·搁置 | — | `data/remote/SessionManager.kt` |
-| 7 | 收紧 `network_security_config`，仅放行教务域名 | 安全·搁置 | — | `res/xml/network_security_config.xml` |
-| 8 | 配置备份排除/关闭 `allowBackup` | 安全·搁置 | — | `AndroidManifest.xml` |
-| 9 | 移除未使用的 `SCHEDULE_EXACT_ALARM` | 安全·搁置 | — | `AndroidManifest.xml` |
-| 10 | 小学期 `16` 成绩接入调研 | 待办 | 中 | `GradeRepository.SEMESTER_TERMS` |
-| 11 | 补测试/CI | 待办 | 中 | 已有 3 组 JVM 单测，无 CI |
-| 12 | README 架构图/技术栈表同步 | 待办 | 中 | README 架构总览、技术栈表 |
-| 13 | 课表刷新事务化 | 坑 | 中 | `ScheduleRepository.refreshSchedule` 删后插非事务 |
-| 14 | 通知权限未引导 | 坑 | 中 | `ReminderManager` 捕获 `SecurityException` 后静默 |
-| 15 | 自研滚轮禁用 | 约定 | 高 | 见 [design-document.md](design-document.md) UI/UX |
-| 16 | Compose 嵌套滚动 | 坑 | 高 | 见 [diagnostics/compose-nested-scroll.md](diagnostics/compose-nested-scroll.md) |
-| 17 | MIUI Widget 资源化 | 坑 | 高 | 见 [diagnostics/glance-miui-resources.md](diagnostics/glance-miui-resources.md) |
-| 18 | 共享元素动画静默失效 | 坑 | 中 | 页面签名没接 `sharedScope`/`animatedScope` 时会退回淡入淡出，不报错 |
-| 19 | 交错网格抖动 | 坑 | 中 | 封面高度必须在图片加载前定死（`coverRatioFor`），不要用 `onSuccess` 回写比例 |
-| 20 | BlendMode 遮罩必须开离屏合成 | 坑 | 高 | `drawWithContent` 里用 `BlendMode.DstIn` 等时必须配 `graphicsLayer(compositingStrategy = Offscreen)`，否则与窗口背景混合整块变黑（2026-10-30 详情页实测） |
-| 21 | 远程图片禁止无约束尺寸 | 坑 | 高 | `wrapContentHeight` 等无约束布局会让 Coil 推断不出目标尺寸、按原图解码；所有封面请求经 `bookCoverRequest` 显式给 size |
-| 22 | 换书时 uiState 必须按 bibId 闸门 | 坑 | 高 | 详情页 ViewModel 是 Activity 级复用，换书首帧旧状态仍在；已用 `rawState.bibId == bibId` 闸门修复，改详情页时不可移除 |
-| 23 | 容器变换动画已定案 | 约定 | 高 | sharedBounds 整页展开 + 默认 enter/exit/resizeMode 就是最受重视的动画；fade through / RemeasureToBounds / 封面 sharedElement 三个实验均已否决（2026-10-30），不要重新引入 |
+| 0 | 自研滚轮禁用 | 约定 | 高 | 选择器只用 M3 原生控件，见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md)「主题与视觉」 |
+| 1 | Compose 嵌套滚动 | 坑 | 高 | 见 [diagnostics/compose-nested-scroll.md](diagnostics/compose-nested-scroll.md) |
+| 2 | MIUI Widget 资源化 | 坑 | 高 | 见 [diagnostics/glance-miui-resources.md](diagnostics/glance-miui-resources.md) |
+| 3 | 共享元素动画静默失效 | 坑 | 中 | 页面签名没接 `sharedScope`/`animatedScope` 时会退回淡入淡出，不报错 |
+| 4 | 交错网格抖动 | 坑 | 中 | 封面高度必须在图片加载前定死（`coverRatioFor`），不要用 `onSuccess` 回写比例 |
+| 5 | BlendMode 遮罩必须开离屏合成 | 坑 | 高 | `drawWithContent` 里用 `BlendMode.DstIn` 等时必须配 `graphicsLayer(compositingStrategy = Offscreen)`，否则与窗口背景混合整块变黑（2026-10-30 详情页实测） |
+| 6 | 远程图片禁止无约束尺寸 | 坑 | 高 | `wrapContentHeight` 等无约束布局会让 Coil 推断不出目标尺寸、按原图解码；所有封面请求经 `bookCoverRequest` 显式给 size |
+| 7 | 换书时 uiState 必须按 bibId 闸门 | 坑 | 高 | 详情页 ViewModel 是 Activity 级复用，换书首帧旧状态仍在；已用 `rawState.bibId == bibId` 闸门修复，改详情页时不可移除 |
+| 8 | 容器变换动画已定案 | 约定 | 高 | sharedBounds 整页展开 + 默认 enter/exit/resizeMode 就是最受重视的动画；fade through / RemeasureToBounds / 封面 sharedElement 三个实验均已否决（2026-10-30），不要重新引入 |
 
 > 安全项 2026-10-21 用户决定**暂时搁置**，保留记录不实施；恢复优先级见 [architecture/security.md](architecture/security.md)。
 
@@ -169,6 +168,8 @@
 - [ ] 改动已刷新 [readme.md](readme.md) 快照与受影响文件
 
 ## 历史记录
+
+- **2026-10-30（记忆库整理）**：新增「产品定位与边界」（并入原 `design-document.md` 的定位/目标/非目标/已放弃项，该文件随后删除）；「待办与坑」只保留交接必需的行为约定与坑，任务与验收标准统一指向 [implementation-plan.md](implementation-plan.md)；修正 HEAD（`dae920c`）、提交数（132）、数据库表数（4 张：courses/exams/grades/wishlist）。
 
 - **2026-10-30（晚）**：随「想看」功能闭环与详情页重设计同步——当前状态改为 main 工作线、HEAD `31c914e`；文件地图新增想看与书籍详情页两行、数据库更新为 v6；工作流约定补「验收由用户做」与「回滚指令先确认范围」；待办新增 P0 Compose 1.9 迁移与四个新坑（BlendMode 离屏、无约束图片尺寸、换书闸门、容器变换定案）；交接清单补想看路径。
 

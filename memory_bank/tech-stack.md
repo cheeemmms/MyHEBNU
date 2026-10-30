@@ -2,8 +2,8 @@
 
 - **用途**：记录技术选型、精确版本、可执行命令、本机环境与编码规范。
 - **阅读时机**：配环境、跑构建/测试、新增依赖、判断该用什么写法。
-- **最后更新**：2026-10-21
-- **状态**：稳定（版本与 v1.7.0 一致）
+- **最后更新**：2026-10-30
+- **状态**：稳定（工具链与 v1.7.0 一致；Room 表数按当前代码更新为 v6）
 
 ## 目录
 
@@ -32,7 +32,7 @@
 | 导航 | Compose Navigation | 2.8.5 | 已引入 | **当前代码未使用 `NavHost`** |
 | 状态 | Lifecycle / ViewModel | 2.8.7 | `StateFlow` + `collectAsState` | `lifecycle-runtime-compose` |
 | DI | Hilt | 2.57.2 | 全应用注入 | `hilt-navigation-compose` 1.2.0 |
-| 数据库 | Room | 2.7.2 | 课程/考试/成绩缓存 | v4，`exportSchema=false` |
+| 数据库 | Room | 2.7.2 | 课程/考试/成绩/想看缓存 | v6，`exportSchema=false` |
 | 网络 | Retrofit | 3.0.0 | 教务/GitHub 接口 | Gson converter |
 | 网络 | OkHttp | 5.3.2 | HTTP 引擎 | CookieJar + AuthInterceptor |
 | 网络 | Jsoup | 1.22.2 | 解析登录页/错误提示 | `csrftoken`、`#tips` |
@@ -42,9 +42,9 @@
 | 条码/二维码 | ZXing | 3.5.3 | 图书馆借书码 | `zxing-core`，`ui/library/ReaderCodeImage.kt` 自行渲染 |
 | 图书馆接口 | 汇文 OPAC | — | `https://hwdw.hebtu.edu.cn/meta-local/opac/` | 独立 `@Named("opac")` client，共用 CookieJar，见 [architecture/library-and-sso.md](architecture/library-and-sso.md) |
 | Widget | Glance | 1.1.1 | 桌面课表 | 3 种尺寸 |
-| 后台 | WorkManager | 2.10.0 | 提醒/Widget 午夜刷新 | 周期任务 |
+| 后台 | WorkManager | 2.10.0 | 上课/考试提醒、Widget 刷新 | 提醒用周期任务；Widget 用一次性 tick 链（`WidgetTickWorker`），见 [architecture/widget-and-reminders.md](architecture/widget-and-reminders.md) |
 | 协程 | kotlinx-coroutines | 1.11.0 | 异步/Flow | `coroutines-android` |
-| 测试 | JUnit | 4.13.2 | 单元测试 | 当前无测试源码 |
+| 测试 | JUnit | 4.13.2 | 单元测试 | 3 组 JVM 单测：`LoginPageDetectorTest`、`ZfsoftRsaTest`、`WidgetScheduleLogicTest` |
 | 资源 | Android SDK | compile/target 35，min 31 | API 级别 | 16KB Page 对齐开启 |
 
 > 版本目录中还有 `vico 2.0.0-beta.2`、`colorpicker-compose 1.2.0` 等条目，但 `app/build.gradle.kts` 未引用；成绩趋势图实际用 Canvas 手绘。
@@ -94,8 +94,8 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | --- | --- |
 | 操作系统 | Windows（PowerShell 7） |
 | 项目路径 | `D:\Personal_file\VibeCoding\Program\My-University` |
-| Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，工作分支 `feat/md3-ui-refresh`（MD3 整改分支，尚未并入 `main`） |
-| Git 状态 | 2026-10-28：发版提交 `673fed7`（v1.7.0 功能）+ 文档提交 `d10ca1d`，均已推送；`backup/2026-08-30` 备份分支指向 `797e0ef` |
+| Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，工作分支 `main`（`feat/md3-ui-refresh` 已快进并入并停更） |
+| Git 状态 | 2026-10-30：`main` 在 `dae920c`（记忆库同步提交），与远端同步；v1.7.0 发版提交为 `673fed7`；`backup/2026-08-30` 备份分支指向 `797e0ef` |
 | GitHub CLI | `gh 2.89.0`，已登录 `cheeemmms`；`git credential.helper=manager` |
 | Android Studio（JAVA_HOME） | `C:\Program Files\Android\Android Studio`，JBR 21.0.10 |
 | 另一处 Android Studio | `D:\Software\Android\bin\studio64.exe`（也存在） |
@@ -125,6 +125,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 - **Compose**：状态上提；不要嵌套垂直滚动容器（见 [diagnostics/compose-nested-scroll.md](diagnostics/compose-nested-scroll.md)）。
 - **选择器**：仅用 M3 原生控件；禁止自研 iOS 滚轮。
 - **文案**：新增用户可见文案走 `stringResource`，不要继续增加硬编码中文；全量英文已搁置，恢复时同步 `values-en`。
+- **状态表达**：加载用 `SkeletonBox` 或进度指示；空态给明确文案；错误给可重试提示，不把裸 `HTTP xxx` 直接抛给用户。
 - **数据**：学期码用 `3/12/16` 常量；校区读 `preferences.campusId`；列表接口显式传 `queryModel.showCount`（考试接口当前未传，用户实测正常，暂不改）。
 - **日志**：TAG 用 `MyHEBNU`，Widget 用 `MyHEBNU-Widget`；不要打印密码/完整 Cookie；发布构建应关闭 BODY 日志。
 - **Git**：Conventional Commits（`feat:`/`fix:`/`chore:`/`docs:`）；发布提交同时 bump 版本与 CHANGELOG；推送前确认工作区无敏感文件。
@@ -190,3 +191,4 @@ gh release create v<版本> app/build/outputs/apk/release/MyHEBNU-<版本>-relea
 | 2026-09-13 | v1.5.0：新增 Room 成绩表（DB v3→v4）、`RefreshFab`；版本 1.4.0→1.5.0 |
 | 2026-10-21 | 本文件按 memory_bank 规范创建；记录当前工具链、代理与沙箱限制；标注未使用依赖 |
 | 2026-10-28 | v1.7.0：补 ZXing 3.5.3 与汇文 OPAC 依赖行；构建/安装/单测结果更新到 v1.7.0；新增「版本与发布」小节（三处版本号 + gh release 流程）；工作分支改为 `feat/md3-ui-refresh` |
+| 2026-10-30 | 记忆库整理：Room v4→v6（含 `wishlist` 表）、测试行改为 3 组 JVM 单测（原来误写“无测试源码”）、工作分支改回 `main`；编码规范补「状态表达」一条 |

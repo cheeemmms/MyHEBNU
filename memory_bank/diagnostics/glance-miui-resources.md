@@ -90,6 +90,6 @@ Glance 的 `FixedColorProvider` / `Dimension.Dp` 在 RemoteViews 中编码为 Ac
 
 - `previewImage`：有帮助（选择器缩略图 + 占位），但非核心修复。
 - 诊断日志：保留以支持后续排查（TAG `MyHEBNU-Widget`）。
-- `courseColorResource()` 6 色桶：替代动态 HSL 生成；限制见 [../design-document.md](../design-document.md) W-06。
+- `courseColorResource()` 6 色桶：替代动态 HSL 生成；限制（不跟随 App 自定义主题色）见 [widget-and-reminders.md](../architecture/widget-and-reminders.md)。
 
 > 关联：[widget-and-reminders.md](../architecture/widget-and-reminders.md) · [tech-stack.md](../tech-stack.md)

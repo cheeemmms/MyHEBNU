@@ -2,7 +2,7 @@
 
 - **用途**：说明代码如何按包分层、页面如何导航、各屏状态由谁持有，以及主题与依赖注入的位置。
 - **阅读时机**：新增页面/模块、修改导航或主题、定位某个界面逻辑。
-- **最后更新**：2026-10-21
+- **最后更新**：2026-10-28
 - **状态**：稳定（含 2026-10-21 MD3 前端整改，分支 `feat/md3-ui-refresh`）
 
 ## 目录
@@ -76,7 +76,8 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 - **底层导航（2026-10-21 起）**：5 个顶层目的地（首页/课表/成绩/空教室/考试）显示 `NavigationBar`，选中态用 `primaryContainer` 指示器；切换 tab 视为一级导航并清空回退栈。
 - `isTopLevel` 判定：`currentRoute in topLevelRoutes`；`BackHandler(enabled = !isTopLevel)` 只拦二级页返回。
 - 页面切换用 `AnimatedContent`，外层 `Column` 用 `Modifier.background(surface)` 兜底，避免暗色下交叉淡入透出白底。
-- 路由集合（`TopLevelRoute` + 字符串）：`home`、`schedule`、`grade`、`empty_room`、`exam`、`settings`、`advanced_settings`、`color_theme`、`about`、`system_update`、`semester_setup`。
+- 路由集合（`TopLevelRoute` + 字符串）：`home`、`schedule`、`grade`、`empty_room`、`exam`、`settings`、`advanced_settings`、`color_theme`、`about`、`system_update`、`semester_setup`，以及图书馆的 `library`、`library_reader_code`、`library_loans`、`library_requests`、`library_fines`、`library_search`、`library_bib\u0001…`（见 [library-and-sso.md](library-and-sso.md#页面与路由)）。
+- 二级页一律压栈前进、弹栈返回；图书馆检索页额外约定「详情 → 检索结果 → 搜索框 → 图书馆首页」的逐级返回，用 `BackHandler(enabled = hasSearchState)` 拦一次返回先 `reset()` 检索态。
 - 每个页面自带 `Scaffold` + `TopAppBar`；顶层页传 `onBack = null` 不显示返回箭头，二级页传 lambda 显示。
 - Widget 深链：`myhebnu://navigate/{route}`，由 `MainActivity.handleDeepLink()` 写入 `pendingNavigation`，主界面消费后清空返回栈并跳转。
 
@@ -95,6 +96,7 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | 学期设置 `SemesterSetupScreen` | `SemesterSetupViewModel` | 选学年 + 学期（M3 原生下拉/分段按钮）；保存时用 N2154 周次映射推导开学日/放假日 |
 | 自由主题色 `ColorThemeScreen` | `SettingsViewModel` | 6 套内置预设 + 自定义 HSL 色轮；预设 JSON 存 DataStore |
 | 关于/系统更新 | `UpdateRepository` | 版本号、源码/交流群/邮箱、许可证；手动检查更新、自动检查开关 |
+| 我的图书馆（7 页） | `LibraryHomeViewModel`、`LoansViewModel`、`ReaderCodeViewModel`、`SearchViewModel`、`BibDetailViewModel`、`RequestsViewModel`、`FinesViewModel` | 首页指标条（在借/预约/逾期/罚金 + 额度）与 5 个入口；借书码页 ZXing 渲染条形码 + 二维码（同源同串、26 秒自动换码）；检索页双列瀑布流 + 页码翻页（`gridState` 与 `pendingScrollToTop` 在 ViewModel 里，从详情返回停原位）；详情页含馆藏位置/内容简介/出版信息。细节见 [library-and-sso.md](library-and-sso.md) |
 
 ### 关键状态契约
 
@@ -117,6 +119,9 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | 字体 | `Type.kt`；课程卡片按卡片实际高度动态决定课名行数（`WeekViewGrid` 传 `cardHeight`），课名 14/13/12sp 退让、次信息 11sp |
 | 文本对比 | 不再用 `copy(alpha = …)` 模拟次级文本，统一走 `onSurfaceVariant`；只有装饰性发光/网格线保留 alpha |
 | 弹层/选择器 | 一律 Material 3 原生控件；禁止自研 iOS 风格滚轮 |
+| 语义成功色 | `ui/theme/SemanticColors.kt` 的 `SemanticColors` + `LocalSemanticColors`，由 `MyHEBNUTheme` 按深浅主题注入；`Color.kt` 的 `Success*` 是固定绿。用于 `StatusPill` 的 `Tone.Positive`（琥珀色板里没有绿色角色，`secondaryContainer`/`tertiaryContainer` 都是暖色分不开） |
+| 骨架屏 | `ui/design/Components.kt` 的 `SkeletonBox(modifier, shape)`：`rememberInfiniteTransition` + `drawBehind` 画 1.4s 线性高光，只重绘不重组；首载页面用它拼真实布局，不要用居中 `CircularProgressIndicator` |
+| 共享元素转场 | 首页卡片 key `home-card-<route>`、检索卡片与详情页 key `search-card-<bibId>`；目标页用 `sharedCardPageModifier(key, sharedScope, animatedScope, boundsTransform?)` 包 `ScreenScaffold(modifier)`，调用方（`MainActivity`）必须把 `sharedScope`/`animatedScope` 传进页面，否则回落到淡入淡出。`QuickCardBoundsTransform` 是 220ms 的快转场，首页其它卡片仍用 Compose 默认弹簧 |
 
 ## 依赖注入
 
@@ -125,12 +130,15 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | `NetworkModule` | 主 OkHttp（CookieJar + AuthInterceptor + BODY 日志 + 15s 超时 + 禁止自动重定向）、Retrofit（教务 BASE_URL）、CAS Retrofit、GitHub Retrofit（独立 UA/超时） |
 | `DatabaseModule` | Room `AppDatabase` v4，注册 `MIGRATION_1_2`、`MIGRATION_2_3`、`MIGRATION_3_4` |
 | `RepositoryModule` | 绑定各 Repository 到 Singleton |
+| `OpacModule` | 图书馆专用 `@Named("opac")` OkHttpClient（同一 `PersistentCookieJar`、不挂 `AuthInterceptor`、带 `X-Hw-*` 头）+ Retrofit（`https://hwdw.hebtu.edu.cn/meta-local/opac/`） |
 
 > `HttpLoggingInterceptor.Level.BODY` 目前在所有构建类型中开启。发布前如需避免 Cookie 泄露，应按 `BuildConfig.DEBUG` 降级（见 [../tech-stack.md](../tech-stack.md) 的风险项）。
 
 ## 约定与注意点
 
 - 新增页面：在 `MainAppContent` 的 `when(route)` 加分支 + `TopLevelRoute` 常量（如需要），并处理返回。
+- 新增带共享元素转场的页面：页面签名加 `sharedScope: SharedTransitionScope? = null, animatedScope: AnimatedVisibilityScope? = null`，`MainActivity` 调用处补传，否则动画会静默退化。
+- 新增列表滚动状态：需要跨页面留存时把 `LazyStaggeredGridState`/`LazyListState` 放进 ViewModel，不要用 `remember*`（页面销毁即丢）。
 - 新增全局状态：优先放 DataStore（需要跨进程/重启保留）或 ViewModel（会话内）；不要在 Composable 里直接读写 SharedPreferences。
 - 新增弹窗/选择器：使用 M3 `AlertDialog` / `ExposedDropdownMenuBox` / `SegmentedButton` / `Slider`。
 - 新增滚动容器：先读 [../diagnostics/compose-nested-scroll.md](../diagnostics/compose-nested-scroll.md)。

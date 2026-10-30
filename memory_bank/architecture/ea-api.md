@@ -2,7 +2,7 @@
 
 - **用途**：记录登录流程、请求门控、各业务接口的参数/响应、会话与错误处理，作为对接教务系统的唯一技术参考。
 - **阅读时机**：新增或修改教务接口、排查登录/权限/HTML 错误、理解 901 与自动重登。
-- **最后更新**：2026-10-21
+- **最后更新**：2026-10-28
 - **状态**：稳定（已由 HAR 抓包与真机日志验证；标注“待验证”的除外）
 
 ## 目录
@@ -21,36 +21,32 @@
 | 项 | 值 |
 | --- | --- |
 | 教务基础 URL | `http://jwgl.hebtu.edu.cn/`（明文 HTTP） |
-| 登录页 | `http://jwgl.hebtu.edu.cn/xtgl/login_slogin.html?ydType=0` |
-| CAS 域名 | `http://cas.hebtu.edu.cn/`（`CasApi`/CAS Retrofit 仍存在，但**当前登录链路不依赖**） |
+| 登录页 | 学校 CAS：`https://cas.hebtu.edu.cn/cas/login?service=…`（教务 service = `http://jwgl.hebtu.edu.cn/sso/zfiotlogin`） |
+| CAS 域名 | `https://cas.hebtu.edu.cn/`（`SsoLoginManager`；旧的 `/xtgl/login_slogin.html` 表单直登已删除） |
 | 协议 | 全部 Form 表单 + JSON/HTML 响应；主 OkHttp `followRedirects=false`，重定向手动处理 |
 | 超时 | 连接/读取/写入各 15 秒 |
 | 请求头 | `User-Agent`（Chrome Mobile）、`X-Requested-With: XMLHttpRequest`、`Accept: */*`、`Origin`、按模块生成的 `Referer` |
 
 ## 登录与会话
 
-### 自定义登录流程（`AuthRepository.performLogin`）
+登录已改为**学校 CAS 单点登录**（v1.7.0），`AuthRepository` 只负责编排，具体 CAS 交互在 `data/remote/sso/SsoLoginManager.kt`；完整的逐跳流程、service 取值、正方自定义 RSA 与硬约束见 [library-and-sso.md](library-and-sso.md#统一身份认证cas)。这里只保留与教务调用相关的部分。
 
 ```text
-Step 0  POST /xtgl/login_logoutAccount.html       仅首次尝试；验证码重试时跳过
-Step 1  GET  /xtgl/login_slogin.html              解析隐藏域 csrftoken（Jsoup）
-Step 2  GET  /xtgl/login_getPublicKey.html?time=  { modulus, exponent }（Base64）
-Step 3  RSA 加密密码
-Step 4  POST /xtgl/login_slogin.html?time=        csrftoken + yhm + mm + yzm?
-         ├─ 302 → 成功；Cookie 已由 CookieJar 保存
-         │        再 GET login_slogin.html 走完重定向链
-         │        保存加密凭证、is_logged_in=true、清除过期标记
-         └─ 200 → 失败；解析 #tips / .alert-danger 文案
-                  若响应含 yzmDiv / id="yzm" → 需要验证码
+Step 1  AuthRepository.startLoginSession()
+          GET  <EDU_SERVICE> = http://jwgl.hebtu.edu.cn/sso/zfiotlogin
+          → 302 cas.hebtu.edu.cn/cas/login?service=…，解析 execution
+Step 2  （可选）loadCaptchaImage()：是否需要验证码由 /cas/v2/getKaptchaStatus 决定
+Step 3  AuthRepository.performLogin(username, password, captcha)
+          SsoLoginManager.attempt：取 /cas/v2/getPubKey → ZfsoftRsa 加密 → POST /cas/login
+          → 302 回 service-url（带 ticket）→ 目标系统建立会话
+Step 4  finishLogin()：探 index_initMenu.html 校验教务会话，保存加密凭证、is_logged_in=true
 ```
 
-- **密码加密**：`base64(modulus) → hex → BigInteger → RSAPublicKey → encrypt → hex → base64`（`CryptoUtil`）。
-- **验证码**：`GET /kaptcha?time=`，必须用与登录相同的 `loginClient`（共享 CookieJar），否则验证码与登录会话不匹配。
+- **密码加密**：`ZfsoftRsa`（先整串反转 + 16 位小端字分块 + 无 PKCS#1 填头），单测 `ZfsoftRsaTest`；用 PKCS#1 会一直提示「密码错误」。
 - **凭证保存**：`CredentialManager`（EncryptedSharedPreferences）；`autoLogin()` 在会话过期时用其重新登录。
-- **会话校验**：`GET /xtgl/index_initMenu.html?jsdm=xs`；若 302 到 `login_slogin` 则视为失效并 `logout()`。
+- **会话校验**：`GET /xtgl/index_initMenu.html?jsdm=xs`；302 到登录页视为失效并 `logout()`。
 - **登出**：清凭证、WebView Cookie、CookieJar、`is_logged_in`；不清课表/成绩缓存。
-
-> 旧版文档中的 CAS `getPubKey → cas/login → zfiotlogin → ticketlogin` 流程已被自定义直登取代；不要再按 CAS 流程改代码。
+- **图书馆复用同一 TGC**：图书馆是同一 CAS 下的另一个 service，教务登录成功即可直接换 ticket，无需再次输密码。
 
 ### 会话失效信号
 
@@ -168,12 +164,15 @@ ZFSOFT 会拒绝非浏览器 AJAX。每个业务模块的请求必须按三步�
 
 | 接口 | 方法/路径 | 说明 |
 | --- | --- | --- |
-| 登出旧账号 | `POST /xtgl/login_logoutAccount.html` | 仅首次登录尝试；验证码重试跳过 |
-| 登录页/CSRF | `GET /xtgl/login_slogin.html` | 解析 `input[name=csrftoken]` |
-| RSA 公钥 | `GET /xtgl/login_getPublicKey.html?time=` | `{modulus, exponent}` Base64 |
-| 登录 | `POST /xtgl/login_slogin.html?time=` | 302 成功 / 200 失败 |
-| 验证码 | `GET /kaptcha?time=` | 与登录共享 CookieJar |
+| CAS 登录页 | `GET https://cas.hebtu.edu.cn/cas/login?service=` | 解析隐藏域 `execution` / `_eventId` |
+| 是否需要验证码 | `GET /cas/v2/getKaptchaStatus` | `"true"` / `"false"` |
+| 验证码图片 | `GET /cas/kaptcha?time=<ms>` | **JPEG**（4 位数字），与登录共享 CookieJar |
+| 公钥 | `GET /cas/v2/getPubKey` | `{"modulus", "exponent"}` |
+| 登录提交 | `POST /cas/login?v=<random>` | 302 回 service（带 ticket）/ 200 + 登录页（失败，带新 execution） |
+| 教务 service | `http://jwgl.hebtu.edu.cn/sso/zfiotlogin` | 教务会话入口 |
+| 图书馆 service | `https://hwdw.hebtu.edu.cn/meta-local/opac/cas/rosetta` | 同一 TGC 直接换 ticket |
 | 会话校验 | `GET /xtgl/index_initMenu.html?jsdm=xs` | 302 到登录页 = 失效 |
+| 旧的表单直登 | `/xtgl/login_slogin.html`、`/xtgl/login_getPublicKey.html`、`/kaptcha` | **已废弃**，代码中不再有这条链路 |
 
 ## 响应结构
 
@@ -235,5 +234,5 @@ ZFSOFT 会拒绝非浏览器 AJAX。每个业务模块的请求必须按三步�
 - **抓包证据**：本地归档目录 `HAR/`（`HAR/*.har`、`HAR/mitm/` 为 mitmproxy 原始抓包、`HAR/scripts/` 为解析脚本；已 gitignore 且从 Git 索引移除，仅本机留存，不参与构建）；2026-06-05 用 mitmproxy 对比手机浏览器与 App；2026-07-17 解析 9 个 HAR 确认学期下拉为 HTML `<select>`、`16` 已内置；2026-08-30 用 adb 日志确认 901 根因。
 - **已知缺口**：
   1. 成绩全量刷新只查 `3/12`，未覆盖 `16`（小学期未开始，待验证）。
-  2. `CasApi` 与 CAS Retrofit 仍在 DI 中，但登录流程未使用；清理前需确认无其他调用。
+  2. `CasApi` 与 CAS Retrofit 仍在 DI 中但没有调用方（真正的 CAS 走 `SsoLoginManager` 的自建 client）；清理前需确认无其他引用。
   3. 明文 HTTP + `HttpLoggingInterceptor.Level.BODY` 会在日志中输出 Cookie；发布构建应关闭 BODY，详见 [security.md](security.md)。

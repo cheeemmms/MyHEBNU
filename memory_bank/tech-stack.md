@@ -3,7 +3,7 @@
 - **用途**：记录技术选型、精确版本、可执行命令、本机环境与编码规范。
 - **阅读时机**：配环境、跑构建/测试、新增依赖、判断该用什么写法。
 - **最后更新**：2026-10-21
-- **状态**：稳定（版本与 v1.5.0 一致）
+- **状态**：稳定（版本与 v1.7.0 一致）
 
 ## 目录
 
@@ -15,6 +15,7 @@
 - [编码规范要点](#编码规范要点)
 - [依赖管理与升级](#依赖管理与升级)
 - [环境变量与签名](#环境变量与签名)
+- [版本与发布](#版本与发布)
 - [历史记录](#历史记录)
 
 ## 技术栈
@@ -37,7 +38,9 @@
 | 网络 | Jsoup | 1.22.2 | 解析登录页/错误提示 | `csrftoken`、`#tips` |
 | 存储 | DataStore Preferences | 1.1.1 | 偏好/节次/首页均分 | 跨进程可读 |
 | 安全 | security-crypto | 1.1.0-alpha06 | 加密凭证 | `EncryptedSharedPreferences` |
-| 图片 | Coil | 2.7.0 | 图片加载 | `coil-compose` |
+| 图片 | Coil | 2.7.0 | 图片加载 | `coil-compose`；图书馆封面走 `AsyncImage` |
+| 条码/二维码 | ZXing | 3.5.3 | 图书馆借书码 | `zxing-core`，`ui/library/ReaderCodeImage.kt` 自行渲染 |
+| 图书馆接口 | 汇文 OPAC | — | `https://hwdw.hebtu.edu.cn/meta-local/opac/` | 独立 `@Named("opac")` client，共用 CookieJar，见 [architecture/library-and-sso.md](architecture/library-and-sso.md) |
 | Widget | Glance | 1.1.1 | 桌面课表 | 3 种尺寸 |
 | 后台 | WorkManager | 2.10.0 | 提醒/Widget 午夜刷新 | 周期任务 |
 | 协程 | kotlinx-coroutines | 1.11.0 | 异步/Flow | `coroutines-android` |
@@ -71,12 +74,13 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 目的 | 命令 | 产物/说明 | 最近结果 |
 | --- | --- | --- | --- |
 | 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 通过：Gradle 9.5.1，Launcher JVM 21.0.10（Android Studio JBR） |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-21 通过**：clean 1m38s；启动优化 18s；Session 修复 27s；最新 APK 71,509,296 B |
-| Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.5.0-release.apk`；包名 `com.myhebnu`；需签名 | 未执行 |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-28 通过**：本轮增量构建 9–17s；装机 `lastUpdateTime=2026-10-28 21:13:02` |
+| Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.7.0-release.apk`；包名 `com.myhebnu`；需签名（R8 + shrinkResources） | **2026-10-28 通过**：7,933,712 B，versionCode 9，`apksigner verify` 通过 |
+| 发版 | `gh release create v<版本> <apk> --target <分支> --title … --notes-file …` | GitHub Release；`releases/latest` 是应用内更新检查的数据源 | 2026-10-28 发布 v1.7.0，见「版本与发布」 |
 | 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
-| 单元测试 | `.\gradlew.bat testDebugUnitTest` | JVM 单测 | **2026-10-21 通过**：`LoginPageDetectorTest` 5 tests / 0 failures |
+| 单元测试 | `.\gradlew.bat testDebugUnitTest` | JVM 单测 | **2026-10-28 通过**：`LoginPageDetectorTest`、`WidgetScheduleLogicTest`、`ZfsoftRsaTest` 全部通过 |
 | 静态检查 | `.\gradlew.bat lintDebug` | Lint 报告 | 未执行 |
-| 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 需连接设备 | **2026-10-21 通过**：24129PN74C / Android 17，`Success`；debug 包名 `com.myhebnu.debug` |
+| 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 需连接设备 | **2026-10-28 通过**：24129PN74C，`Success`；debug 包名 `com.myhebnu.debug`（应用名「MyHEBNU D」） |
 | 应用日志 | `adb logcat -s MyHEBNU:*` | 主要链路日志 | 未执行 |
 | Widget 日志 | `adb logcat -s MyHEBNU-Widget:*` | Widget 进程日志 | 未执行 |
 
@@ -90,8 +94,8 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | --- | --- |
 | 操作系统 | Windows（PowerShell 7） |
 | 项目路径 | `D:\Personal_file\VibeCoding\Program\My-University` |
-| Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，分支 `main` |
-| Git 状态 | 2026-10-21 有本地提交（记忆库/许可证/代理）；此前发布提交 `db8580d`（2026-09-13）；`backup/2026-08-30` 备份分支指向 `797e0ef` |
+| Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，工作分支 `feat/md3-ui-refresh`（MD3 整改分支，尚未并入 `main`） |
+| Git 状态 | 2026-10-28：发版提交 `673fed7`（v1.7.0 功能）+ 文档提交 `d10ca1d`，均已推送；`backup/2026-08-30` 备份分支指向 `797e0ef` |
 | GitHub CLI | `gh 2.89.0`，已登录 `cheeemmms`；`git credential.helper=manager` |
 | Android Studio（JAVA_HOME） | `C:\Program Files\Android\Android Studio`，JBR 21.0.10 |
 | 另一处 Android Studio | `D:\Software\Android\bin\studio64.exe`（也存在） |
@@ -149,6 +153,33 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 
 > 密钥与密码**不得**写入记忆库、README、提交或聊天记录；`local.properties` 已被 `.gitignore` 排除。`app/build.gradle.kts` 从 `local.properties` 读取签名配置。
 
+## 版本与发布
+
+发版三处必须一起改，漏一处就会出现「应用内版本号与 Release 不一致」：
+
+1. `app/build.gradle.kts` 的 `versionCode`（+1）与 `versionName`；
+2. `CHANGELOG.md`（面向开发者的发布记录）与仓库根 `README.md` 的版本徽章/版本历史表；
+3. 应用内更新日志 `app/src/main/res/values/strings.xml` 的 `changelog_content`——**只保留当前版本**，旧版本条目不再累积。
+
+发布流程（已走通一次，v1.7.0）：
+
+```powershell
+.\gradlew.bat :app:testDebugUnitTest
+.\gradlew.bat :app:assembleRelease
+# 产物：app/build/outputs/apk/release/MyHEBNU-<版本>-release.apk（signingConfigs.release + R8 + shrinkResources）
+
+git add -A
+git commit -m "feat(...): ...（v<版本>）"
+git push origin HEAD
+
+gh release create v<版本> app/build/outputs/apk/release/MyHEBNU-<版本>-release.apk `
+  --target <分支> --title "MyHEBNU v<版本>" --notes-file <notes.md>
+```
+
+- 应用内「检查更新」读 `GET /repos/cheeemmms/MyHEBNU/releases/latest`，所以 release **必须是正式版**（不能勾「预发布」）。
+- 校验方式：`aapt2 dump badging <apk>` 看 `versionCode/versionName/package`，`apksigner verify --print-certs` 看签名，`gh api repos/cheeemmms/MyHEBNU/releases/latest` 看 latest 指向与资产大小。
+- tag 打在**功能提交**上（v1.7.0 = `673fed7`），随后的文档提交不重新打 tag。
+
 ## 历史记录
 
 | 日期 | 变更 |
@@ -158,3 +189,4 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 2026-06-10 | 引入 `values-night/colors.xml`，Widget 深色模式 |
 | 2026-09-13 | v1.5.0：新增 Room 成绩表（DB v3→v4）、`RefreshFab`；版本 1.4.0→1.5.0 |
 | 2026-10-21 | 本文件按 memory_bank 规范创建；记录当前工具链、代理与沙箱限制；标注未使用依赖 |
+| 2026-10-28 | v1.7.0：补 ZXing 3.5.3 与汇文 OPAC 依赖行；构建/安装/单测结果更新到 v1.7.0；新增「版本与发布」小节（三处版本号 + gh release 流程）；工作分支改为 `feat/md3-ui-refresh` |

@@ -2,8 +2,8 @@
 
 - **用途**：记录当前里程碑、未完成任务、验证方式与风险，让下一次会话能无缝接续。
 - **阅读时机**：排期、接续未完成的活、确认验收标准、复盘进度。
-- **最后更新**：2026-10-21
-- **状态**：稳定（当前主线：Phase 8 收尾）
+- **最后更新**：2026-10-28
+- **状态**：稳定（当前主线：图书馆写操作与 Phase 8 收尾）
 
 ## 目录
 
@@ -23,6 +23,8 @@
 | Phase 0–7 | 侦察、骨架、认证、课表、成绩、空教室、考试、Widget + 提醒 | 完成 | v1.0.0–v1.3.x 已发布并真机验收 |
 | v1.4.0 | 学期设置、考试学期收敛、课表表头月日 | 完成 | 2026-09-04 发布 |
 | v1.5.0 | 成绩/课表缓存优先、悬浮刷新、节次起止时间 | 完成 | 2026-09-13 发布，versionCode 7 |
+| v1.6.0 | 图书馆模块（汇文 OPAC 只读 7 页）+ 教务/图书馆统一走学校 CAS | 完成 | 2026-10-22 发布，versionCode 8 |
+| v1.7.0 | 图书馆 UI 四轮迭代（逐级返回、页码翻页、荐购标签、瀑布流、骨架屏、转场提速） | 完成 | 2026-10-28 发布，versionCode 9，GitHub Release latest |
 | M8 | Phase 8：国际化、无障碍、错误处理、离线、性能 | 待办 | 全部子项验收 + 版本发布 |
 | M9 | 发布前工程收尾 | 待办 | 许可证/README/日志/安全项对齐 |
 
@@ -41,6 +43,15 @@
 | 5 | **权限最小化**：移除未使用的 `SCHEDULE_EXACT_ALARM` | 搁置 | 无 | `AndroidManifest.xml` |
 
 > 安全项完整说明与威胁模型见 [architecture/security.md](architecture/security.md)。2026-10-21 用户决定暂时搁置，恢复时按该文档的优先级执行。
+
+### P1 · 图书馆后续
+
+| # | 任务 | 状态 | 验收标准 | 关联文件 |
+| --- | --- | --- | --- | --- |
+| L1 | **续借**：`POST users/renew`（路径已知，写操作未接） | 待办（用户留到下一期） | 借阅列表可续借；成功后到期日刷新；失败有可读提示 | `data/remote/opac/OpacApi.kt`、`ui/library/Loans*` |
+| L2 | **荐购提交**：`users/requests?type=req.acq.suggest` | 待办（下一期） | 检索/详情页可荐购；提交后出现在荐购列表 | `data/repository/OpacRepository.kt`、`ui/library/Requests*` |
+| L3 | **预约/委托**：`requests/item_copies` 预检 + 下单接口**尚未抓到** | 待办（阻塞：缺接口） | 需先抓包确认下单请求体与响应 | 见 [architecture/library-and-sso.md](architecture/library-and-sso.md)「未完成」 |
+| L4 | 图书馆页面英文资源 | 待办（与 8.1 一起） | 图书馆 7 页无硬编码中文；`values-en` 与默认一致 | `ui/library/*`、`res/values-en/strings.xml` |
 
 ### P1 · Phase 8 收尾
 
@@ -76,6 +87,10 @@
 | 课表刷新长按 | 已证实课表页未接长按；但课表短按 `refreshSchedule()` 已是完整刷新（重新探测学期/周次/节次/课程），长按无独立语义。已修正 `CHANGELOG.md` 与应用内 `changelog_content`，明确“仅成绩页支持长按” | 2026-10-21 |
 | 启动等待优化 | 启动改为本地判定（`isFirstLaunch`+`isLoggedIn`+`hasLocalCookieSession`），移除 MainActivity/LoginViewModel 的启动网络校验；会话改为首次 API 惰性校验 + autoLogin。构建通过；真机冷启动 528ms | 2026-10-21 |
 | 课表 Session 误报 | 新增 `LoginPageDetector`，改用 `login_slogin` + `yhm` 表单特征，移除裸 `contains("登录")`；已替换 Schedule/Grade/Room 三处；5 个单测通过，真机课表正常加载 | 2026-10-21 |
+| 图书馆模块 | 汇文 OPAC 只读 7 页全部落地并真机跑通数据（指标 3 在借 / 6 预约 / 0 逾期 / 0.00 罚金，额度 3 / 20；检索「村上春树」139 种） | 2026-10-27 |
+| CAS 单点登录 | `AuthRepository` 整体重写，旧 xtgl 表单直登整段删除、无双路径；教务与图书馆共用 `cas.hebtu.edu.cn` 的 TGC；`ZfsoftRsa` 带单测 | 2026-10-27 |
+| 图书馆界面迭代（四轮） | 逐级返回 → 页码翻页（替掉只会转圈的「上滑加载更多」）→ 荐购标签红/绿分级（新增 `SemanticColors`）→ 双列瀑布流 + 详情页共享元素 → 瀑布流卡顿/返回丢位置/出版者字号 → 首页骨架屏 + 卡片转场 220ms | 2026-10-28 |
+| v1.7.0 发布 | `versionCode 9`、`versionName 1.7.0`；`assembleRelease` 产出 7,933,712 B 签名 APK；commit `673fed7` + 文档提交 `d10ca1d` 已推送；GitHub Release 置为 latest，应用内更新日志只留「解决了一些已知问题」 | 2026-10-28 |
 
 ## 验证方式
 
@@ -85,11 +100,11 @@
 | --- | --- | --- | --- |
 | 代理端口 | `Test-NetConnection 127.0.0.1 -Port 7897` | True | 2026-10-21：True；`gradle.properties` 已对齐 |
 | 冷启动 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 有本地会话时直接进首页；无启动期 `hasValidSession` 网络日志 | 2026-10-21：`TotalTime 528ms` / `WaitTime 554ms`（无本地会话→登录页）；启动日志无 `hasValidSession`；登录态待复测 |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.5.0-debug.apk` | **2026-10-21 通过**：clean 1m38s；启动优化 18s；Session 修复 27s；APK 71,509,296 B |
-| Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 7 | 未执行 |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk` | **2026-10-28 通过**：本轮多次增量构建 9–19s；已装机 `com.myhebnu.debug`（`lastUpdateTime=2026-10-28 21:13:02`） |
+| Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 9 | **2026-10-28 通过**：`MyHEBNU-v1.7.0-release.apk` 7,933,712 B，`apksigner verify` 通过，已发布 GitHub Release |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过 | 2026-10-21：`LoginPageDetectorTest` 5 + `WidgetScheduleLogicTest` 24 = 29 tests / 0 failures |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |
-| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.5.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | 2026-10-21：Success（24129PN74C / Android 17） |
+| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | 2026-10-28：Success（24129PN74C） |
 | 冷启动 | 清后台后启动，观察首页 | 无白闪；首页直接出卡片；无网络等待 | 未执行 |
 | 课表缓存优先 | 断网后进课表 | 立即显示缓存；不出现加载圈长期停留 | 未执行 |
 | 会话自愈 | 使会话失效后进考试/成绩页 | 自动重登，不出现 HTTP 901/302 死循环 | 未执行 |
@@ -116,10 +131,12 @@
 3. **Cookie 加密 vs 自动登录**：加密迁移可能影响已安装用户的会话恢复，需要迁移策略。
 4. **考试页是否改 cache-first**：与 Phase 8.4 一起定。
 5. **课表刷新长按**：已证实课表未接长按；需确认是需求缺口还是仅成绩需要长按。
-6. **Phase 8 是否单独发版**：作为 v1.6.0 还是并入 2.0.0（当前无版本规划）。
+6. **图书馆写操作的范围**：续借、荐购、预约委托是否一次做完；预约下单接口尚未抓到，需要先抓包确认。
+7. **Phase 8 是否单独发版**：v1.7.0 已随图书馆模块发出，Phase 8 剩余子项（无障碍/错误处理/离线/性能）尚未排期。
 
 ## 历史记录
 
+- **2026-10-28**：补 v1.6.0 / v1.7.0 里程碑与「图书馆后续」任务组（续借、荐购、预约委托、i18n）；已完成表补图书馆模块、CAS 登录、四轮界面迭代与 v1.7.0 发布；Release/Debug 构建与安装的验证结果更新到 v1.7.0。
 - **2026-10-21**：本文件由旧 `implementation-plan.md`（Phase 0–8 + Batch 1–5 的完整历史计划，427 行）重写为「当前路线图」。已完成阶段的交付物与决策记录压缩到 [history/change-log.md](history/change-log.md)，原始细节保留在 Git 历史与 `progress.md` 旧版本（`git log -- memory-bank/progress.md`）。
 - **2026-10-21（第二轮）**：代理对齐 7897；许可证统一为 AGPL-3.0 并补 `LICENSE`；关闭考试分页项（用户实测正常）；小学期成绩改为“待验证/暂不实施”；i18n 标记搁置；新增安全项 P0 与 [architecture/security.md](architecture/security.md)。
 - **2026-06-04 ~ 2026-09-13**：Phase 0–7 与 Batch 1–10 全部完成；v1.0.0–v1.5.0 依次发布。详见变更日志。

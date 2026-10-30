@@ -2,7 +2,7 @@
 
 - **用途**：说明「我的图书馆」（汇文 OPAC）模块的结构、接口与 UI 约定，以及教务/图书馆共用的学校 CAS 单点登录链路。
 - **阅读时机**：改动图书馆任一页面、排查 OPAC 请求与会话问题、调整 CAS 登录或验证码流程、给图书馆加写操作时。
-- **最后更新**：2026-10-28
+- **最后更新**：2026-10-30
 - **状态**：只读功能已交付（v1.7.0 发布）；写操作未做
 
 ## 目录
@@ -35,6 +35,11 @@
 | `app/src/main/java/com/myhebnu/ui/library/*Screen.kt` + `*ViewModel.kt` | 7 个页面，每个页面一个 ViewModel |
 | `app/src/main/java/com/myhebnu/ui/library/LibraryFormat.kt` | 日期、册数、作者串等格式化；`coverUrl(isbn)` 兜底封面地址 |
 | `app/src/main/java/com/myhebnu/ui/library/ReaderCodeImage.kt` | ZXing（`zxing-core 3.5.3`）渲染 `BarcodeImage`（Code128）与 `QrCodeImage` |
+| `app/src/main/java/com/myhebnu/ui/library/Wishlist{Screen,ViewModel}.kt` | 「我想看的书」列表页与 VM（2026-10-30 新增）：本地 Room 数据 + 封面预取；行尾爱心移除（弹窗确认） |
+| `app/src/main/java/com/myhebnu/data/repository/{WishlistRepository,WishlistBackup}.kt` | 想看仓库（toggle 事务 / mergeAll 幂等合并）与 JSON 备份（SAF 导出导入，带 version） |
+| `app/src/main/java/com/myhebnu/ui/library/BookCovers.kt` | 封面请求统一入口：缓存键分层（小图 `book-cover-<bibId>` / 大图 `book-cover-lg-<bibId>`）、显式解码尺寸、列表预取 |
+| `app/src/main/java/com/myhebnu/ui/library/BibDetail{Screen,ViewModel,Header}.kt` | 书目详情（2026-10-30 重设计）：沉浸头图 + 视差 + 滚动模糊淡出；**换书闸门**（uiState.bibId 比对路由 bibId）防封面串号 |
+| `app/src/main/java/com/myhebnu/ui/library/HoldingCard.kt` | 馆藏卡：索书号为主、可借优先、展开收起用 AnimatedVisibility（M3 曲线） |
 | `app/src/main/java/com/myhebnu/data/remote/sso/SsoLoginManager.kt` | CAS 客户端：`prepare` / `attempt` / `refreshCaptcha` |
 | `.../sso/ZfsoftRsa.kt` | 正方自定义 RSA（非 PKCS#1），单测 `app/src/test/java/com/myhebnu/data/remote/sso/ZfsoftRsaTest.kt` |
 | `app/src/main/java/com/myhebnu/data/repository/AuthRepository.kt` | 登录编排（`startLoginSession` / `performLogin` / `autoLogin` / `logout` / `handleSessionExpired`） |
@@ -150,3 +155,4 @@ POST /cas/login?v=<random>        → 表单提交，password 经 RSA 加密
 1. **图书馆写操作**：续借 `POST users/renew`、荐购提交 `users/requests?type=req.acq.suggest`、预约/委托（`requests/item_copies` 预检 + 下单接口尚未抓到）。用户已明确留到下一期，接口线索记在 [../implementation-plan.md](../implementation-plan.md)。
 2. **英文资源**：图书馆页面文案硬编码中文。
 3. **检索结果角标**：卡片右侧的「N 册 / 借完」在改瀑布流时移除，可借册数只在详情页展示；若产品要求，可做成封面角标。
+4. **想看数据云端同步**：当前仅本机存储 + 手动 JSON 导出导入（2026-10-30 设计决策）；如需跨设备同步另立项。

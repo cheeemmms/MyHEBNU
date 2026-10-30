@@ -29,11 +29,11 @@
 | 项目类型 | 既有仓库 · 接手维护（GitHub `cheeemmms/MyHEBNU`，107 次提交，2026-06-04 起） |
 | 当前版本 | **v1.7.0**（2026-10-28 已发 GitHub Release，commit `673fed7`、tag `v1.7.0`）：v1.6.0 之上增加「我的图书馆」模块与统一身份认证改造 |
 | 当前阶段 | Phase 0–7 与 v1.6.0/v1.7.0 已交付；**图书馆写操作（续借/荐购/预约）与 Phase 8「打磨/收尾」未完成** |
-| 最近一次实质进展 | 2026-10-30 课表周次判定重构（commit `01b9bce`，已验收并推送）：解析改用教务 `oldzc`/`oldjc` 位掩码并由掩码反推起止周与节次，`zcd` 文本解析降为兜底；同时修掉「第N周」写法被回退成整学期（1–18 周）导致该课全学期显示的缺陷。`CourseEntity` 新增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，课表过滤、当前课高亮、首页今日课程、桌面小组件、上课提醒五处统一改调；Room 4→5。真机 20 行课程掩码与教务文本逐周比对 0 差异。同日上午先把 v1.7.0 遗留文档补提交并入主线（`7580673`/`1e66d1b`/`ae4689a`）。 |
-| 最近一次实质进展（更早） | 2026-10-28 发版 v1.7.0（`673fed7`，versionCode 9）：图书馆模块与本轮 UI 四轮迭代整体落地并发布 GitHub Release；同日把一次性交接文档 `handover-library-sso.md` 的长期内容并入 [architecture/library-and-sso.md](architecture/library-and-sso.md) 并删除该文件。细节见该文档与 [history/change-log.md](history/change-log.md) |
+| 最近一次实质进展 | 2026-10-30（晚）**「想看」功能闭环 + 书籍详情页重设计 + 动画定案**，7 个 commit（`0a7a119`→`31c914e`）全部真机验收并推送：① 想看数据层（Room 5→6，wishlist 快照表）→ 详情页收藏胶囊 → 想看列表页（封面/移除确认/空态）→ 图书馆首页入口与指标（「罚金」格改「想看」）→ JSON 导出导入（SAF、按 bibId 幂等合并）；② 详情页重设计：沉浸头图（高度固定、渐变按封面比例贴图收口）+ 45% 视差 + 滚动模糊淡出 + 状态栏图标随深度反色 + 首帧性能优化（0.8 倍解码、模糊层条件渲染）；③ 封面缓存键分层（`BookCovers.kt`）与检索/想看列表预取；④ 修「换书显示上本书封面」（uiState.bibId 闸门）等三个严重缺陷；⑤ 动画最终定案：容器变换（sharedBounds 整页展开、默认参数）保留为最重视的动画，检索结果 → 详情页不走共享元素，内容级动画用 M3 emphasized 曲线。其间否决的实验：fade through 错开（拉长转场）、RemeasureToBounds（每帧重测整页掉帧）、封面 sharedElement、纯模糊过渡（与共享元素互斥）。Compose 1.9 迁移列为 P0 待办 |
+| 最近一次实质进展（更早） | 2026-10-30（晨）课表周次判定重构（commit `01b9bce`，已验收并推送）：解析改用教务 `oldzc`/`oldjc` 位掩码并由掩码反推起止周与节次，`zcd` 文本解析降为兜底。`CourseEntity` 新增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，五处统一改调；Room 4→5。同日上午先把 v1.7.0 遗留文档补提交并入主线（`7580673`/`1e66d1b`/`ae4689a`）。 |
 | 最近一次实质进展（更早） | 2026-10-27 图书馆模块上线：汇文 OPAC 只读 7 页（首页/当前借阅/动态借书码/馆藏检索/书目详情/预约与荐购/罚金与违约）已装真机跑通数据；同一轮把教务登录从旧 xtgl 表单切到学校 CAS 单点登录，图书馆复用同一会话，旧的 xtgl 登录代码整段删除、无双路径 |
 | 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
-| 下一步 | 图书馆写操作（续借/荐购/预约委托，用户已明确留到下一期）；图书馆页面英文资源；Phase 8 收尾 |
+| 下一步 | **P0：迁移 Compose 1.9**（详见 [implementation-plan.md](implementation-plan.md)）；图书馆写操作（续借/荐购/预约委托）；发版前收尾（CHANGELOG/versionCode——main 已积累一整批未发版功能） |
 | 已知阻塞 | `dsh-android` 插件的 adb 发现未打通（`ADB`/`ANDROID_HOME` 未设、SDK 不在默认位置），需用户在启动 DSH 前配置环境变量；Gradle 与 adb 需要 `danger-full-access` |
 | 交接状态 | **可交接**：先读 [handover-notes.md](handover-notes.md)；图书馆与 CAS 的技术细节在 [architecture/library-and-sso.md](architecture/library-and-sso.md)；未完成项在 [implementation-plan.md](implementation-plan.md) |
 | 分支状态 | `main` 是当前开发线（2026-10-30 由 `feat/md3-ui-refresh` 快进合并而来，其后新提交只进 `main`）；`feat/md3-ui-refresh` 保留在合并点，不再跟进。新工作一律从 `main` 起 |
@@ -49,7 +49,7 @@
 | [design-document.md](design-document.md) | 产品目标、用户场景、功能需求与 UI/UX 规范 | 讨论需求、判断「应该做成什么样」 | 2026-10-21 |
 | [implementation-plan.md](implementation-plan.md) | 当前里程碑、未完成任务、验证方式与风险 | 排期、接续未完成的活、确认验收标准 | 2026-10-28 |
 | [tech-stack.md](tech-stack.md) | 技术栈、版本矩阵、构建/运行命令、本机环境与编码规范 | 配环境、跑构建测试、加依赖、判断该用什么写法 | 2026-10-28 |
-| [handover-notes.md](handover-notes.md) | 上手路径、关键文件地图、工作流约定、坑与未决问题 | 刚接手、久未参与、准备交接 | 2026-10-28 |
+| [handover-notes.md](handover-notes.md) | 上手路径、关键文件地图、工作流约定、坑与未决问题 | 刚接手、久未参与、准备交接 | 2026-10-30 |
 
 > 项目按「既有仓库 · 接手维护」维护，因此补齐了 `handover-notes.md`；`design-document.md` 与 `implementation-plan.md` 是新建期留下的长期资产，继续保留并维护。
 
@@ -57,10 +57,10 @@
 
 | 文件 | 内容 | 何时读 | 最后更新 |
 | --- | --- | --- | --- |
-| [architecture/modules-and-ui.md](architecture/modules-and-ui.md) | 包结构、模块职责、导航与页面状态、主题与 DI | 新增页面/模块、改导航或主题 | 2026-10-28 |
+| [architecture/modules-and-ui.md](architecture/modules-and-ui.md) | 包结构、模块职责、导航与页面状态、主题与 DI | 新增页面/模块、改导航或主题 | 2026-10-30 |
 | [architecture/data-and-storage.md](architecture/data-and-storage.md) | Room 实体/DAO/迁移、DataStore 键、凭证与 Cookie、缓存策略 | 改数据模型、排查缓存/迁移问题 | 2026-10-30 |
 | [architecture/ea-api.md](architecture/ea-api.md) | 教务系统认证、请求门控、课程/成绩/空教室/考试接口与响应结构 | 对接教务、排查请求失败、扩展接口 | 2026-10-30 |
-| [architecture/library-and-sso.md](architecture/library-and-sso.md) | 图书馆模块的结构、OPAC 接口、CAS 单点登录链路与 UI 约定 | 改图书馆页面、排查 OPAC/登录问题、加写操作 | 2026-10-28 |
+| [architecture/library-and-sso.md](architecture/library-and-sso.md) | 图书馆模块的结构、OPAC 接口、CAS 单点登录链路与 UI 约定 | 改图书馆页面、排查 OPAC/登录问题、加写操作 | 2026-10-30 |
 | [architecture/widget-and-reminders.md](architecture/widget-and-reminders.md) | Glance Widget、跨进程数据、WorkManager 提醒、更新检查 | 改 Widget/通知/后台任务 | 2026-10-21 |
 | [architecture/security.md](architecture/security.md) | 威胁模型、明文 HTTP、Cookie/日志/备份风险与修复优先级 | 发布前安全检查、处理凭证/隐私问题 | 2026-10-21 |
 
@@ -94,6 +94,7 @@
 
 ## 历史记录
 
+- **2026-10-30（晚）**：随「想看」功能闭环与详情页重设计同步——快照换最新进展并压缩旧条目；[data-and-storage.md](architecture/data-and-storage.md) 登记 wishlist 表与 Room 5→6；[library-and-sso.md](architecture/library-and-sso.md) 补想看/详情页/BookCovers 文件与"云端同步未立项"；[modules-and-ui.md](architecture/modules-and-ui.md) 更新共享元素约定（容器变换定案 + 检索路径例外）；[handover-notes.md](handover-notes.md) 刷新状态/文件地图/工作流约定并新增 P0 与四个新坑；[history/change-log.md](history/change-log.md) 新增「2026-10 下旬」章节。
 - **2026-10-30**：课表周次判定重构。新增 [architecture/ea-api.md](architecture/ea-api.md) 的位掩码说明（`oldzc`/`oldjc` 为权威周次/节次来源、`zcd` 会出现「第N周」写法、`xslxbj` 是课名尾部符号、换教师为同日同节多条条目）；[architecture/data-and-storage.md](architecture/data-and-storage.md) 更新 `courses` 表（增 `weekBits`/`periodBits`、`oddEven` 降级为兜底）与 Room 4→5 迁移表。上午另有一轮仓库收口：v1.7.0 遗留文档补提交与 `feat/md3-ui-refresh` 快进并入 `main`。
 - **2026-10-30（仓库收口）**：`CHANGELOG.md` 的 v1.7.0 段（`7580673`）与记忆库重整（`1e66d1b`）此前只存在于工作区，本次按主题拆成两次提交入库；`feat/md3-ui-refresh` 快进合并进 `main`，两条分支同指并推送。未改动任何 `app/` 源码，与已发布的 v1.7.0 二进制一致。
 - **2026-10-28**：随 v1.7.0 发版同步。删除一次性交接文档 `handover-library-sso.md`（长期技术内容并入新建的 [architecture/library-and-sso.md](architecture/library-and-sso.md)，未完成项并入 [implementation-plan.md](implementation-plan.md)，构建/发版命令并入 [tech-stack.md](tech-stack.md)）；[architecture.md](architecture.md) 补图书馆与 CAS 模块、关键决策 9–11；[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 补图书馆页面、逐级返回、`SemanticColors`/`SkeletonBox`/共享元素约定；[architecture/ea-api.md](architecture/ea-api.md) 的登录章节从 xtgl 表单直登改写为 CAS 单点登录；[tech-stack.md](tech-stack.md) 新增「版本与发布」；[handover-notes.md](handover-notes.md) 刷新状态、文件地图与发版流程。

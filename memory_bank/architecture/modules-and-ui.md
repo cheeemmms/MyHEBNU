@@ -2,7 +2,7 @@
 
 - **用途**：说明代码如何按包分层、页面如何导航、各屏状态由谁持有，以及主题与依赖注入的位置。
 - **阅读时机**：新增页面/模块、修改导航或主题、定位某个界面逻辑。
-- **最后更新**：2026-10-28
+- **最后更新**：2026-10-30
 - **状态**：稳定（含 2026-10-21 MD3 前端整改，分支 `feat/md3-ui-refresh`）
 
 ## 目录
@@ -121,7 +121,7 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | 弹层/选择器 | 一律 Material 3 原生控件；禁止自研 iOS 风格滚轮 |
 | 语义成功色 | `ui/theme/SemanticColors.kt` 的 `SemanticColors` + `LocalSemanticColors`，由 `MyHEBNUTheme` 按深浅主题注入；`Color.kt` 的 `Success*` 是固定绿。用于 `StatusPill` 的 `Tone.Positive`（琥珀色板里没有绿色角色，`secondaryContainer`/`tertiaryContainer` 都是暖色分不开） |
 | 骨架屏 | `ui/design/Components.kt` 的 `SkeletonBox(modifier, shape)`：`rememberInfiniteTransition` + `drawBehind` 画 1.4s 线性高光，只重绘不重组；首载页面用它拼真实布局，不要用居中 `CircularProgressIndicator` |
-| 共享元素转场 | 首页卡片 key `home-card-<route>`、检索卡片与详情页 key `search-card-<bibId>`；目标页用 `sharedCardPageModifier(key, sharedScope, animatedScope, boundsTransform?)` 包 `ScreenScaffold(modifier)`，调用方（`MainActivity`）必须把 `sharedScope`/`animatedScope` 传进页面，否则回落到淡入淡出。`QuickCardBoundsTransform` 是 220ms 的快转场，首页其它卡片仍用 Compose 默认弹簧 |
+| 共享元素转场 | **容器变换（sharedBounds 整页展开）是最受重视的动画，参数用默认值，不要加 fade through / RemeasureToBounds / 换封面 sharedElement（2026-10-30 实验均否决）**。key：首页卡片 `home-card-<route>`、想看列表行与详情页背景 `search-card-<bibId>`；**检索结果 → 详情页刻意不挂共享元素**（内容差异过大，走页面级 fade through）。目标页用 `sharedCardPageModifier(key, sharedScope, animatedScope, boundsTransform?)` 包根容器，调用方必须传 `sharedScope`/`animatedScope`，否则回落到淡入淡出。`QuickCardBoundsTransform` 是 220ms 快转场 |
 
 ## 依赖注入
 

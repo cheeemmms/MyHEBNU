@@ -3,7 +3,7 @@
 - **用途**：记录本地数据模型、缓存写入规则、DataStore 键、凭证/Cookie 存储与迁移方式。
 - **阅读时机**：改实体/表结构、排查缓存不更新或迁移失败、处理登录态与敏感数据。
 - **最后更新**：2026-10-30
-- **状态**：稳定（Room v4，与 v1.5.0 代码一致）
+- **状态**：稳定（Room v6，含 wishlist 表）
 
 > 凭证/Cookie/备份/日志的安全评估见 [security.md](security.md)。
 
@@ -21,7 +21,7 @@
 
 | 存储 | 位置/实现 | 内容 | 是否跨进程可读 |
 | --- | --- | --- | --- |
-| Room `AppDatabase` | `data/local/db/`，数据库版本 4 | 课程、考试、成绩缓存 | 是（Widget 通过 EntryPoint 读） |
+| Room `AppDatabase` | `data/local/db/`，数据库版本 6 | 课程、考试、成绩缓存、想看（wishlist） | 是（Widget 通过 EntryPoint 读） |
 | DataStore Preferences | `user_preferences`（`Context.dataStore`） | 学期、主题、节次时间表、首页均分、提醒去重等 | 是（Widget/Worker 读） |
 | EncryptedSharedPreferences | `myhebnu_credentials` | 学号 + 密码（AES256_GCM / AES256_SIV） | 否（仅 App 进程） |
 | SharedPreferences | `myhebnu_session` | 教务 Cookie 键值 + 最后保存时间 | 否 |
@@ -157,10 +157,18 @@ DAO：`observeAll`（Flow，驱动成绩页）、`getAll`、`count`、`getBySeme
 | 2 → 3 | `MIGRATION_2_3` | 新建 `exams` 表 + `(semesterYear, semesterTerm)` 索引 |
 | 3 → 4 | `MIGRATION_3_4` | 新建 `grades` 表 + `(semesterYear, semesterTerm)` 索引 |
 | 4 → 5 | `MIGRATION_4_5` | `courses` 增加 `weekBits`、`periodBits`（`INTEGER NOT NULL DEFAULT 0`） |
+| 5 → 6 | `MIGRATION_5_6` | 新建 `wishlist` 表（想看书目快照：bibId 主键 / title / author / publisher / pubYear / isbn / coverUrl / addedAt） |
 
 - `exportSchema = false`，仓库中没有 schema JSON；改表时需手写 Migration 并真机验证升级安装。
-- `DatabaseModule` 显式注册 4 个 Migration；新增版本时同步修改 `AppDatabase.version` 与迁移列表。
+- `DatabaseModule` 显式注册 5 个 Migration；新增版本时同步修改 `AppDatabase.version` 与迁移列表。
 - 发布包升级兼容性另见 [../history/change-log.md](../history/change-log.md) 的 v1.5.0 校验记录。
+
+### wishlist 表（2026-10-30 新增）
+
+- **存书籍快照而非只存 bibId**：列表页离线可读；封面地址是第三方图床临时链接，不回写更新。
+- `WishlistDao`：三个 Flow 读（observeAll / observeCount / observeIsWished）+ `upsert`（REPLACE，查与写同事务防连点）+ `insertIgnoringDuplicates`（IGNORE，备份导入用，幂等）+ `getAll` + `deleteById`。
+- `WishlistRepository` 之上还有 `WishlistBackup`（JSON 备份，带 `version` 字段；反序列化走全可空中间结构防坏文件）。
+- 封面解码键分层：列表小图 `book-cover-<bibId>`、详情大图 `book-cover-lg-<bibId>`（见 `ui/library/BookCovers.kt`），与 Room 无关但同属想看功能的数据面。
 
 ## 已知风险
 

@@ -41,6 +41,7 @@ import com.myhebnu.ui.library.LoansScreen
 import com.myhebnu.ui.library.ReaderCodeScreen
 import com.myhebnu.ui.library.RequestsScreen
 import com.myhebnu.ui.library.SearchScreen
+import com.myhebnu.ui.library.WishlistScreen
 import com.myhebnu.ui.navigation.TopLevelRoute
 import com.myhebnu.ui.room.RoomScreen
 import com.myhebnu.ui.schedule.ScheduleScreen
@@ -405,6 +406,14 @@ fun MainAppContent(
                     },
                     sharedScope = sharedScope,
                     animatedScope = animatedScope
+                )
+
+                LibraryRoutes.WISHLIST -> WishlistScreen(
+                    onBack = { goBack() },
+                    onOpenBib = { bibId, isbn, title ->
+                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title))
+                    },
+                    onGoSearch = { navigateTo(LibraryRoutes.SEARCH) }
                 )
 
                 else -> {

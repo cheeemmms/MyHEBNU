@@ -16,6 +16,9 @@ object LibraryRoutes {
     const val FINES = "library_fines"
     const val SEARCH = "library_search"
 
+    /** 「我想看的书」，本地数据，不联网。 */
+    const val WISHLIST = "library_wishlist"
+
     /** 书目详情路由前缀，后面用 [SEP] 拼接参数。 */
     private const val BIB_DETAIL_PREFIX = "library_bib"
 

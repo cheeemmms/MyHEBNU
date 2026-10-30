@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.remote.opac.OpacLoan
 import com.myhebnu.data.repository.OpacRepository
+import com.myhebnu.data.repository.WishlistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -43,13 +44,26 @@ data class LibraryHomeUiState(
 @HiltViewModel
 class LibraryHomeViewModel @Inject constructor(
     private val repository: OpacRepository,
+    private val wishlistRepository: WishlistRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryHomeUiState())
     val uiState: StateFlow<LibraryHomeUiState> = _uiState.asStateFlow()
 
+    /**
+     * 「想看」数量单独走一条流。
+     *
+     * 它来自本地数据库而不是网络，若塞进 [uiState] 会被整页刷新覆盖掉，
+     * 也会让「网络失败」误伤这个纯本地数字。
+     */
+    private val _wishCount = MutableStateFlow(0)
+    val wishCount: StateFlow<Int> = _wishCount.asStateFlow()
+
     init {
         refresh()
+        viewModelScope.launch {
+            wishlistRepository.observeCount().collect { _wishCount.value = it }
+        }
     }
 
     fun refresh() {

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -64,6 +65,7 @@ fun LibraryHomeScreen(
     viewModel: LibraryHomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val wishCount by viewModel.wishCount.collectAsStateWithLifecycle()
 
     // 与首页「我的图书馆」卡片共享元素：卡片在原位展开成整页，返回时收回
     val pageModifier = sharedCardPageModifier(
@@ -173,6 +175,13 @@ fun LibraryHomeScreen(
                         title = "馆藏检索",
                         leadingIcon = Icons.Filled.Search,
                         onClick = { onNavigate(LibraryRoutes.SEARCH) },
+                        showDivider = true
+                    )
+                    GroupRow(
+                        title = "我想看的书",
+                        leadingIcon = Icons.Outlined.FavoriteBorder,
+                        trailingText = if (wishCount > 0) "$wishCount 本" else null,
+                        onClick = { onNavigate(LibraryRoutes.WISHLIST) },
                         showDivider = true
                     )
                     GroupRow(
@@ -345,8 +354,8 @@ private fun LibraryHomeSkeleton(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(Spacing.xxl))
         SectionHeader(text = "常用")
         GroupedSurface {
-            repeat(5) { index ->
-                SkeletonGroupRow(showDivider = index != 4)
+            repeat(6) { index ->
+                SkeletonGroupRow(showDivider = index != 5)
             }
         }
 

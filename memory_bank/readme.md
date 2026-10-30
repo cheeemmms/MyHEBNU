@@ -2,7 +2,7 @@
 
 - **用途**：MyHEBNU 项目记忆库的唯一入口，承载懒加载协议、文件清单与当前快照。
 - **阅读时机**：任何会话开始处理本项目时，先只读本文件。
-- **最后更新**：2026-10-28
+- **最后更新**：2026-10-30
 - **状态**：稳定
 
 ## 目录
@@ -33,10 +33,11 @@
 | 2026-10-28 记忆库维护 | 把一次性交接文档 `handover-library-sso.md` 的长期内容并入 [architecture/library-and-sso.md](architecture/library-and-sso.md) 并删除该文件，未完成项并入实施计划，`ea-api.md` 的登录章节改写成 CAS 单点登录。 |
 | 最近一次实质进展（更早） | 2026-10-27 图书馆模块上线：汇文 OPAC 只读 7 页（首页/当前借阅/动态借书码/馆藏检索/书目详情/预约与荐购/罚金与违约）已装真机跑通数据；同一轮把教务登录从旧 xtgl 表单切到学校 CAS 单点登录，图书馆复用同一会话，旧的 xtgl 登录代码整段删除、无双路径 |
 | 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
-| 下一步 | 图书馆写操作（续借/荐购/预约委托，用户已明确留到下一期）；图书馆页面英文资源；`feat/md3-ui-refresh` 并入主线；Phase 8 收尾 |
+| 下一步 | 图书馆写操作（续借/荐购/预约委托，用户已明确留到下一期）；图书馆页面英文资源；Phase 8 收尾 |
 | 已知阻塞 | `dsh-android` 插件的 adb 发现未打通（`ADB`/`ANDROID_HOME` 未设、SDK 不在默认位置），需用户在启动 DSH 前配置环境变量；Gradle 与 adb 需要 `danger-full-access` |
 | 交接状态 | **可交接**：先读 [handover-notes.md](handover-notes.md)；图书馆与 CAS 的技术细节在 [architecture/library-and-sso.md](architecture/library-and-sso.md)；未完成项在 [implementation-plan.md](implementation-plan.md) |
-| 最后更新 | 2026-10-28 |
+| 分支状态 | `main` 与 `feat/md3-ui-refresh` 已一致（2026-10-30 快进合并后两边同指），后续开发从 `main` 起 |
+| 最后更新 | 2026-10-30 |
 
 ## 文件清单
 
@@ -93,5 +94,6 @@
 
 ## 历史记录
 
+- **2026-10-30**：补提交上一轮遗留的文档改动并收口分支。`CHANGELOG.md` 的 v1.7.0 段（`7580673`）与记忆库重整（`1e66d1b`：新建 [architecture/library-and-sso.md](architecture/library-and-sso.md)、删除 `handover-library-sso.md`、7 个文件同步）此前只存在于工作区，本次按主题拆成两次提交入库；`feat/md3-ui-refresh` 快进合并进 `main`，两条分支同指并推送。未改动任何 `app/` 源码，与已发布的 v1.7.0 二进制一致。
 - **2026-10-28**：随 v1.7.0 发版同步。删除一次性交接文档 `handover-library-sso.md`（长期技术内容并入新建的 [architecture/library-and-sso.md](architecture/library-and-sso.md)，未完成项并入 [implementation-plan.md](implementation-plan.md)，构建/发版命令并入 [tech-stack.md](tech-stack.md)）；[architecture.md](architecture.md) 补图书馆与 CAS 模块、关键决策 9–11；[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 补图书馆页面、逐级返回、`SemanticColors`/`SkeletonBox`/共享元素约定；[architecture/ea-api.md](architecture/ea-api.md) 的登录章节从 xtgl 表单直登改写为 CAS 单点登录；[tech-stack.md](tech-stack.md) 新增「版本与发布」；[handover-notes.md](handover-notes.md) 刷新状态、文件地图与发版流程。
 - **2026-10-21**：按团队 memory_bank 规范重整。目录由 `memory-bank/` 改为 `memory_bank/`；`progress.md` 拆分为当前路线图（[implementation-plan.md](implementation-plan.md)）与变更日志（[history/change-log.md](history/change-log.md)）；`architecture.md` 拆为主题子文档；`batch4-requirements.md` 的有效需求并入 [design-document.md](design-document.md)，过程记录归档到变更日志；`HTTP901-诊断与日志采集.md` 与 `glance-api-research.md` 移入 `diagnostics/` 并规范化；新增本入口文件、`tech-stack.md`、`handover-notes.md`、`architecture/security.md`。同日对齐代理端口 7897、统一许可证为 AGPL-3.0、关闭考试分页项、将小学期成绩改为待验证、i18n 搁置、安全项搁置、修正课表长按发布说明。启动改为本地判定并移除启动网络校验，详见 [startup-latency.md](diagnostics/startup-latency.md)。

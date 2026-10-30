@@ -10,13 +10,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import com.myhebnu.ui.components.M3AccelerateEasing
-import com.myhebnu.ui.components.M3DecelerateEasing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -321,26 +314,7 @@ fun MainAppContent(
         // 首页卡片 → 目标页：共享元素容器变换（卡片直接展开成整页）
         SharedTransitionLayout {
             val sharedScope = this
-            AnimatedContent(
-                targetState = currentRoute,
-                // 页面级也走 M3 的 fade through：退场 90ms（accelerate），
-                // 入场 210ms 且延后 90ms（decelerate），合计约 300ms。
-                // 与卡片内部 sharedBounds 用同一套 token，内外节奏才一致。
-                transitionSpec = {
-                    fadeIn(
-                        animationSpec = tween(
-                            durationMillis = 210,
-                            delayMillis = 90,
-                            easing = M3DecelerateEasing
-                        )
-                    ) togetherWith fadeOut(
-                        animationSpec = tween(
-                            durationMillis = 90,
-                            easing = M3AccelerateEasing
-                        )
-                    )
-                }
-            ) { route ->
+            AnimatedContent(targetState = currentRoute) { route ->
                 val animatedScope: AnimatedVisibilityScope = this
                 when (route) {
                 TopLevelRoute.Home.route -> HomeScreen(

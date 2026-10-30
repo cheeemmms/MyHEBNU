@@ -30,6 +30,20 @@ class ScheduleRepository @Inject constructor(
     private val dao: ScheduleDao,
     private val preferences: UserPreferences
 ) {
+    private companion object {
+        /** 周次文本里的「单周」或「区间」，如 `4`、`1-18`；归一化后逐个匹配。 */
+        val WEEK_RANGE_REGEX = Regex("""(\d{1,2})(?:-(\d{1,2}))?""")
+
+        /** 单学期教学周的合理上限，用于挡掉误匹配到的非周次数字（如年份）。 */
+        const val MAX_SEMESTER_WEEK = 30
+
+        /** 位掩码位宽上限（Int 的正数区间 31 位），用于把 oldzc/oldjc 展开成序号集合。 */
+        const val MAX_MASK_BIT = 31
+
+        /** 周次完全无法识别时的兜底范围（与历史行为一致，但会打 WARN 日志）。 */
+        val DEFAULT_WEEK_RANGE = 1 to 18
+    }
+
     // In-memory cache — period times don't change within a semester
     private var cachedPeriods: List<PeriodTime>? = null
     private var cachedPeriodsSemester: Pair<String, String>? = null
@@ -158,8 +172,23 @@ class ScheduleRepository @Inject constructor(
 
             if (courseName.isBlank() || periodRange.isBlank()) continue
 
-            val (startPeriod, endPeriod) = parsePeriodRange(periodRange)
-            val (startWeek, endWeek, oddEven) = parseWeekRange(weekText)
+            // 位掩码优先：教务的 oldzc/oldjc 是精确的周次/节次集合，
+            // 文本解析只在掩码缺失时兜底（老接口或字段为空）。
+            val weekBits = item.get("oldzc")?.let { mask -> parseBitMask(mask.asString) } ?: 0
+            val periodBits = item.get("oldjc")?.let { mask -> parseBitMask(mask.asString) } ?: 0
+
+            val (startPeriod, endPeriod) = if (periodBits != 0) {
+                val active = (1..MAX_MASK_BIT).filter { ((periodBits shr (it - 1)) and 1) == 1 }
+                active.first() to active.last()
+            } else {
+                parsePeriodRange(periodRange)
+            }
+            val (startWeek, endWeek, oddEven) = if (weekBits != 0) {
+                val active = (1..MAX_MASK_BIT).filter { ((weekBits shr (it - 1)) and 1) == 1 }
+                Triple(active.first(), active.last(), 0)
+            } else {
+                parseWeekRange(weekText, courseName)
+            }
 
             // Generate a stable ID
             val id = "$year-$term-$courseName-$dayOfWeek-$periodRange-$weekText"
@@ -179,6 +208,8 @@ class ScheduleRepository @Inject constructor(
                     startWeek = startWeek,
                     endWeek = endWeek,
                     oddEven = oddEven,
+                    weekBits = weekBits,
+                    periodBits = periodBits,
                     weekText = weekText,
                     category = category,
                     color = hue,
@@ -206,42 +237,79 @@ class ScheduleRepository @Inject constructor(
     }
 
     /**
-     * Parse week range like "1-18周" → (1, 18, 0)
-     * "1-18周(单)" → (1, 18, 1)
-     * "1-18周(双)" → (1, 18, 2)
-     * Also handles "1-10周,12-18周" → (1, 18, 0) (takes min and max)
+     * 解析教务返回的位掩码字符串（`oldzc` 周次 / `oldjc` 节次，十进制）。
+     * bit0 对应第 1 周 / 第 1 节。空串、非数字、非法值一律返回 0，交由调用方回落文本解析。
+     */
+    private fun parseBitMask(raw: String): Int {
+        val value = raw.trim().toLongOrNull() ?: return 0
+        return (value and 0x7FFFFFFFL).toInt()
+    }
+
+    /**
+     * Parse week range text into [startWeek], [endWeek] and odd/even restriction.
      *
+     * 教务实际会返回以下写法（均已覆盖）：
+     * ```
+     * 1-18周                        连续区间
+     * 1-2周,4-16周                  多段（取并集后的最小/最大周）
+     * 1-8周(双) / 1-9周(单)          单双周
+     * 第4周 / 第4周,第6周            单周调课（调课、临时加课用此写法）
+     * ```
+     * 解析前先做归一化（全角数字、全角逗号、破折号变体、括号与“第/周”修饰），
+     * 因此“第4周”会正确得到 (4, 4, 0) 而不是回退成整学期。
+     *
+     * @param courseName 仅用于解析失败时的日志定位，不参与解析
      * @return Triple(startWeek, endWeek, oddEven) where oddEven: 0=all, 1=odd, 2=even
      */
-    private fun parseWeekRange(text: String): Triple<Int, Int, Int> {
-        // Detect odd/even before cleaning
+    private fun parseWeekRange(text: String, courseName: String = ""): Triple<Int, Int, Int> {
+        val normalized = normalizeWeekText(text)
+
+        // Detect odd/even before removing the markers
         val oddEven = when {
-            text.contains("单") -> 1
-            text.contains("双") -> 2
+            normalized.contains("单") -> 1
+            normalized.contains("双") -> 2
             else -> 0
         }
 
-        val weekNumbers = mutableListOf<Int>()
-        // Extract all numbers from the text
-        val cleaned = text.replace("周", "").replace("单", "").replace("双", "")
-        val segments = cleaned.split(",")
-        for (segment in segments) {
-            val parts = segment.trim().split("-").mapNotNull { it.trim().toIntOrNull() }
-            when (parts.size) {
-                1 -> weekNumbers.add(parts[0])
-                2 -> {
-                    for (w in parts[0]..parts[1]) {
-                        weekNumbers.add(w)
-                    }
-                }
+        val body = normalized.replace("单", "").replace("双", "")
+        val weeks = sortedSetOf<Int>()
+        WEEK_RANGE_REGEX.findAll(body).forEach { match ->
+            val start = match.groupValues[1].toIntOrNull()
+            val end = match.groupValues[2].ifBlank { match.groupValues[1] }.toIntOrNull()
+            if (start != null && end != null && start in 1..MAX_SEMESTER_WEEK && end in start..MAX_SEMESTER_WEEK) {
+                weeks.addAll(start..end)
             }
         }
-        val (minWeek, maxWeek) = if (weekNumbers.isEmpty()) {
-            1 to 18
-        } else {
-            weekNumbers.min() to weekNumbers.max()
+
+        if (weeks.isEmpty()) {
+            // 不静默：无法识别的新写法必须能在日志里被发现，否则会退化成“整学期都有课”
+            android.util.Log.w(
+                "MyHEBNU",
+                "parseWeekRange 无法识别周次文本：'$text'（课程：$courseName），已回退 ${DEFAULT_WEEK_RANGE.first}-${DEFAULT_WEEK_RANGE.second} 周"
+            )
+            return Triple(DEFAULT_WEEK_RANGE.first, DEFAULT_WEEK_RANGE.second, oddEven)
         }
-        return Triple(minWeek, maxWeek, oddEven)
+        return Triple(weeks.first(), weeks.last(), oddEven)
+    }
+
+    /**
+     * 归一化教务周次文本，使其只剩数字、区间分隔符与单双标记：
+     * 全角数字转半角、全角标点转半角逗号、破折号变体统一为 `-`、
+     * 去掉“第”“周”“(”“)”与空白。
+     */
+    private fun normalizeWeekText(text: String): String {
+        val sb = StringBuilder(text.length)
+        for (ch in text) {
+            val c = when {
+                ch in '０'..'９' -> ('0' + (ch - '０'))
+                ch == '，' || ch == '、' || ch == '；' || ch == ';' || ch == '／' || ch == '/' -> ','
+                ch == '－' || ch == '—' || ch == '–' || ch == '~' || ch == '～' || ch == '至' || ch == '∼' -> '-'
+                else -> ch
+            }
+            if (c == '第' || c == '周' || c == '(' || c == ')' || c == '（' || c == '）' || c.isWhitespace()) continue
+            sb.append(c)
+        }
+        return sb.toString()
     }
 
     /**

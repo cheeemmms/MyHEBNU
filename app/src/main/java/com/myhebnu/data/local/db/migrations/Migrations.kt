@@ -43,8 +43,7 @@ object Migrations {
         }
     }
 
-    val MIGRATION_3_4 = object : Migration(3, 4) {
-        override fun migrate(db: SupportSQLiteDatabase) {
+    val MIGRATION_3_4 = object : Migration(3, 4) {        override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
                 """
                 CREATE TABLE IF NOT EXISTS grades (
@@ -67,6 +66,19 @@ object Migrations {
             db.execSQL(
                 "CREATE INDEX IF NOT EXISTS index_grades_semesterYear_semesterTerm ON grades (semesterYear, semesterTerm)"
             )
+        }
+    }
+
+    /**
+     * 课程表新增周次/节次位掩码（对应教务返回的 oldzc / oldjc）。
+     *
+     * 老数据一律写 0，表示"尚未采集掩码"——判定时回落 startWeek..endWeek + oddEven，
+     * 下次刷新课表即写入真实掩码，届时段级单双、多段周次、"第 N 周"等写法全部精确。
+     */
+    val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE courses ADD COLUMN weekBits INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE courses ADD COLUMN periodBits INTEGER NOT NULL DEFAULT 0")
         }
     }
 }

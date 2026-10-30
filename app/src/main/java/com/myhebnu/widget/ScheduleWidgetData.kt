@@ -2,6 +2,7 @@ package com.myhebnu.widget
 
 import android.content.Context
 import com.myhebnu.data.local.db.entity.CourseEntity
+import com.myhebnu.data.local.db.entity.isActiveInWeek
 import com.myhebnu.data.repository.PeriodTime
 import com.google.gson.JsonParser
 import dagger.hilt.android.EntryPointAccessors
@@ -234,15 +235,7 @@ private suspend fun loadDayCourses(
 // ──────────────────────────────────────────────
 
 private fun filterByWeek(courses: List<CourseEntity>, week: Int): List<CourseEntity> {
-    val isOdd = (week % 2 == 1)
-    return courses.filter { c ->
-        week in c.startWeek..c.endWeek &&
-                when (c.oddEven) {
-                    1 -> isOdd
-                    2 -> !isOdd
-                    else -> true
-                }
-    }
+    return courses.filter { it.isActiveInWeek(week) }
 }
 
 /**

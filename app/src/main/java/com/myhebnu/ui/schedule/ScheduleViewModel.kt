@@ -3,6 +3,7 @@ package com.myhebnu.ui.schedule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.local.db.entity.CourseEntity
+import com.myhebnu.data.local.db.entity.isActiveInWeek
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.PeriodTime
 import com.myhebnu.data.repository.ScheduleRepository
@@ -741,7 +742,7 @@ class ScheduleViewModel @Inject constructor(
 
         for (course in courses) {
             if (course.dayOfWeek != todayDayOfWeek) continue
-            if (displayWeek !in course.startWeek..course.endWeek) continue
+            if (!course.isActiveInWeek(displayWeek)) continue
 
             // Find the period info for this course's time range
             val periodInfo = state.periodLabels.find {
@@ -822,21 +823,11 @@ class ScheduleViewModel @Inject constructor(
 
     /**
      * Filter courses that are active in the given week.
-     * Checks week range AND odd/even week restriction.
+     * 周次判定统一走 [isActiveInWeek]：优先用周次位掩码，老数据才回落单双周推断。
      */
     private fun filterCoursesByWeek(
         courses: List<CourseEntity>, week: Int
-    ): List<CourseEntity> {
-        val isOdd = (week % 2 == 1)
-        return courses.filter { course ->
-            week in course.startWeek..course.endWeek &&
-            when (course.oddEven) {
-                1 -> isOdd
-                2 -> !isOdd
-                else -> true
-            }
-        }
-    }
+    ): List<CourseEntity> = courses.filter { it.isActiveInWeek(week) }
 
     /**
      * Parse a date range string like "2025-09-08/2025-09-14" into a pair of LocalDates.

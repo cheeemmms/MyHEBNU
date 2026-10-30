@@ -2,6 +2,7 @@ package com.myhebnu.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myhebnu.data.local.db.entity.isActiveInWeek
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.ExamRepository
 import com.myhebnu.data.repository.PeriodTime
@@ -146,7 +147,7 @@ class HomeViewModel @Inject constructor(
      * Determine the current/next class using real period time data from the教务 system.
      *
      * Algorithm:
-     * 1. Filter today's courses (day + week + oddEven)
+     * 1. Filter today's courses (day + week)
      * 2. For each course, look up its start/end time from [periods]
      * 3. If now falls within any course → IN_CLASS (with countdown to course end)
      * 4. Otherwise find the next upcoming course → HAS_CLASS
@@ -159,10 +160,8 @@ class HomeViewModel @Inject constructor(
         if (dayOfWeek >= 6) return ClassInfo(NextClassState.WEEKEND, "", "", "", "")
 
         val courses = scheduleRepository.observeSchedule(year, term).first()
-        val isOdd = week % 2 == 1
         val todayCourses = courses.filter { c ->
-            c.dayOfWeek == dayOfWeek && week in c.startWeek..c.endWeek &&
-            when (c.oddEven) { 1 -> isOdd; 2 -> !isOdd; else -> true }
+            c.dayOfWeek == dayOfWeek && c.isActiveInWeek(week)
         }.sortedBy { it.startPeriod }
 
         // No courses today
@@ -171,7 +170,7 @@ class HomeViewModel @Inject constructor(
                 // Data not loaded yet — don't claim HOLIDAY
                 return ClassInfo(NextClassState.ALL_DONE, "", "", "", "")
             }
-            val hasAnyNearby = courses.any { week in it.startWeek..it.endWeek }
+            val hasAnyNearby = courses.any { it.isActiveInWeek(week) }
             return if (!hasAnyNearby) ClassInfo(NextClassState.HOLIDAY, "", "", "", "")
             else ClassInfo(NextClassState.ALL_DONE, "", "", "", "")
         }

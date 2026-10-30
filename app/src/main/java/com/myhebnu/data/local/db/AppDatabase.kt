@@ -11,7 +11,7 @@ import com.myhebnu.data.local.db.entity.GradeEntity
 
 @Database(
     entities = [CourseEntity::class, ExamEntity::class, GradeEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

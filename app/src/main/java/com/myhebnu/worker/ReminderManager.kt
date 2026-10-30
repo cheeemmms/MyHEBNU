@@ -11,6 +11,7 @@ import com.myhebnu.MyHebnuApplication
 import com.myhebnu.MainActivity
 import com.myhebnu.R
 import com.myhebnu.data.local.db.entity.CourseEntity
+import com.myhebnu.data.local.db.entity.isActiveInWeek
 import com.myhebnu.data.repository.ExamRepository
 import com.myhebnu.data.repository.ScheduleRepository
 import com.myhebnu.data.local.preferences.UserPreferences
@@ -60,16 +61,8 @@ class ReminderManager @Inject constructor(
             return
         }
 
-        // Filter by week and odd/even
-        val isOdd = currentWeek % 2 == 1
-        val validCourses = courses.filter { course ->
-            currentWeek in course.startWeek..course.endWeek &&
-            when (course.oddEven) {
-                1 -> isOdd
-                2 -> !isOdd
-                else -> true
-            }
-        }
+        // Filter by week（周次判定统一走 isActiveInWeek：优先位掩码，老数据才回落单双周推断）
+        val validCourses = courses.filter { it.isActiveInWeek(currentWeek) }
 
         val sentKeys = preferences.sentReminders.first()
 

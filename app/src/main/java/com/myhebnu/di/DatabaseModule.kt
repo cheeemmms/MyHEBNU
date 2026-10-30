@@ -6,6 +6,7 @@ import com.myhebnu.data.local.db.AppDatabase
 import com.myhebnu.data.local.db.dao.ExamDao
 import com.myhebnu.data.local.db.dao.GradeDao
 import com.myhebnu.data.local.db.dao.ScheduleDao
+import com.myhebnu.data.local.db.dao.WishlistDao
 import com.myhebnu.data.local.db.migrations.Migrations
 import dagger.Module
 import dagger.Provides
@@ -29,7 +30,8 @@ object DatabaseModule {
             Migrations.MIGRATION_1_2,
             Migrations.MIGRATION_2_3,
             Migrations.MIGRATION_3_4,
-            Migrations.MIGRATION_4_5
+            Migrations.MIGRATION_4_5,
+            Migrations.MIGRATION_5_6
         )
           .fallbackToDestructiveMigration(false).build()
     }
@@ -47,5 +49,10 @@ object DatabaseModule {
     @Provides
     fun provideGradeDao(database: AppDatabase): GradeDao {
         return database.gradeDao()
+    }
+
+    @Provides
+    fun provideWishlistDao(database: AppDatabase): WishlistDao {
+        return database.wishlistDao()
     }
 }

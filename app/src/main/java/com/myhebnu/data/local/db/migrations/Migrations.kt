@@ -81,4 +81,30 @@ object Migrations {
             db.execSQL("ALTER TABLE courses ADD COLUMN periodBits INTEGER NOT NULL DEFAULT 0")
         }
     }
+
+    /**
+     * 新增「想看」表。
+     *
+     * 只建新表、不动任何既有表——课表/成绩/考试数据零风险。
+     * 字段类型与默认值必须和 [com.myhebnu.data.local.db.entity.WishlistEntity] 完全一致，
+     * 否则 Room 启动时的 schema 校验会直接抛错（这是好事：宁可报错也不静默错位）。
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS wishlist (
+                    bibId TEXT NOT NULL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    author TEXT NOT NULL,
+                    publisher TEXT NOT NULL,
+                    pubYear TEXT NOT NULL,
+                    isbn TEXT NOT NULL,
+                    coverUrl TEXT NOT NULL,
+                    addedAt INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+        }
+    }
 }

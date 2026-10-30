@@ -36,7 +36,7 @@
 | 下一步 | 图书馆写操作（续借/荐购/预约委托，用户已明确留到下一期）；图书馆页面英文资源；Phase 8 收尾 |
 | 已知阻塞 | `dsh-android` 插件的 adb 发现未打通（`ADB`/`ANDROID_HOME` 未设、SDK 不在默认位置），需用户在启动 DSH 前配置环境变量；Gradle 与 adb 需要 `danger-full-access` |
 | 交接状态 | **可交接**：先读 [handover-notes.md](handover-notes.md)；图书馆与 CAS 的技术细节在 [architecture/library-and-sso.md](architecture/library-and-sso.md)；未完成项在 [implementation-plan.md](implementation-plan.md) |
-| 分支状态 | `main` 与 `feat/md3-ui-refresh` 已一致（2026-10-30 快进合并后两边同指），后续开发从 `main` 起 |
+| 分支状态 | `main` 是当前开发线（2026-10-30 由 `feat/md3-ui-refresh` 快进合并而来，其后新提交只进 `main`）；`feat/md3-ui-refresh` 保留在合并点，不再跟进。新工作一律从 `main` 起 |
 | 最后更新 | 2026-10-30 |
 
 ## 文件清单

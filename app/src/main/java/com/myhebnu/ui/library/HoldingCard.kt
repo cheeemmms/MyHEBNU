@@ -1,8 +1,9 @@
 package com.myhebnu.ui.library
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import com.myhebnu.ui.components.M3AccelerateEasing
+import com.myhebnu.ui.components.M3DecelerateEasing
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
@@ -60,15 +61,16 @@ fun HoldingCard(
             HoldingRowItem(holding = holding, showDivider = true)
         }
 
-        // 展开/收起各有一条曲线：展开稍慢（给人「内容长出来」的从容感），
-        // 收起更快——收拢是结束动作，拖长了会显得迟钝。
+        // 展开/收起各有一条曲线，对齐 M3：展开用 emphasized-decelerate（迅速长出、末段轻缓），
+        // 收起用 emphasized-accelerate（加速收拢）。时长沿用 Motion token（300/200ms，
+        // 恰好等于 M3 的 medium2 / short4）。
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically(
-                animationSpec = tween(Motion.emphasized, easing = FastOutSlowInEasing)
+                animationSpec = tween(Motion.emphasized, easing = M3DecelerateEasing)
             ),
             exit = shrinkVertically(
-                animationSpec = tween(Motion.standard, easing = FastOutSlowInEasing)
+                animationSpec = tween(Motion.standard, easing = M3AccelerateEasing)
             )
         ) {
             Column {

@@ -63,15 +63,19 @@ val MinTouchTarget = 48.dp
  *
  * 动画只服务于三件事：交互反馈、状态变化、空间连续性。
  * 超过 [emphasized] 的时长在这个应用里都属于「让用户等」。
+ *
+ * 与 M3 duration token 的对应关系：[standard] = short4(200)，[emphasized] = medium2(300)；
+ * [fast] = 120ms 属自有取舍（介于 M3 的 short2 与 short3 之间）。
+ * 缓动曲线请用 `M3AccelerateEasing` / `M3DecelerateEasing`（见 ui/components/SharedCardPage.kt）。
  */
 object Motion {
     /** 120ms · 按下、抬起的即时反馈 */
     const val fast = 120
 
-    /** 200ms · 展开/收起、淡入淡出 */
+    /** 200ms · 展开/收起、淡入淡出（= M3 short4） */
     const val standard = 200
 
-    /** 300ms · 页面转场、共享元素 */
+    /** 300ms · 页面转场、共享元素（= M3 medium2） */
     const val emphasized = 300
 }
 

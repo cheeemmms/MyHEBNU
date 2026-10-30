@@ -2,9 +2,12 @@ package com.myhebnu.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.myhebnu.data.local.db.entity.WishlistEntity
 import com.myhebnu.data.remote.opac.OpacHolding
 import com.myhebnu.data.repository.OpacRepository
+import com.myhebnu.data.repository.WishlistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,36 +22,49 @@ data class BibDetailUiState(
     val error: String? = null,
     val title: String = "",
     val author: String = "",
+    /** 出版者，展示在「出版信息」板块顶部。 */
     val publisher: String = "",
     val pubYear: String = "",
     val isbn: String = "",
-    val callNo: String = "",
     val coverUrl: String = "",
     val abstract: String = "",
+    /** 编目字段（已剔除与顶部重复的项，见 [BibDetailViewModel.buildMarcFields]）。 */
     val marcFields: List<Pair<String, String>> = emptyList(),
+    /** 馆藏，可借的排在前面。 */
     val holdings: List<OpacHolding> = emptyList(),
-    val availableCount: Int = 0,
-    val borrowedCount: Int = 0,
-    val readingCount: Int = 0,
     val clickCount: Int = 0,
 )
 
 /**
- * 书目详情：基础信息 + 馆藏分布 + 编目字段。
+ * 书目详情：书籍身份 + 馆藏分布 + 编目字段。
  *
  * `POST search/` 的 `holdings` 与 `bibs/{id}/holdings` 结构同构，但前者随检索结果一起返回；
- * 这里从详情接口重新取一次，保证「可借册数」是当下的真实值。
+ * 这里从详情接口重新取一次，保证「能不能借」是当下的真实值。
+ *
+ * 想看状态**不在这里保存**：它由 Room 的 Flow 驱动（[isWished]），
+ * 这样从列表页移除一本书后回到本页，爱心会自动变回描边。
  */
 @HiltViewModel
 class BibDetailViewModel @Inject constructor(
     private val repository: OpacRepository,
+    private val wishlistRepository: WishlistRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BibDetailUiState())
     val uiState: StateFlow<BibDetailUiState> = _uiState.asStateFlow()
 
-    private var loadedBibId: String? = null
+    private val _isWished = MutableStateFlow(false)
+    val isWished: StateFlow<Boolean> = _isWished.asStateFlow()
 
+    private var loadedBibId: String? = null
+    private var wishJob: Job? = null
+
+    /**
+     * 加载一本书。
+     *
+     * `hiltViewModel()` 在手写返回栈下拿到的始终是 Activity 级的同一个实例，
+     * 所以换一本书进来时必须重新订阅 [isWished]，否则爱心会停留在上一本的状态。
+     */
     fun load(bibId: String, isbn: String?, fallbackTitle: String?) {
         if (bibId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, error = "缺少书目标识") }
@@ -57,9 +73,58 @@ class BibDetailViewModel @Inject constructor(
         if (loadedBibId == bibId && !_uiState.value.isLoading) return
         loadedBibId = bibId
 
+        observeWished(bibId)
+        loadDetail(bibId, isbn, fallbackTitle)
+    }
+
+    /** 重新拉取（错误态下的「重试」）。 */
+    fun retry() {
+        val bibId = loadedBibId ?: return
+        loadDetail(bibId, null, _uiState.value.title)
+    }
+
+    /**
+     * 切换「想看」。
+     *
+     * 标题为空时直接返回——此时详情还没加载出来，落库只会得到一条没有书名的空记录，
+     * 列表页会显示成「无题名」。界面上按钮同样是禁用的。
+     */
+    fun toggleWish() {
+        val state = _uiState.value
+        val bibId = loadedBibId ?: return
+        if (state.title.isBlank()) return
+
+        val entry = WishlistEntity(
+            bibId = bibId,
+            title = state.title,
+            author = state.author,
+            publisher = state.publisher,
+            pubYear = state.pubYear,
+            isbn = state.isbn,
+            // 豆瓣那一路没给封面时，用 ISBN 拼图床地址兜底，与检索页同一套规则
+            coverUrl = state.coverUrl.ifBlank { LibraryFormat.coverUrl(state.isbn) },
+            addedAt = System.currentTimeMillis(),
+        )
+        viewModelScope.launch { wishlistRepository.toggle(entry) }
+    }
+
+    private fun observeWished(bibId: String) {
+        wishJob?.cancel()
+        wishJob = viewModelScope.launch {
+            wishlistRepository.observeIsWished(bibId).collect { wished ->
+                _isWished.value = wished
+            }
+        }
+    }
+
+    private fun loadDetail(bibId: String, isbn: String?, fallbackTitle: String?) {
         viewModelScope.launch {
             _uiState.update {
-                it.copy(isLoading = true, error = null, title = fallbackTitle.orEmpty())
+                it.copy(
+                    isLoading = true,
+                    error = null,
+                    title = it.title.ifBlank { fallbackTitle.orEmpty() }
+                )
             }
 
             val result = runCatching {
@@ -80,10 +145,6 @@ class BibDetailViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { (bundle, copies, extra) ->
                         val base = bundle.base
-                        val available = copies.count { it.circStatus == 0 }
-                        val borrowed = copies.count { it.circStatus == 1 }
-                        val reading = copies.size - available - borrowed
-
                         state.copy(
                             isLoading = false,
                             error = null,
@@ -94,14 +155,15 @@ class BibDetailViewModel @Inject constructor(
                             publisher = base?.publisher.orEmpty(),
                             pubYear = base?.pubYear.orEmpty(),
                             isbn = base?.isbn.orEmpty(),
-                            callNo = base?.callno?.firstOrNull().orEmpty(),
-                            coverUrl = resolveUrl(extra?.imageUrl).orEmpty(),
+                            // 豆瓣封面优先（尺寸大、适合做整屏背景），
+                            // 缺失时退到汇文图床按 ISBN 拼的图，最后才留空
+                            coverUrl = resolveUrl(extra?.imageUrl)
+                                ?: LibraryFormat.coverUrl(base?.isbn).ifBlank { null }
+                                ?: "",
                             abstract = extra?.content.orEmpty(),
                             marcFields = buildMarcFields(bundle.fields),
-                            holdings = copies,
-                            availableCount = available,
-                            borrowedCount = borrowed,
-                            readingCount = reading,
+                            // 可借排前面：读者打开这页只想先看到「哪儿能借到」
+                            holdings = copies.sortedByDescending { if (it.circStatus == 0) 1 else 0 },
                             clickCount = bundle.clickCount,
                         )
                     },
@@ -126,13 +188,12 @@ class BibDetailViewModel @Inject constructor(
     /**
      * 编目字段的 key 是中文自由文本，value 内含 HTML（`<a style='color:#006fcc' ...>`）。
      *
-     * 三条清洗规则：
-     * 1. 丢掉与顶部标题区重复的字段（题名/责任者、ISBN 与定价）；
+     * 清洗规则：
+     * 1. 丢掉已经在页面上单独展示过的字段：题名/责任者、ISBN及定价、出版发行项、载体形态项；
      * 2. 丢掉内容简介已经完整展示过的提要/文摘字段，避免同一个段落出现两遍；
      * 3. 丢掉没有 key 的裸值（汇文偶尔把一条附注单独塞进 map，会渲染成没有标签的行）。
      */
     private fun buildMarcFields(raw: Map<String, String>): List<Pair<String, String>> {
-        val skip = setOf("题名/责任者", "ISBN及定价")
         val duplicatedWithAbstract = listOf("提要", "文摘", "简介", "摘要")
         return raw.entries
             .mapNotNull { (key, value) ->
@@ -140,7 +201,7 @@ class BibDetailViewModel @Inject constructor(
                 val text = stripHtml(value)
                 if (label.isEmpty() || text.isBlank()) null else label to text
             }
-            .filterNot { it.first in skip }
+            .filterNot { it.first in SKIP_LABELS }
             .filterNot { (label, _) -> duplicatedWithAbstract.any { label.contains(it) } }
             .distinctBy { it.first }
             // 汇文偶尔把每个责任者后面都跟一个「著」，合并成一个
@@ -159,5 +220,10 @@ class BibDetailViewModel @Inject constructor(
             .replace("&gt;", ">")
             .replace("&quot;", "\"")
         return withoutPlaceholder.trim().replace(Regex("\n{2,}"), "\n")
+    }
+
+    private companion object {
+        /** 已在页面上单独渲染，不再重复出现在编目字段区。 */
+        val SKIP_LABELS = setOf("题名/责任者", "ISBN及定价", "出版发行项", "载体形态项")
     }
 }

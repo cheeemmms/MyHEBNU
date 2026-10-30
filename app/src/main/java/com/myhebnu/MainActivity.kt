@@ -13,7 +13,9 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -303,8 +305,10 @@ fun MainAppContent(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            // 横屏时避开刘海/打孔区域（背景仍铺满整屏）
-            .windowInsetsPadding(WindowInsets.displayCutout)
+            // 只避让横向的刘海/打孔（横屏时有用），纵向交给各页面自己处理：
+            // 图书馆书籍详情要把封面铺到状态栏下面，这里统一加顶部内边距会抢先占掉那块空间。
+            // 其余页面用的是 M3 TopAppBar，它自带状态栏 inset，不受影响。
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
     ) {
         // 首页卡片 → 目标页：共享元素容器变换（卡片直接展开成整页）
         SharedTransitionLayout {

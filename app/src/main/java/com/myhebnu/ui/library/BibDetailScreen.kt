@@ -134,7 +134,8 @@ fun BibDetailScreen(
     }
 
     val pageTransform = sharedCardPageModifier(
-        key = "search-card-$bibId",
+        // 中性 key：检索卡片与「想看」列表行都声明 bib-card-<bibId>，详情页只认这一个
+        key = "bib-card-$bibId",
         sharedScope = sharedScope,
         animatedScope = animatedScope,
         boundsTransform = ContainerTransformBoundsTransform

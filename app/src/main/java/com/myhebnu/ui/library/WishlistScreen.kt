@@ -50,7 +50,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.imageLoader
 import com.myhebnu.data.local.db.entity.WishlistEntity
-import com.myhebnu.ui.components.sharedCoverModifier
+import com.myhebnu.ui.components.ContainerTransformBoundsTransform
+import com.myhebnu.ui.components.sharedCardPageModifier
 import com.myhebnu.ui.design.GroupedSurface
 import com.myhebnu.ui.design.ScreenScaffold
 import com.myhebnu.ui.design.SectionDivider
@@ -260,17 +261,17 @@ private fun WishlistRow(
 ) {
     val entry: WishlistEntity = item.entry
 
-    // 这一行的几何连续性只由封面承担：列表行是「满宽 × 88dp」的扁条，若让整行做容器变换，
-    // ScaleToBounds 要用 max(放大比) 盖住容器，横向放大近 10 倍——屏幕上看到的是行中间那段
-    // 文字被拽到版心再放大。这里只让封面成为共享元素（转场期间是一张持续存在、不透明的
-    // 图层，从缩略图原位长到头图原位），行里的书名/作者随页面淡出。
-    val coverElement = sharedCoverModifier(
-        key = "search-cover-${entry.bibId}",
+    // 与「检索卡片点开详情」「首页卡片点开目标页」同一套容器变换：整行作为共享节点，
+    // 由 sharedBounds 把行矩形连续放大成详情页矩形，行内封面/书名/作者随页面一起被矩形裁切着长开。
+    // 缩放比是「目标页宽 ÷ 行宽」，行本身基本满宽，比值≈1.0，所以文字不会被放大，只是随矩形展开。
+    val cardTransform = sharedCardPageModifier(
+        key = "bib-card-${entry.bibId}",
         sharedScope = sharedScope,
-        animatedScope = animatedScope
+        animatedScope = animatedScope,
+        boundsTransform = ContainerTransformBoundsTransform
     )
 
-    Column {
+    Column(modifier = cardTransform) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -287,7 +288,6 @@ private fun WishlistRow(
                 modifier = Modifier
                     .width(CoverWidth)
                     .height(CoverHeight)
-                    .then(coverElement)
                     .clip(MaterialTheme.shapes.small)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {

@@ -206,8 +206,9 @@ fun SearchScreen(
  * 结果区：双列交错瀑布流。
  *
  * 每张卡片只承载「封面 + 题名 + 作者 + 出版者」，决策信息（可借册数、馆藏地）留给详情页；
- * 卡片本身挂在共享元素 `search-card-<bibId>` 上，点开后与 [BibDetailScreen] 做容器变换，
- * 与首页卡片进各模块的动画是同一套。
+ * 卡片本身挂在共享节点 `bib-card-<bibId>` 上，点开后与 [BibDetailScreen] 做容器变换，
+ * 与首页卡片进各模块的动画是同一套；`WishlistScreen` 的想看行也用同一个 key，
+ * 因此详情页不必知道用户从哪条路径进来。
  *
  * 滚动期间所有卡片都不挂共享元素（见下方 [isScrolling]），停稳后立刻恢复。
  */
@@ -374,7 +375,8 @@ private fun BookCard(
 ) {
     val cardTransform = if (enableSharedElement) {
         sharedCardPageModifier(
-            key = "search-card-$sharedKey",
+            // 中性 key：详情页不知道用户从检索卡片还是从「想看」列表进来，两边用同一个命名空间
+            key = "bib-card-$sharedKey",
             sharedScope = sharedScope,
             animatedScope = animatedScope,
             boundsTransform = ContainerTransformBoundsTransform

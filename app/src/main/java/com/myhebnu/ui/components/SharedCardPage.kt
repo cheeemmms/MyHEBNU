@@ -89,6 +89,10 @@ fun sharedCardPageModifier(
  * 1. 卡片、想看行、详情页头图三处必须同一个 key（`search-cover-<bibId>`），否则对不上；
  * 2. 详情页的头图节点要嵌在页面节点（[sharedCardPageModifier]）内部，靠它的裁切边界
  *    跟着容器一起长大；共享元素默认 `ParentClip`，不额外传 clip。
+ *
+ * 现状（2026-10）：详情页改成「整页容器变换 + 不单独挂封面层」之后，这条路径上**没有任何
+ * 调用方**——封面随整页容器一起缩放，换手发虚换来的是文字与封面同一条曲线。函数保留是因为
+ * 「封面单独飞行」仍是可复用的备选方案，但启用它就必须同时在详情页挂回 `search-cover-<bibId>`。
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable

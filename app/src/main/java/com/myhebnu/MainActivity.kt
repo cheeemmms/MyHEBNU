@@ -6,12 +6,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.AnimatedContentScope
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.fadeIn
@@ -26,7 +26,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -275,36 +282,23 @@ fun MyHEBNUApp(
 fun MainAppContent(
     pendingNavigation: kotlinx.coroutines.channels.Channel<String>
 ) {
-    var currentRoute by remember { mutableStateOf(TopLevelRoute.Home.route) }
-    val backStack = remember { mutableStateListOf<String>() }
+    // 官方 Navigation：返回栈、页面级转场、每个 back stack entry 的可保存状态
+    // （列表滚动位置、输入框文字）都由框架负责，不再手写 currentRoute/backStack。
+    val navController = rememberNavController()
 
-    // Handle widget deep-link navigation
+    // Handle widget deep-link navigation：清空整个返回栈后跳到目标页
     LaunchedEffect(Unit) {
         for (route in pendingNavigation) {
-            backStack.clear()
-            currentRoute = route
+            navController.navigate(route) {
+                popUpTo(navController.graph.id) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 
-    // 前进导航：压栈后跳转
-    val navigateTo: (String) -> Unit = { target ->
-        backStack.add(currentRoute)
-        currentRoute = target
-    }
-
-    // 后退导航：弹栈；栈空则回首页
-    val goBack: () -> Unit = {
-        currentRoute = if (backStack.isNotEmpty()) {
-            backStack.removeAt(backStack.lastIndex)
-        } else {
-            TopLevelRoute.Home.route
-        }
-    }
-
-    // 修复 #6d：非首页时拦截系统返回手势
-    BackHandler(enabled = currentRoute != TopLevelRoute.Home.route) {
-        goBack()
-    }
+    // 前进/后退统一交给 NavController：系统返回手势（含 Android 14 预测性返回）由它接管。
+    val navigateTo: (String) -> Unit = { target -> navController.navigate(target) }
+    val goBack: () -> Unit = { navController.popBackStack() }
 
     // #6e: Opaque backdrop prevents white window background from
     // bleeding through during AnimatedContent crossfade in dark mode.
@@ -320,148 +314,151 @@ fun MainAppContent(
         // 首页卡片 → 目标页：共享元素容器变换（卡片直接展开成整页）
         SharedTransitionLayout {
             val sharedScope = this
-            // 每个路由各自保存 rememberSaveable 状态（列表滚动位置、搜索框文字等）。
-            // AnimatedContent 在转场结束时会 dispose 旧内容，如果没有这个 holder，
-            // 从详情页返回时列表会拿到一个全新的 LazyListState，滚动位置被重置到顶部。
-            val saveableStateHolder = rememberSaveableStateHolder()
-            // 录屏对齐版：页面级转场交给 `AnimatedContent` 的默认 spec
-            // （fadeIn 220ms / delay 90ms 与 fadeOut 90ms），不再按路由自定义。
-            AnimatedContent(
-                targetState = currentRoute,
-                transitionSpec = {
-                    if (isBibDetailRoute(initialState) || isBibDetailRoute(targetState)) {
-                        // 书目详情：内容从第 0 帧就和封面一起显形（不延迟），旧页 60ms 让位；
-                        // 不做 scaleIn —— 缩放会和容器几何抢同一段位移。
-                        fadeIn(tween(200)) togetherWith fadeOut(tween(60))
-                    } else {
-                        // 其余路由保持 Compose 默认观感。
-                        (fadeIn(tween(220, delayMillis = 90)) +
-                            scaleIn(tween(220, delayMillis = 90), initialScale = 0.92f)) togetherWith
-                            fadeOut(tween(90))
-                    }
+            // NavHost 内部同样用 AnimatedContent 做转场，且每个 back stack entry 自带
+            // SaveableStateHolder，列表滚动位置/输入框文字由框架保存，无需手写 provider。
+            NavHost(
+                navController = navController,
+                startDestination = TopLevelRoute.Home.route,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                page(TopLevelRoute.Home.route) {
+                    HomeScreen(
+                        onNavigate = { target -> navigateTo(target) },
+                        onNavigateToSettings = { navigateTo(TopLevelRoute.SettingsRoute.route) },
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
                 }
-            ) { route ->
-                val animatedScope: AnimatedVisibilityScope = this
-                // 按路由保存各自的可保存状态：转场期间两端路由同时在组合里，
-                // 各自持有独立的 SaveableStateProvider，互不干扰。
-                saveableStateHolder.SaveableStateProvider(route) {
-                when (route) {
-                TopLevelRoute.Home.route -> HomeScreen(
-                    onNavigate = { target -> navigateTo(target) },
-                    onNavigateToSettings = { navigateTo(TopLevelRoute.SettingsRoute.route) },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
 
-                TopLevelRoute.Schedule.route -> ScheduleScreen(
-                    onBack = { goBack() },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                TopLevelRoute.Grade.route -> GradeScreen(
-                    onBack = { goBack() },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                TopLevelRoute.EmptyRoom.route -> RoomScreen(
-                    onBack = { goBack() },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                TopLevelRoute.Exam.route -> ExamScreen(
-                    onBack = { goBack() },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                TopLevelRoute.SettingsRoute.route -> SettingsScreen(
-                    onBack = { goBack() },
-                    onNavigateToAdvanced = { navigateTo("advanced_settings") },
-                    onNavigateToAbout = { navigateTo("about") }
-                )
-
-                "advanced_settings" -> AdvancedSettingsScreen(
-                    onBack = { goBack() },
-                    onNavigateToColorTheme = { navigateTo("color_theme") }
-                )
-
-                "color_theme" -> ColorThemeScreen(
-                    onBack = { goBack() }
-                )
-
-                "about" -> AboutScreen(
-                    onBack = { goBack() },
-                    onNavigateToSystemUpdate = { navigateTo("system_update") }
-                )
-
-                "system_update" -> SystemUpdateScreen(
-                    onBack = { goBack() }
-                )
-
-                "semester_setup" -> SemesterSetupScreen(
-                    onBack = { goBack() }
-                )
-
-                LibraryRoutes.HOME -> LibraryHomeScreen(
-                    onBack = { goBack() },
-                    onNavigate = { target -> navigateTo(target) },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                LibraryRoutes.READER_CODE -> ReaderCodeScreen(
-                    onBack = { goBack() }
-                )
-
-                LibraryRoutes.LOANS -> LoansScreen(
-                    onBack = { goBack() }
-                )
-
-                LibraryRoutes.REQUESTS -> RequestsScreen(
-                    onBack = { goBack() }
-                )
-
-                LibraryRoutes.FINES -> FinesScreen(
-                    onBack = { goBack() }
-                )
-
-                LibraryRoutes.SEARCH -> SearchScreen(
-                    onBack = { goBack() },
-                    onOpenBib = { bibId, isbn, title, cover ->
-                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
-                    },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                LibraryRoutes.WISHLIST -> WishlistScreen(
-                    onBack = { goBack() },
-                    onOpenBib = { bibId, isbn, title, cover ->
-                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
-                    },
-                    onGoSearch = { navigateTo(LibraryRoutes.SEARCH) },
-                    sharedScope = sharedScope,
-                    animatedScope = animatedScope
-                )
-
-                else -> {
-                    val detailArgs = LibraryRoutes.parseBibDetail(route)
-                    if (detailArgs != null) {
-                        BibDetailScreen(
-                            bibId = detailArgs.bibId,
-                            isbn = detailArgs.isbn,
-                            fallbackTitle = detailArgs.title,
-                            fallbackCover = detailArgs.cover,
-                            onBack = { goBack() },
-                            sharedScope = sharedScope,
-                            animatedScope = animatedScope
-                        )
-                    }
+                page(TopLevelRoute.Schedule.route) {
+                    ScheduleScreen(
+                        onBack = goBack,
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
                 }
+
+                page(TopLevelRoute.Grade.route) {
+                    GradeScreen(
+                        onBack = goBack,
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
                 }
+
+                page(TopLevelRoute.EmptyRoom.route) {
+                    RoomScreen(
+                        onBack = goBack,
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
+                }
+
+                page(TopLevelRoute.Exam.route) {
+                    ExamScreen(
+                        onBack = goBack,
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
+                }
+
+                page(TopLevelRoute.SettingsRoute.route) {
+                    SettingsScreen(
+                        onBack = goBack,
+                        onNavigateToAdvanced = { navigateTo("advanced_settings") },
+                        onNavigateToAbout = { navigateTo("about") }
+                    )
+                }
+
+                page("advanced_settings") {
+                    AdvancedSettingsScreen(
+                        onBack = goBack,
+                        onNavigateToColorTheme = { navigateTo("color_theme") }
+                    )
+                }
+
+                page("color_theme") {
+                    ColorThemeScreen(onBack = goBack)
+                }
+
+                page("about") {
+                    AboutScreen(
+                        onBack = goBack,
+                        onNavigateToSystemUpdate = { navigateTo("system_update") }
+                    )
+                }
+
+                page("system_update") {
+                    SystemUpdateScreen(onBack = goBack)
+                }
+
+                page("semester_setup") {
+                    SemesterSetupScreen(onBack = goBack)
+                }
+
+                page(LibraryRoutes.HOME) {
+                    LibraryHomeScreen(
+                        onBack = goBack,
+                        onNavigate = { target -> navigateTo(target) },
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
+                }
+
+                page(LibraryRoutes.READER_CODE) {
+                    ReaderCodeScreen(onBack = goBack)
+                }
+
+                page(LibraryRoutes.LOANS) {
+                    LoansScreen(onBack = goBack)
+                }
+
+                page(LibraryRoutes.REQUESTS) {
+                    RequestsScreen(onBack = goBack)
+                }
+
+                page(LibraryRoutes.FINES) {
+                    FinesScreen(onBack = goBack)
+                }
+
+                page(LibraryRoutes.SEARCH) {
+                    SearchScreen(
+                        onBack = goBack,
+                        onOpenBib = { bibId, isbn, title, cover ->
+                            navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
+                        },
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
+                }
+
+                page(LibraryRoutes.WISHLIST) {
+                    WishlistScreen(
+                        onBack = goBack,
+                        onOpenBib = { bibId, isbn, title, cover ->
+                            navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
+                        },
+                        onGoSearch = { navigateTo(LibraryRoutes.SEARCH) },
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
+                }
+
+                // 书目详情：参数走 query 参数，避免书名里的分隔符/斜杠破坏路由匹配。
+                page(
+                    route = LibraryRoutes.BIB_DETAIL_PATTERN,
+                    arguments = bibDetailArguments
+                ) { entry ->
+                    val args = entry.arguments
+                    BibDetailScreen(
+                        bibId = args?.getString("bibId").orEmpty(),
+                        isbn = args?.getString("isbn").orEmpty(),
+                        fallbackTitle = args?.getString("title").orEmpty(),
+                        fallbackCover = args?.getString("cover").orEmpty(),
+                        onBack = goBack,
+                        sharedScope = sharedScope,
+                        animatedScope = this
+                    )
                 }
             }
         }
@@ -469,15 +466,63 @@ fun MainAppContent(
 }
 
 // ============================================================
-// Helper: 书籍详情路由判定
+// Navigation：目的地注册与页面级转场
 // ============================================================
+
+/** 书目详情的导航参数：query 写法，全部可选、缺省空串（避免空路径段匹配不上）。 */
+private val bibDetailArguments = listOf(
+    navArgument("bibId") { type = NavType.StringType; defaultValue = "" },
+    navArgument("isbn") { type = NavType.StringType; defaultValue = "" },
+    navArgument("title") { type = NavType.StringType; defaultValue = "" },
+    navArgument("cover") { type = NavType.StringType; defaultValue = "" }
+)
+
+/** 这次页面切换是否牵涉书目详情（牵涉时用「内容与封面同帧显形」的时序）。 */
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.touchesBibDetail(): Boolean =
+    initialState.isBibDetailEntry() || targetState.isBibDetailEntry()
+
+private fun NavBackStackEntry.isBibDetailEntry(): Boolean =
+    destination.route?.startsWith(LibraryRoutes.BIB_DETAIL_PREFIX) == true
+
+/** 其余路由的默认入场：Compose 的 fadeIn(220ms, delay 90ms) + scaleIn(0.92→1)。 */
+private fun defaultPageEnterTransition(): EnterTransition =
+    fadeIn(tween(220, delayMillis = 90)) +
+        scaleIn(tween(220, delayMillis = 90), initialScale = 0.92f)
+
+/**
+ * 注册一个目的地，并套用本项目的页面级转场。
+ *
+ * 牵涉书目详情时：进入 200ms 无延迟淡入（内容从第 0 帧就和封面一起显形），
+ * 离开 60ms 让位，且不做 scaleIn（缩放会和容器几何抢同一段位移）。
+ * 其余路由保持 Compose 默认观感。
+ */
+private fun NavGraphBuilder.page(
+    route: String,
+    arguments: List<NamedNavArgument> = emptyList(),
+    content: @Composable AnimatedContentScope.(NavBackStackEntry) -> Unit
+) {
+    composable(
+        route = route,
+        arguments = arguments,
+        enterTransition = {
+            if (touchesBibDetail()) fadeIn(tween(200)) else defaultPageEnterTransition()
+        },
+        exitTransition = {
+            if (touchesBibDetail()) fadeOut(tween(60)) else fadeOut(tween(90))
+        },
+        popEnterTransition = {
+            if (touchesBibDetail()) fadeIn(tween(200)) else defaultPageEnterTransition()
+        },
+        popExitTransition = {
+            if (touchesBibDetail()) fadeOut(tween(60)) else fadeOut(tween(90))
+        },
+        content = content
+    )
+}
 
 // ============================================================
 // Helper: parse custom presets JSON for seed-hue lookup
 // ============================================================
-
-/** 是图书馆的书目详情路由（那条路由走共享元素容器变换）。 */
-private fun isBibDetailRoute(route: String): Boolean = LibraryRoutes.parseBibDetail(route) != null
 
 private fun parsePresetsJson(json: String): List<com.myhebnu.ui.theme.ColorPreset> {
     return try {

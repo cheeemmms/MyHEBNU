@@ -2,7 +2,7 @@
 
 - **用途**：记录当前里程碑、未完成任务、验证方式与风险，让下一次会话能无缝接续。
 - **阅读时机**：排期、接续未完成的活、确认验收标准、复盘进度。
-- **最后更新**：2026-10-30
+- **最后更新**：2026-10-31
 - **状态**：稳定（当前主线：图书馆写操作与 Phase 8 收尾）
 
 ## 目录
@@ -37,7 +37,7 @@
 
 | # | 任务 | 状态 | 说明 |
 | --- | --- | --- | --- |
-| 0 | **迁移到 Compose 1.9**（BOM → 2025.10.00 一档） | 待办（最高优先级） | 收益：① `Modifier.onVisibilityChanged`（1.9 新增）让瀑布流卡片按真实可见性挂载共享元素，替代当前用 `isScrollInProgress` 的妥协——滚动中点卡片也能有转场；② `Text(autoSize=)`（1.8 新增）可删掉 `BibDetailHeader` 里约 40 行书名自适应测量。前置条件：`compileSdk` 35→36；AGP 8.7.3→8.8.2+，或用 `android.experimental.lint.version=8.8.2` 只升 Lint（AGP 8.7.0+ 本身已支持 compileSdk 36）。已核查：全项目 **0 处自定义 Indication**，1.9 唯一的破坏性变更（无 Indication 参数的 clickable 只支持 `IndicationNodeFactory`）对我们无影响。代价：M3 1.3→1.4 的视觉回归、Glance 与 Compose 版本耦合需单独验 Widget；需要全量回归四 Tab / 图书馆 7 页 / Widget / 提醒。详见 handover 与 2026-10-30 日志的评估结论 |
+| 0 | **迁移到 Compose 1.9**（实际落地 BOM 2025.11.01） | **已完成 2026-10-31，已提交 `8085d6b`** | 收益：① `Modifier.onVisibilityChanged`（1.9 新增）让瀑布流卡片按真实可见性挂载共享元素，替代当前用 `isScrollInProgress` 的妥协——滚动中点卡片也能有转场；② `Text(autoSize=)`（1.8 新增）可删掉 `BibDetailHeader` 里约 40 行书名自适应测量。前置条件：`compileSdk` 35→36；AGP 8.7.3→8.8.2+，或用 `android.experimental.lint.version=8.8.2` 只升 Lint（AGP 8.7.0+ 本身已支持 compileSdk 36）。已核查：全项目 **0 处自定义 Indication**，1.9 唯一的破坏性变更（无 Indication 参数的 clickable 只支持 `IndicationNodeFactory`）对我们无影响。代价：M3 1.3→1.4 的视觉回归、Glance 与 Compose 版本耦合需单独验 Widget；需要全量回归四 Tab / 图书馆 7 页 / Widget / 提醒。详见 handover 与 2026-10-30 日志的评估结论。**2026-10-31 实做**：BOM 2025.11.01（ui 1.9.5 / m3 1.4.0 / icons 1.7.8）+ AGP 8.13.2 + Glance 1.2.0 + compileSdk 36，Kotlin 2.2.21 / KSP / Gradle 9.5.1 / 其余 androidx 全不动；源码只有 1 处 API 改名（`Modifier.sharedElement` 的 `state` → `sharedContentState`）；`assembleDebug` 1m35s 通过并装机 |
 
 ### P0 · 安全项（2026-10-21 暂时搁置）
 
@@ -51,11 +51,11 @@
 
 > 安全项完整说明与威胁模型见 [architecture/security.md](architecture/security.md)。2026-10-21 用户决定暂时搁置，恢复时按该文档的优先级执行。
 
-### 进行中 · 动画返工（2026-10-30 晚，未提交）
+### 已完成 · 动画返工（2026-10-30 起，2026-10-31 定稿并提交 `8085d6b`）
 
 | # | 任务 | 状态 | 验收标准 | 关联文件 |
 | --- | --- | --- | --- | --- |
-| A1 | **检索结果 / 想看 → 书籍详情的容器变换返工**：封面改真 `sharedElement`、两端取景统一 Crop、容器内不透明、目标页内容延后落定、往返统一 300ms decelerate、`AnimatedContent` 给 bibDetail 往返单独 `transitionSpec`、路由携带 `cover` 避免首帧空封面 | **进行中**（已构建并装机 2026-10-30 21:54，**待用户真机验收**） | ① 卡片 → 详情封面连续、不闪不重画；② 内容在封面落定后出现（300ms + 160ms）；③ 返回对称缩回卡片、卡片文字淡入；④ 想看行 → 详情只有封面连续、行内文字不被放大；⑤ 其它路由转场不受影响 | `ui/components/SharedCardPage.kt`、`MainActivity.kt`、`ui/library/{SearchScreen,BibDetailScreen,BibDetailHeader,WishlistScreen,BibDetailViewModel,LibraryRoutes}.kt` |
+| A1 | **检索结果 / 想看 → 书籍详情的容器变换返工**：封面改真 `sharedElement`、两端取景统一 Crop、容器内不透明、目标页内容延后落定、往返统一 300ms decelerate、`AnimatedContent` 给 bibDetail 往返单独 `transitionSpec`、路由携带 `cover` 避免首帧空封面 | **已验收（`8085d6b`）**：最终形态 = 整页挂共享容器（`sharedBounds` 默认 `FillWidth` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`）+ 详情路由 `fadeIn(200ms, 无 delay、无 scaleIn)` / `fadeOut(60ms)` | ① 卡片 → 详情封面连续、不闪不重画；② 内容在封面落定后出现（300ms + 160ms）；③ 返回对称缩回卡片、卡片文字淡入；④ 想看行 → 详情只有封面连续、行内文字不被放大；⑤ 其它路由转场不受影响 | `ui/components/SharedCardPage.kt`、`MainActivity.kt`、`ui/library/{SearchScreen,BibDetailScreen,BibDetailHeader,WishlistScreen,BibDetailViewModel,LibraryRoutes}.kt` |
 
 
 ### P1 · 图书馆后续
@@ -121,7 +121,7 @@
 | Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 9 | **2026-10-28 通过**：`MyHEBNU-v1.7.0-release.apk` 7,933,712 B，`apksigner verify` 通过，已发布 GitHub Release |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过 | 2026-10-21：`LoginPageDetectorTest` 5 + `WidgetScheduleLogicTest` 24 = 29 tests / 0 failures |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |
-| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | **2026-10-30 21:54：Success**（24129PN74C，序列号 `db072f50`）；动画返工版已装机待验收 |
+| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | **2026-10-30 21:54：Success**（24129PN74C，序列号 `db072f50`）；**2026-10-31 13:48 装 `8085d6b` 定稿版** |
 | 冷启动 | 清后台后启动，观察首页 | 无白闪；首页直接出卡片；无网络等待 | 未执行 |
 | 课表缓存优先 | 断网后进课表 | 立即显示缓存；不出现加载圈长期停留 | 未执行 |
 | 会话自愈 | 使会话失效后进考试/成绩页 | 自动重登，不出现 HTTP 901/302 死循环 | 未执行 |

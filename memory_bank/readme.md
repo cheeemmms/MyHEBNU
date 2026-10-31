@@ -2,7 +2,7 @@
 
 - **用途**：MyHEBNU 项目记忆库的唯一入口，承载懒加载协议、文件清单与当前快照。
 - **阅读时机**：任何会话开始处理本项目时，先只读本文件。
-- **最后更新**：2026-10-30
+- **最后更新**：2026-10-31
 - **状态**：稳定
 
 ## 目录
@@ -30,16 +30,16 @@
 | 当前版本 | **v1.7.0**（2026-10-28 已发 GitHub Release，commit `673fed7`、tag `v1.7.0`）：v1.6.0 之上增加「我的图书馆」模块与统一身份认证改造 |
 | 当前阶段 | Phase 0–7 与 v1.6.0/v1.7.0 已交付；**图书馆写操作（续借/荐购/预约）与 Phase 8「打磨/收尾」未完成** |
 | 最近一次整理 | 2026-10-30 记忆库精简：删除 `design-document.md` 与仓库根 `widget/HyperOS-Widget-Adaptation-Plan.md`（内容过期），有效内容并入 handover/architecture/tech-stack；同时校正「无底部导航栏」「Room v6 四张表」「首页五张卡片」等与代码不符的描述。详见 [history/change-log.md](history/change-log.md) |
-| 最近一次实质进展 | 2026-10-30（晚，**未提交、待验收**）**检索/想看 → 书籍详情的容器变换返工**：① 封面改真 `sharedElement`（`sharedCoverModifier`，key `search-cover-<bibId>`），转场期间是持续存在的不透明图层，不再「两端各画一张再淡变」；② 两端取景统一 `Crop + TopCenter`（原来卡片 Crop、头图 FillWidth）；③ 目标页内容改为等容器走完再落定（`ContainerSettleEnterTransition`，300ms + 160ms），封面先长到位、正文再铺开；④ 往返统一 300ms `M3DecelerateEasing`，`AnimatedContent` 只对 bibDetail 往返用 fade-through、其余路由保持 Compose 默认；⑤ 想看列表只让封面成为共享元素（整行不做容器变换，修掉「文字被拽到版心放大」）；⑥ 路由第 4 段携带卡片封面 → `BibDetailScreen(fallbackCover=)`，消除首帧空封面。已 `assembleDebug` 通过并装到 `db072f50`。约定与坑见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)，进度见 [implementation-plan.md](implementation-plan.md) |
+| 最近一次实质进展 | 2026-10-31（**已提交 `8085d6b`**）**Compose 1.9 迁移 + 书目详情转场按录屏对齐**：① 依赖升级到 Compose 1.9.5 / Material3 1.4.0（AGP 8.13.2、compileSdk 36、Glance 1.2.0，Kotlin 2.2.21 / KSP / Gradle 9.5.1 不动），源码只有 1 处 API 改名（`Modifier.sharedElement` 的 `state` → `sharedContentState`）；② 详情页转场回到「整页挂共享容器」：`sharedBounds` 默认 `ScaleToBounds(FillWidth, Center)` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`；③ 详情路由的页面级转场改成 `fadeIn(200ms)`（无 delay、去掉 `scaleIn`）+ `fadeOut(60ms)`，内容与封面同时显形，落位时已是实心；④ 详情页根节点补不透明底色；⑤ 撤掉 `contentFadeThrough` / `settleContentAfterTransform` 两个开关。时序与已否决做法见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)，进度见 [implementation-plan.md](implementation-plan.md) |
 | 最近一次实质进展（上一轮） | 2026-10-30（晚）**「想看」功能闭环 + 书籍详情页重设计 + 动画第一版定案**，8 个 commit（`0a7a119`→`31c914e`，含 `0a7a119` 本身）全部真机验收并推送：① 想看数据层（Room 5→6，wishlist 快照表）→ 详情页收藏胶囊 → 想看列表页（封面/移除确认/空态）→ 图书馆首页入口与指标（「罚金」格改「想看」）→ JSON 导出导入（SAF、按 bibId 幂等合并）；② 详情页重设计：沉浸头图（高度固定、渐变按封面比例贴图收口）+ 45% 视差 + 滚动模糊淡出 + 状态栏图标随深度反色 + 首帧性能优化（0.8 倍解码、模糊层条件渲染）；③ 封面缓存键分层（`BookCovers.kt`）与检索/想看列表预取；④ 修「换书显示上本书封面」（uiState.bibId 闸门）等三个严重缺陷；⑤ 动画第一版定案：容器变换（sharedBounds 整页展开、默认参数）保留为最重视的动画，检索结果 → 详情页不走共享元素，内容级动画用 M3 emphasized 曲线。其间否决的实验：fade through 错开（拉长转场）、RemeasureToBounds（每帧重测整页掉帧）、封面 sharedElement、纯模糊过渡（与共享元素互斥）。**注**：「检索路径不走共享元素」与「否决封面 sharedElement」两条已于同日 21:00 后由管理员推翻，见上一行「最近一次实质进展」。Compose 1.9 迁移列为 P0 待办 |
 | 最近一次实质进展（更早） | 2026-10-30（晨）课表周次判定重构（commit `01b9bce`，已验收并推送）：解析改用教务 `oldzc`/`oldjc` 位掩码并由掩码反推起止周与节次，`zcd` 文本解析降为兜底。`CourseEntity` 新增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，五处统一改调；Room 4→5。同日上午先把 v1.7.0 遗留文档补提交并入主线（`7580673`/`1e66d1b`/`ae4689a`）。 |
 | 最近一次实质进展（更早） | 2026-10-27 图书馆模块上线：汇文 OPAC 只读 7 页（首页/当前借阅/动态借书码/馆藏检索/书目详情/预约与荐购/罚金与违约）已装真机跑通数据；同一轮把教务登录从旧 xtgl 表单切到学校 CAS 单点登录，图书馆复用同一会话，旧的 xtgl 登录代码整段删除、无双路径 |
 | 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`；该底部导航同日在 `54557e5` 被首页卡片共享展开动画取代，现状无 tab）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
-| 下一步 | ① **等用户真机验收动画返工**（检索卡/想看行 → 详情），通过后提交并推送；② **P0：迁移 Compose 1.9**（详见 [implementation-plan.md](implementation-plan.md)）；③ 图书馆写操作（续借/荐购/预约委托）；④ 发版前收尾（CHANGELOG/versionCode——main 已积累一整批未发版功能） |
-| 已知阻塞 | `dsh-android` 插件的 adb 发现未打通（`ADB`/`ANDROID_HOME` 未设、SDK 不在默认位置），需用户在启动 DSH 前配置环境变量；Gradle 与 adb 需要 `danger-full-access` |
+| 下一步 | ① **推送**（本地领先 `origin/main` 4 个提交）；② 图书馆写操作（续借/荐购/预约委托）；③ 发版前收尾（CHANGELOG/versionCode——`main` 已积累一整批未发版功能）；④ 迁移后的可选跟进：用 `Modifier.onVisibilityChanged` 替掉瀑布流的 `isScrollInProgress` 门控、`Text(autoSize=)` 删掉书名自适应测量 |
+| 已知阻塞 | 无。adb 已于 2026-10-31 打通（`C:\Users\yongl\AppData\Local\Android\Sdk` 建了指向 `D:\Software_data\Android Studio\SDK` 的目录联接，插件 `resolveAdbBinary()` 走 PATH 命中）；构建/安装/推送需要 `danger-full-access` |
 | 交接状态 | **可交接**：先读 [handover-notes.md](handover-notes.md)；图书馆与 CAS 的技术细节在 [architecture/library-and-sso.md](architecture/library-and-sso.md)；未完成项在 [implementation-plan.md](implementation-plan.md) |
-| 分支状态 | `main` 是当前开发线（2026-10-30 由 `feat/md3-ui-refresh` 快进合并而来，其后新提交只进 `main`）；`feat/md3-ui-refresh` 保留在合并点，不再跟进。新工作一律从 `main` 起。HEAD = `ee94009`（记忆库精简），本地领先 `origin/main` 1 个提交、**未推送**；**工作区另有未提交的动画返工**（8 个 `app/` 文件 + 记忆库文件），验收通过后再提交 |
-| 最后更新 | 2026-10-30 |
+| 分支状态 | `main` 是当前开发线（2026-10-30 由 `feat/md3-ui-refresh` 快进合并而来）；HEAD = `8085d6b`，本地领先 `origin/main` 4 个提交、**未推送**；迁移基线 tag `pre-compose19` = `dda8017`；工作区干净 |
+| 最后更新 | 2026-10-31 |
 
 ## 文件清单
 

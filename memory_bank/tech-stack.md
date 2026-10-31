@@ -2,7 +2,7 @@
 
 - **用途**：记录技术选型、精确版本、可执行命令、本机环境与编码规范。
 - **阅读时机**：配环境、跑构建/测试、新增依赖、判断该用什么写法。
-- **最后更新**：2026-10-30
+- **最后更新**：2026-10-31
 - **状态**：稳定（工具链与 v1.7.0 一致；Room 表数按当前代码更新为 v6）
 
 ## 目录
@@ -23,12 +23,12 @@
 | 层 | 技术 | 版本 | 用途 | 备注 |
 | --- | --- | --- | --- | --- |
 | 语言 | Kotlin | 2.2.21 | 全项目 | `kotlin.code.style=official` |
-| 构建 | Gradle Wrapper | 9.5.1 | 构建 | `gradle/wrapper/gradle-wrapper.properties` |
-| 构建 | AGP | 8.7.3 | Android Gradle Plugin | 锚点版本，不追新 |
+| 构建 | Gradle Wrapper | 9.5.1 | 构建 | `gradle/wrapper/gradle-wrapper.properties`；AGP 8.13 要求 ≥8.13，本轮迁移未动 |
+| 构建 | AGP | 8.13.2 | Android Gradle Plugin | 8.x 最后一条稳定线；2026-10-31 由 8.7.3 迁入，原生支持 compileSdk 36（9.x 不动：会删 `applicationVariants`/`BaseVariantOutputImpl`） |
 | 构建 | KSP | 2.2.21-2.0.5 | Hilt/Room 注解处理 | 精确匹配 Kotlin 2.2.21 |
 | JDK | Android Studio JBR | 21.0.10 | Gradle 运行时 | 编译目标 Java 17 |
-| UI | Jetpack Compose BOM | 2024.12.01 | 声明式 UI | `androidx.compose:compose-bom` |
-| UI | Material 3 | 随 BOM | MD3 组件 | `material3` / `material-icons-extended` |
+| UI | Jetpack Compose BOM | 2025.11.01 | 声明式 UI | 解析出 ui 1.9.5 / material3 1.4.0 / icons 1.7.8（版本取自该 BOM 的 pom，不是试错出来的） |
+| UI | Material 3 | 1.4.0（随 BOM） | MD3 组件 | `material3`；`material-icons-extended` 被 BOM 钉在 1.7.8——上游 2025-02 起停更，不是我们落后 |
 | 导航 | Compose Navigation | 2.8.5 | 已引入 | **当前代码未使用 `NavHost`** |
 | 状态 | Lifecycle / ViewModel | 2.8.7 | `StateFlow` + `collectAsState` | `lifecycle-runtime-compose` |
 | DI | Hilt | 2.57.2 | 全应用注入 | `hilt-navigation-compose` 1.2.0 |
@@ -41,20 +41,22 @@
 | 图片 | Coil | 2.7.0 | 图片加载 | `coil-compose`；图书馆封面走 `AsyncImage` |
 | 条码/二维码 | ZXing | 3.5.3 | 图书馆借书码 | `zxing-core`，`ui/library/ReaderCodeImage.kt` 自行渲染 |
 | 图书馆接口 | 汇文 OPAC | — | `https://hwdw.hebtu.edu.cn/meta-local/opac/` | 独立 `@Named("opac")` client，共用 CookieJar，见 [architecture/library-and-sso.md](architecture/library-and-sso.md) |
-| Widget | Glance | 1.1.1 | 桌面课表 | 3 种尺寸 |
+| Widget | Glance | 1.2.0 | 桌面课表 | 3 种尺寸；与 Compose 1.9 同代（1.1.1 配 1.9 runtime 会运行时 `NoSuchMethodError`） |
 | 后台 | WorkManager | 2.10.0 | 上课/考试提醒、Widget 刷新 | 提醒用周期任务；Widget 用一次性 tick 链（`WidgetTickWorker`），见 [architecture/widget-and-reminders.md](architecture/widget-and-reminders.md) |
 | 协程 | kotlinx-coroutines | 1.11.0 | 异步/Flow | `coroutines-android` |
 | 测试 | JUnit | 4.13.2 | 单元测试 | 3 组 JVM 单测：`LoginPageDetectorTest`、`ZfsoftRsaTest`、`WidgetScheduleLogicTest` |
-| 资源 | Android SDK | compile/target 35，min 31 | API 级别 | 16KB Page 对齐开启 |
+| 资源 | Android SDK | compile 36 / target 35，min 31 | API 级别 | compileSdk 36 是 Compose 1.9 的要求；targetSdk 留 35（36 会强制 edge-to-edge，属独立改造）；16KB Page 对齐开启 |
 
 > 版本目录中还有 `vico 2.0.0-beta.2`、`colorpicker-compose 1.2.0` 等条目，但 `app/build.gradle.kts` 未引用；成绩趋势图实际用 Canvas 手绘。
 
 ## 版本兼容矩阵
 
 ```text
-AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
+AGP 8.13.2  ←→  Gradle 9.5.1  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
                     ↕
-              Hilt 2.57.2  ←→  Room 2.7.2  ←→  compileSdk 35
+  Compose BOM 2025.11.01（ui 1.9.5 / m3 1.4.0 / icons 1.7.8）  ←→  Glance 1.2.0
+                    ↕
+              Hilt 2.57.2  ←→  Room 2.7.2  ←→  compileSdk 36
 ```
 
 关键约束（历史踩坑，升级前必读）：
@@ -63,7 +65,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 - KSP 版本格式为 `X.Y.Z`（如 `2.2.21-2.0.5`）；必须与 Kotlin 精确匹配。
 - Room 2.6.x 处理 Kotlin 2.2.x 的 `? super Continuation` 签名会崩溃 → 需 ≥2.7.0。
 - Kotlin ≥2.2.0 才能读取 OkHttp 5.3.2 / Coroutines 1.11.0 的 metadata 2.2.0。
-- `compileSdk=36` 超出 AGP 8.7.3 测试范围 → 使用 35。
+- compileSdk 由 Compose 的 AAR 元数据（`META-INF/.../aar-metadata.properties` 里的 `minCompileSdk`）决定，不是拍脑袋：Compose 1.9 要 36。AGP 8.13.2 支持 36，`platforms/android-36` 缺失时 AGP 会自动下载（本机是从 android-35/36.1 自动补的）。**升级前先读 AAR 元数据，不要等构建报错。**
 - 小米 15 / Android 16 的 16KB Page 需要 `android.experimental.enable16KbPageAlignment=true`。
 - 阿里云 Maven 镜像缺部分最新版 → 不能盲目追新。
 
@@ -74,7 +76,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 目的 | 命令 | 产物/说明 | 最近结果 |
 | --- | --- | --- | --- |
 | 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 通过：Gradle 9.5.1，Launcher JVM 21.0.10（Android Studio JBR） |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-30 21:54 通过**（动画返工版；同日动画实验多轮增量构建 57s–1m19s 均成功，产物时间戳 21:54） |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk`；包名 `com.myhebnu.debug`（另一个 `com.myhebnu` 是 release 包，两个包在真机上并存） | **2026-10-31 11:37 通过**（Compose 1.9 迁移版，77,042,315 B，已 `adb install -r` 到 `db072f50`）；上一版 2026-10-30 21:54 亦通过 |
 | Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.7.0-release.apk`；包名 `com.myhebnu`；需签名（R8 + shrinkResources） | **2026-10-28 通过**：7,933,712 B，versionCode 9，`apksigner verify` 通过 |
 | 发版 | `gh release create v<版本> <apk> --target <分支> --title … --notes-file …` | GitHub Release；`releases/latest` 是应用内更新检查的数据源 | 2026-10-28 发布 v1.7.0，见「版本与发布」 |
 | 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
@@ -95,7 +97,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 操作系统 | Windows（PowerShell 7） |
 | 项目路径 | `D:\Personal_file\VibeCoding\Program\My-University` |
 | Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，工作分支 `main`（`feat/md3-ui-refresh` 已快进并入并停更） |
-| Git 状态 | 2026-10-30：`main` 在 `ee94009`（记忆库精简提交），本地领先 `origin/main` 1 个提交（**未推送**）；v1.7.0 发版提交为 `673fed7`；`backup/2026-08-30` 备份分支指向 `797e0ef` |
+| Git 状态 | 2026-10-31：`main` 在 `8085d6b`（Compose 1.9 迁移 + 详情转场按录屏对齐），本地领先 `origin/main` 4 个提交（**未推送**）；迁移基线 tag `pre-compose19` = `dda8017`；v1.7.0 发版提交为 `673fed7`；`backup/2026-08-30` 备份分支指向 `797e0ef` |
 | GitHub CLI | `gh 2.89.0`，已登录 `cheeemmms`；`git credential.helper=manager` |
 | Android Studio（JAVA_HOME） | `C:\Program Files\Android\Android Studio`，JBR 21.0.10 |
 | 另一处 Android Studio | `D:\Software\Android\bin\studio64.exe`（也存在） |

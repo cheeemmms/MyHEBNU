@@ -2,7 +2,7 @@
 
 - **用途**：按时间顺序记录项目阶段、批次、发布与关键决策，供追溯“为什么有这个改动”。
 - **阅读时机**：追溯历史决策、写发布说明、判断某段代码的来历；日常任务不必通读。
-- **最后更新**：2026-10-30
+- **最后更新**：2026-10-31
 - **状态**：归档（2026-06-04 → 2026-10-30；v1.7.0 之后的增量见「2026-10 下旬」章节，发版时再拆）
 
 ## 目录
@@ -100,9 +100,12 @@
 | 2026-10-30（晨） | 课表周次判定重构（`01b9bce`）：`oldzc`/`oldjc` 位掩码为权威来源，`CourseEntity` 增 `weekBits`/`periodBits`，五处统一改调；Room 4→5；修「第N周」被展开为整学期的缺陷 | 文本解析歧义；真机 20 行逐周比对 0 差异 |
 | 2026-10-30（晚） | **「想看」功能闭环**（`0a7a119`/`88330c1`/`b3e3dc6`/`00a7d6d`/`143d1ce`）：本地数据层（Room 5→6 wishlist 快照表）→ 详情页收藏胶囊 → 想看列表页 → 首页入口与指标 → JSON 导出导入（SAF、按 bibId 幂等合并）；移动借书码入口；指标条「罚金」格改「想看」 | 管理员提出「书籍收藏」需求并逐项验收 |
 | 2026-10-30（晚） | **书籍详情页重设计**（含于上组 commit）：沉浸头图（高度固定、渐变按封面比例贴图收口）+ 45% 视差 + 滚动整幅模糊淡出 + 状态栏图标随深度反色 + 骨架屏实验后移除；封面缓存键分层（`BookCovers.kt`）与预取；修换书封面串号（uiState.bibId 闸门）、DstIn 离屏合成、`wrapContentHeight` 解码失控等缺陷 | 逐轮真机反馈驱动；`dumpsys gfxinfo` 实测确认首帧组合为掉帧固有成本 |
-| 2026-10-30（晚，未提交） | **容器变换返工**（检索结果 / 想看 → 书籍详情）：卡片根仍走 `sharedBounds`，其封面与详情头图封面改挂真 `sharedElement`（`sharedCoverModifier`，key `search-cover-<bibId>`）；两端取景统一 `Crop + TopCenter`；目标页内容改由 `ContainerSettleEnterTransition` 在容器走完后（300ms + 160ms）落定；往返统一 300ms `M3DecelerateEasing`；`AnimatedContent` 只对 bibDetail 往返用 fade-through；想看行不再整行做容器变换，只让封面成为共享元素；路由第 4 段携带卡片封面消除首帧空封面。`assembleDebug` 21:54 通过并装到 `db072f50` | 用户反馈「放大到近全屏时减淡 + 详情渐显，闪烁且封面不连贯」，选定「档 1 + 档 2」修法；真机验收待做 |
+| 2026-10-31（`8085d6b`） | **Compose 1.9 迁移 + 书目详情转场定稿**：依赖升到 Compose 1.9.5 / Material3 1.4.0（AGP 8.13.2、compileSdk 36、Glance 1.2.0，Kotlin 2.2.21 / KSP / Gradle 9.5.1 不动），源码只有 `Modifier.sharedElement` 的 `state` → `sharedContentState` 一处改名；详情页转场回到「整页挂共享容器」（`sharedBounds` 默认 `FillWidth` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`），页面级对详情路由改成 `fadeIn(200ms)`（无 delay、去掉 `scaleIn`）+ `fadeOut(60ms)`，内容与封面同时显形、落位即实心；根节点补不透明底色；删掉 `contentFadeThrough` / `settleContentAfterTransform` | 用户反馈「卡片放大时书名也放大、就位后内容才补上 / 详情信息闪现」。先后否决：`Fit`+`OverlayClip`、元素级 hero（路线 I）、回滚 v1.7.0；最终以「录屏对齐版 + 内容提前显形」通过 |
+| 2026-10-30（晚，已提交 `1be26c3`） | **容器变换返工**（检索结果 / 想看 → 书籍详情）：卡片根仍走 `sharedBounds`，其封面与详情头图封面改挂真 `sharedElement`（`sharedCoverModifier`，key `search-cover-<bibId>`）；两端取景统一 `Crop + TopCenter`；目标页内容改由 `ContainerSettleEnterTransition` 在容器走完后（300ms + 160ms）落定；往返统一 300ms `M3DecelerateEasing`；`AnimatedContent` 只对 bibDetail 往返用 fade-through；想看行不再整行做容器变换，只让封面成为共享元素；路由第 4 段携带卡片封面消除首帧空封面。`assembleDebug` 21:54 通过并装到 `db072f50` | 用户反馈「放大到近全屏时减淡 + 详情渐显，闪烁且封面不连贯」，选定「档 1 + 档 2」修法；真机验收待做 |
 | 2026-10-30（晚） | **动画定案**（`3877e97`/`2e55867`/`31c914e`）：容器变换（sharedBounds 整页展开、默认参数、tween 220ms FastOutSlowIn）保留为最重视动画；检索结果 → 详情页不走共享元素；内容级动画（馆藏卡展开收起）用 M3 emphasized 曲线。否决实验：fade through 错开（转场变长）、RemeasureToBounds（每帧重测整页掉帧）、封面 sharedElement、纯模糊过渡（与共享元素互斥）。**后两条（检索路径不走共享元素、否决封面 sharedElement）当日晚些时候被管理员推翻并返工，见上一行** | 多方案对照实验 + 官方文档查证；管理员拍板（其中「检索路径」结论实为编码模型误改所致） |
 | 2026-10-30 | **记忆库整理**：删除内容过期的 `memory_bank/design-document.md`（v1.5.0 需求台账，无图书馆/想看）与仓库根 `widget/HyperOS-Widget-Adaptation-Plan.md`（按 4 尺寸 + Fragment 写，与 3 尺寸 Compose 实现不符，待办已全部落地）；有效内容并入 handover-notes（产品定位与边界）、architecture（决策 12、13）、tech-stack（状态表达）；同时校正导航（无底部栏/无抽屉）、Room v6 四表、首页五卡等与代码不符的描述 | 遵循「不得有多余文件、同一内容只存一处」的维护约定 |
+
+| 2026-10-31 | **Compose 1.9 工具链迁移**（未提交）：compose-bom 2024.12.01 → 2025.11.01（ui 1.9.5 / material3 1.4.0 / material-icons-extended 1.7.8，版本逐条取自 BOM 的 pom）、AGP 8.7.3 → 8.13.2、Glance 1.1.1 → 1.2.0、compileSdk 35 → 36；Kotlin 2.2.21 / KSP / Gradle 9.5.1 / targetSdk 35 / 其余 androidx 库全部不动。`platforms/android-36` 由 AGP 自动补装。源码唯一改动：`Modifier.sharedElement` 的参数 `state` 更名为 `sharedContentState`。`assembleDebug` 1m35s 通过，`adb install -r` 到 `db072f50` 成功 | 依据管理员「组件版本要成套匹配、不要迁一半再手动修」的要求，按 6 条耦合线（AGP↔Gradle、AGP↔compileSdk、Kotlin↔KSP、Kotlin↔Compose 编译插件、Compose↔AAR 的 `minCompileSdk`、Compose↔BOM）一次对齐；基线 tag `pre-compose19` |
 
 ## 发布索引
 

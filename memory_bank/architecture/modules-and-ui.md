@@ -122,40 +122,55 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | 弹层/选择器 | 一律 Material 3 原生控件；禁止自研 iOS 风格滚轮 |
 | 语义成功色 | `ui/theme/SemanticColors.kt` 的 `SemanticColors` + `LocalSemanticColors`，由 `MyHEBNUTheme` 按深浅主题注入；`Color.kt` 的 `Success*` 是固定绿。用于 `StatusPill` 的 `Tone.Positive`（琥珀色板里没有绿色角色，`secondaryContainer`/`tertiaryContainer` 都是暖色分不开） |
 | 骨架屏 | `ui/design/Components.kt` 的 `SkeletonBox(modifier, shape)`：`rememberInfiniteTransition` + `drawBehind` 画 1.4s 线性高光，只重绘不重组；首载页面用它拼真实布局，不要用居中 `CircularProgressIndicator` |
-| 共享元素转场 | 容器变换（sharedBounds 整页展开）是**最受重视的动画**；检索结果 / 想看列表 → 书籍详情页在其之上再挂一个**封面共享元素**，见下节 [共享元素与容器变换](#共享元素与容器变换)。key：首页卡片 `home-card-<route>`、页面级 `search-card-<bibId>`、封面级 `search-cover-<bibId>` |
+| 共享元素转场 | 容器变换（`sharedBounds` 整页展开）是**最受重视的动画**；检索结果 / 想看 → 书籍详情走**同一条**整页容器变换，不拆元素、不另挂封面共享元素，见下节 [共享元素与容器变换](#共享元素与容器变换)。key：首页卡片 `home-card-<route>`、页面级 `search-card-<bibId>` |
 
 ## 共享元素与容器变换
 
-实现全部集中在 `ui/components/SharedCardPage.kt`（2026-10-30 晚返工后的最终形态）。
+实现全部集中在 `ui/components/SharedCardPage.kt`（2026-10-31 定稿）。
 
-**三处 key 与挂载位置**
+**key 与挂载位置**
 
 | key | 挂在哪 | 谁与谁配对 |
 | --- | --- | --- |
 | `home-card-<route>` | 首页卡片（`HomeCardPanel`）与目标页根容器 | 首页 → 各顶层页 |
-| `search-card-<bibId>` | 检索卡片根 `Column`、详情页根 `BoxWithConstraints` | 检索结果 → 详情 |
-| `search-cover-<bibId>` | 检索卡片封面 `Box`、想看行封面缩略图 `Box`、详情页 `BookBackdrop` 的封面层 `Box` | 封面 → 头图 |
+| `search-card-<bibId>` | 检索卡片根 `Column`、详情页根 `BoxWithConstraints` | 检索结果 / 想看 → 详情 |
+| `search-cover-<bibId>` | **已停用**（2026-10-31）。封面不再单独挂 `sharedElement`，随整页容器一起缩放 | — |
 
-**时序契约（`SharedCardPage.kt` 常量，改动画只动这里）**
+两个入口都在 `ui/components/SharedCardPage.kt`：`sharedCardPageModifier(key, sharedScope, animatedScope, boundsTransform = null)`（页面/卡片级）、`sharedCoverModifier(key, sharedScope, animatedScope)`（保留但当前无调用方）。
+
+**时序契约（2026-10-31 定稿，改动画只动这里）**
 
 | 项 | 值 | 说明 |
 | --- | --- | --- |
-| 容器尺寸补间 | `ContainerTransformBoundsTransform` = 300ms `M3DecelerateEasing`，**去程回程同一条曲线** | 曾经按 M3 原始 token 分「扩张 decelerate / 收缩 accelerate」，往返看起来像两套动画 |
-| 内容退场 | `ContainerExitTransition` = 90ms `M3AccelerateEasing` | 旧内容先退干净 |
-| 内容进场 | `ContainerEnterTransition` = 210ms、延迟 90ms、`M3DecelerateEasing` | 与退场合计正好 300ms，无重叠 |
-| 目标页内容落定 | `ContainerSettleEnterTransition` = 160ms、延迟 300ms | 目标页挂共享封面时用 `settleContentAfterTransform = true`：共享封面在覆盖层绘制、压在页面内容之上，内容提前进场会被它盖住 |
+| 容器尺寸补间 | `ContainerTransformBoundsTransform` = `ContainerTransformMillis = 220` ms，`M3EmphasizedEasing` = `CubicBezierEasing(0.2f, 0f, 0f, 1f)`，**去程回程同一条曲线** | 220ms 而非更长，是为了让封面在内容淡入结束之前就位，不在收尾拖出「只有封面在动」的空档 |
+| 新页内容透明度（详情路由） | `MainActivity` 的 `transitionSpec` → `fadeIn(tween(200))`，**无 delay、无 `scaleIn`** | 内容第 0 帧就跟着封面一起显形；`scaleIn(0.92)` 会和容器几何抢同一段位移 |
+| 旧页退场（详情路由） | `fadeOut(tween(60))` | 让位要快，否则两层内容叠着发灰 |
+| 其余路由 | 显式写回 Compose 默认 `fadeIn(220, delayMillis = 90) + scaleIn(0.92)` / `fadeOut(90)` | 避免被详情线的改动带偏 |
+| 共享节点内部内容的 enter/exit | **不传**，用 `sharedBounds` 默认值 | 再叠一层按容器走的透明度，会把交接拆成两段 |
+| `SharedCardPage.kt` 里的 `ContainerEnterTransition` / `ContainerExitTransition` | `ContentFadeInMillis = 210` + `ContentFadeDelayMillis = 90` / `ContentFadeOutMillis = 90` | **当前没有调用方**，仅作备用常量；实际生效的是上面 `MainActivity` 的 spec |
 
-**硬规则与坑**
+**硬规则**
 
-- **封面必须是共享元素，不能只靠两端淡变换手**：卡片是小图、详情是整屏大图，两端各画一张再交叉淡化，换手那几帧会发虚、错位——观感就是「闪一下」。`sharedCoverModifier(key, sharedScope, animatedScope)` 用的是 `sharedElement`，转场期间它是一张持续存在、不透明、被容器裁切的图层。
-- **两端取景必须一致**：卡片与头图都 `ContentScale.Crop + Alignment.TopCenter`。曾出现卡片 Crop、头图 `FillWidth` 混用，同一本书在转场中换了裁切。
-- **目标页的头图节点要嵌在页面节点内部**：共享元素默认 `ParentClip`，靠外层容器（页面级 sharedBounds）裁切边界一起长大。
-- **列表行不要整行做容器变换**：想看行是「满宽 × 88dp」的扁条，`ScaleToBounds` 要用 `max(放大比)` 盖住容器（横向近 10 倍），屏幕上是行中间那段文字被拽到版心再放大。只让封面缩略图挂 `sharedCoverModifier`，行内文字随页面淡出。
-- **首帧必须有封面**：详情页数据是点击后才请求的，`MainActivity` 通过路由第 4 段把卡片封面 `cover` 带进 `BibDetailScreen(fallbackCover=)`，闸门状态直接用 `immediateCover`（`fallbackCover` 否则按 ISBN 拼图床），否则转场一开始封面是空的、回来时又突然出现。
-- **页面级 enter/exit 也要对齐**：`AnimatedContent` 默认 enter 是 `fadeIn + scaleIn(0.92)`。`MainActivity` 用 `transitionSpec` 判定 `isBibDetailRoute(initialState) || isBibDetailRoute(targetState)`，这类往返统一用 `ContainerEnterTransition togetherWith ContainerExitTransition`，其余路由保持 Compose 默认。
-- **检索瀑布流仍要按滚动门控**：`sharedBounds` 会给每个已组合的条目建动画状态，快速滑动时会抽动；`ResultList` 用 `gridState.isScrollInProgress` 决定 `BookCard(enableSharedElement)`，Compose 1.7 没有 `Modifier.onVisibilityChanged`（1.9 才有，见 [../implementation-plan.md](../implementation-plan.md) P0）。
+- **整页在容器里，不要拆元素**：详情页的封面、题名、作者、想看按钮、馆藏、简介全部在同一个 `sharedBounds` 节点内，靠容器统一缩放交接。历史结论「封面必须是独立共享元素」已于 2026-10-31 真机对比推翻。
+- **容器必须有不透明底**：详情页根节点 `.background(MaterialTheme.colorScheme.background)`，否则放大中途露出窗口/`MainActivity` 背景。
+- **两侧参数保持一致**：`SearchScreen` 卡片根与 `BibDetailScreen` 根都走 `sharedCardPageModifier(...)`，默认 `resizeMode = ScaleToBounds(FillWidth, Center)` + `ParentClip`，不要单边改。
+- **不要给 `sharedBounds` 传额外淡化**：`contentFadeThrough` 会让卡片文字 90ms 就淡掉，出现「卡片先空、详情再补」。
+- **列表行不要整行做容器变换**：想看行是「满宽 × 88dp」扁条，`ScaleToBounds` 要用 `max(放大比)` 盖住容器（横向近 10 倍），行中文字会被拽到版心放大。想看行目前只吃页面级淡入。
+- **首帧必须有封面**：详情数据点击后才请求，`MainActivity` 通过路由第 5 段把卡片封面带进 `BibDetailScreen(fallbackCover=)`，否则转场一开始封面是空的。
+- **检索瀑布流仍按滚动门控**：`ResultList` 用 `gridState.isScrollInProgress` 决定 `BookCard(enableSharedElement)`；`Modifier.onVisibilityChanged`（Compose 1.9 新增）可替换它，见 [../implementation-plan.md](../implementation-plan.md)。
 
-> 2026-10-30 晚之前的记忆库写着「检索结果 → 详情页刻意不走共享元素、封面 sharedElement 已否决」。那两条是**模型误改留下的结论**（当时编码模型额度中断、接手的模型误解了指令，把调好的动画拆了），不是管理员决策；2026-10-30 21:00 后已按管理员要求恢复并加强（整卡张成整页 + 封面连续 + 内容落定）。
+**已否决的做法（都真机试过，别再走）**
+
+| 做法 | 结果 |
+| --- | --- |
+| `contentFadeThrough`（旧内容 90ms 淡掉）+ `settleContentAfterTransform`（新内容等 300ms 才落定） | 「卡片先空 → 详情补上」的空窗，正是用户反复投诉的观感 |
+| 容器 300ms + 页面级 `fade 220/90` 叠加 | 一次跳转叠三段淡化，感知 460ms |
+| `resizeMode = ScaleToBounds(Fit)` + `clipInOverlayDuringTransition = OverlayClip(RectangleShape)` | 整页等比缩进矩形，飞行途中上下留白、字更小更糊 |
+| 路线 I「元素级 hero」：封面 `sharedElement` + 书名 `sharedElement` + 其余 `animateEnterExit` 错峰 | 一个转场里三套不同步的运动，比整页缩放更乱（2026-10-31 真机否决，用户原话「甚至还不如上一版」） |
+| 回滚到 v1.7.0 的 `SharedCardPage.kt` | 管线与当前结构相同（默认参数、不传 enter/exit、220ms），问题不在 helper；且会连带丢掉想看与新详情页 UI |
+| `RemeasureToBounds` | 每帧重测整页，掉帧 |
+
+> 历史更正：2026-10-30 晚的记忆库曾把「封面必须共享元素」「目标页内容延后落定」写成硬规则，2026-10-31 的真机对比把两条都推翻了。判断依据改为「与 `Screenrecorder-2026-10-30-15-36-41-586.mp4` 的逐帧观感对齐」，方法论见 [../handover-notes.md](../handover-notes.md)。
 
 ## 依赖注入
 
@@ -179,6 +194,8 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 - 字符串：新增文案优先加到 `values/strings.xml` 与 `values-en/strings.xml`；当前仍有硬编码中文，改动时顺手补齐。
 
 ## 历史记录
+
+- **2026-10-31（转场定稿）**：把 [共享元素与容器变换](#共享元素与容器变换) 整节改写为当前事实——① 封面共享元素 `search-cover-<bibId>` **停用**，改为整页容器统一缩放；② 几何 300ms decelerate → 220ms `M3EmphasizedEasing`；③ 删掉 `ContainerSettleEnterTransition` 与 `contentFadeThrough`/`settleContentAfterTransform` 两个开关；④ 详情路由页面级转场改为 `fadeIn(200ms)`（无 delay、无 `scaleIn`）+ `fadeOut(60ms)`；⑤ 新增「已否决的做法」表（额外淡化、`Fit`+`OverlayClip`、元素级 hero、回滚 v1.7.0、`RemeasureToBounds`）。上一行 2026-10-30 记录里的「封面必须共享元素」「内容延后落定」两条已被真机对比推翻。
 
 - **2026-10-30（晚，动画返工）**：新增 [共享元素与容器变换](#共享元素与容器变换) 一节——记录 `sharedCoverModifier`（封面共享元素）、`ContainerSettleEnterTransition`（内容延后落定）、往返统一 300ms decelerate、`AnimatedContent` 的 bibDetail 专属 `transitionSpec`、路由携带 `cover` 避免首帧空封面等约定；并撤销此前「检索路径不走共享元素 / 封面 sharedElement 已否决」的结论（那是模型误改，非管理员决策）。
 - **2026-10-30（记忆库整理）**：按当前代码校正——删掉「底层 5 目的地 NavigationBar」这一已不存在的描述，改为首页卡片面板 + 手写返回栈 + 共享元素转场；`TopLevelRoute` 注明位于 `AppNavigation.kt`；Kotlin 文件数 84→127、Room v4→v6、迁移补到 `MIGRATION_5_6`、首页四卡→五卡。

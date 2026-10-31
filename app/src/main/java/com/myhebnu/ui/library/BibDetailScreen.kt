@@ -290,12 +290,20 @@ fun BibDetailScreen(
                 // 离得太远会让上面的留白显得空。
                 Spacer(Modifier.height(Spacing.xxl))
 
-                HoldingCard(
-                    holdings = uiState.holdings,
-                    expanded = holdingsExpanded,
-                    onToggleExpand = { holdingsExpanded = !holdingsExpanded },
-                    modifier = Modifier.padding(horizontal = Spacing.screen)
-                )
+                // 首屏还没拿到馆藏时先占住两行的高度：否则数据到达会让整页高度跳一下，
+                // 在容器变换刚结束的位置尤其明显（观感是「生硬弹出一块」）。
+                if (uiState.holdings.isEmpty() && uiState.isLoading) {
+                    HoldingsPlaceholder(
+                        modifier = Modifier.padding(horizontal = Spacing.screen)
+                    )
+                } else {
+                    HoldingCard(
+                        holdings = uiState.holdings,
+                        expanded = holdingsExpanded,
+                        onToggleExpand = { holdingsExpanded = !holdingsExpanded },
+                        modifier = Modifier.padding(horizontal = Spacing.screen)
+                    )
+                }
 
                 Spacer(Modifier.height(Spacing.xxl))
 

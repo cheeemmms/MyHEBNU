@@ -6,6 +6,10 @@ import com.myhebnu.ui.components.M3AccelerateEasing
 import com.myhebnu.ui.components.M3DecelerateEasing
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -145,4 +150,45 @@ private fun HoldingRowItem(
 
         if (showDivider) SectionDivider()
     }
+}
+
+
+/**
+ * 馆藏卡的**定高占位**。
+ *
+ * 详情接口没回来时如果直接把 [HoldingCard] 空着（它对空列表是 `return`），
+ * 页面会比最终矮一大截，数据一到就在一帧里「长」出来——观感上就是落位后
+ * 生硬弹出一块。这里先按折叠态的两行高度把位置占住，数据到达后原地替换，
+ * 页面高度不再跳变。
+ */
+@Composable
+fun HoldingsPlaceholder(modifier: Modifier = Modifier) {
+    GroupedSurface(modifier = modifier.fillMaxWidth()) {
+        repeat(CollapsedHoldingCount) { index ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(HoldingRowHeight)
+                    .padding(horizontal = Spacing.md),
+                verticalArrangement = Arrangement.Center
+            ) {
+                SkeletonBar(widthFraction = 0.42f, height = 14.dp)
+                Spacer(Modifier.height(Spacing.xs))
+                SkeletonBar(widthFraction = 0.66f, height = 11.dp)
+            }
+            if (index == 0) SectionDivider()
+        }
+    }
+}
+
+/** 占位条：中性色块，不画文字，避免数据到达时出现「假字换真字」的重影。 */
+@Composable
+private fun SkeletonBar(widthFraction: Float, height: Dp) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(widthFraction)
+            .height(height)
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+    )
 }

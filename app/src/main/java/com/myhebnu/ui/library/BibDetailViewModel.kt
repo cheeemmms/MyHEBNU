@@ -4,12 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.myhebnu.data.local.db.entity.WishlistEntity
 import com.myhebnu.data.remote.opac.OpacHolding
-import com.myhebnu.data.repository.OpacRepository
+import com.myhebnu.data.repository.BibDetailLoader
 import com.myhebnu.data.repository.WishlistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -54,7 +52,7 @@ data class BibDetailUiState(
  */
 @HiltViewModel
 class BibDetailViewModel @Inject constructor(
-    private val repository: OpacRepository,
+    private val detailLoader: BibDetailLoader,
     private val wishlistRepository: WishlistRepository,
 ) : ViewModel() {
 
@@ -111,7 +109,8 @@ class BibDetailViewModel @Inject constructor(
     /** 重新拉取（错误态下的「重试」）。 */
     fun retry() {
         val bibId = loadedBibId ?: return
-        loadDetail(bibId, null, _uiState.value.title)
+        // 重试要绕开缓存，否则刚失败的 60 秒里会一直把同一条失败结果还回来
+        loadDetail(bibId, null, _uiState.value.title, forceRefresh = true)
     }
 
     /**
@@ -148,7 +147,12 @@ class BibDetailViewModel @Inject constructor(
         }
     }
 
-    private fun loadDetail(bibId: String, isbn: String?, fallbackTitle: String?) {
+    private fun loadDetail(
+        bibId: String,
+        isbn: String?,
+        fallbackTitle: String?,
+        forceRefresh: Boolean = false,
+    ) {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -158,24 +162,15 @@ class BibDetailViewModel @Inject constructor(
                 )
             }
 
-            val result = runCatching {
-                coroutineScope {
-                    val detail = async { repository.bibDetail(bibId) }
-                    val holdings = async { repository.holdings(bibId) }
-                    val douban = async { repository.douban(isbn, bibId) }
-
-                    val bundle = detail.await().getOrThrow()
-                    val copies = holdings.await().getOrNull().orEmpty()
-                    val extra = douban.await().getOrNull()
-
-                    Triple(bundle, copies, extra)
-                }
-            }
+            // 预取在点击卡片时就发起过，这里大概率直接命中，转场期间内容已经齐了；
+            // 没命中也只是复用同一条请求（BibDetailLoader 按 bibId 去重）。
+            val result = detailLoader.load(bibId = bibId, isbn = isbn, forceRefresh = forceRefresh)
 
             _uiState.update { state ->
                 result.fold(
-                    onSuccess = { (bundle, copies, extra) ->
-                        val base = bundle.base
+                    onSuccess = { payload ->
+                        val base = payload.bundle.base
+                        val extra = payload.douban
                         state.copy(
                             bibId = bibId,
                             isLoading = false,
@@ -193,10 +188,11 @@ class BibDetailViewModel @Inject constructor(
                                 ?: LibraryFormat.coverUrl(base?.isbn).ifBlank { null }
                                 ?: "",
                             abstract = extra?.content.orEmpty(),
-                            marcFields = buildMarcFields(bundle.fields),
+                            marcFields = buildMarcFields(payload.bundle.fields),
                             // 可借排前面：读者打开这页只想先看到「哪儿能借到」
-                            holdings = copies.sortedByDescending { if (it.circStatus == 0) 1 else 0 },
-                            clickCount = bundle.clickCount,
+                            holdings = payload.holdings
+                                .sortedByDescending { if (it.circStatus == 0) 1 else 0 },
+                            clickCount = payload.bundle.clickCount,
                         )
                     },
                     onFailure = { error ->

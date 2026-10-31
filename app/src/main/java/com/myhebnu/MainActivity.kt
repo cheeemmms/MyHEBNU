@@ -57,6 +57,7 @@ import com.myhebnu.ui.library.SearchScreen
 import com.myhebnu.ui.library.WishlistScreen
 import com.myhebnu.ui.navigation.TopLevelRoute
 import com.myhebnu.ui.room.RoomScreen
+import com.myhebnu.data.repository.BibDetailLoader
 import com.myhebnu.ui.schedule.ScheduleScreen
 import com.myhebnu.ui.settings.AdvancedSettingsScreen
 import com.myhebnu.ui.settings.ColorThemeScreen
@@ -73,6 +74,16 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    /**
+     * 书目详情预取器：点击卡片的那一刻就把详情请求发出去。
+     *
+     * 详情页在转场第 0 帧才进入组合，如果那时才发请求，220ms 的容器变换期间
+     * 页面只有题名/作者/封面，馆藏与简介会在落位后的一帧里「长」出来。
+     * 预取把这段等待移到点击瞬间，且与详情页共用同一条请求（不增加服务器压力）。
+     */
+    @Inject
+    lateinit var bibDetailLoader: BibDetailLoader
 
     @Inject
     lateinit var authRepository: AuthRepository
@@ -117,7 +128,8 @@ class MainActivity : ComponentActivity() {
                     MyHEBNUApp(
                         authRepository = authRepository,
                         preferences = preferences,
-                        pendingNavigation = pendingNavigation
+                        pendingNavigation = pendingNavigation,
+                        onPrefetchBibDetail = { bibId -> bibDetailLoader.prefetch(bibId) }
                     )
                 }
             }
@@ -146,7 +158,9 @@ enum class AppScreen { Welcome, Login, Main }
 fun MyHEBNUApp(
     authRepository: AuthRepository,
     preferences: UserPreferences,
-    pendingNavigation: kotlinx.coroutines.channels.Channel<String>
+    pendingNavigation: kotlinx.coroutines.channels.Channel<String>,
+    /** 点开书目详情前预取该书的详情数据，见 [MainAppContent]。 */
+    onPrefetchBibDetail: (String) -> Unit = {}
 ) {
     var currentScreen by remember { mutableStateOf<AppScreen?>(null) }
     var sessionExpiredMessage by remember { mutableStateOf<String?>(null) }
@@ -248,7 +262,10 @@ fun MyHEBNUApp(
         }
 
         AppScreen.Main -> {
-            MainAppContent(pendingNavigation = pendingNavigation)
+            MainAppContent(
+                pendingNavigation = pendingNavigation,
+                onPrefetchBibDetail = onPrefetchBibDetail
+            )
         }
     }
 
@@ -280,7 +297,9 @@ fun MyHEBNUApp(
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainAppContent(
-    pendingNavigation: kotlinx.coroutines.channels.Channel<String>
+    pendingNavigation: kotlinx.coroutines.channels.Channel<String>,
+    /** 点击卡片时预取详情；由 Activity 注入的 `BibDetailLoader` 提供，纯逻辑不感知 DI。 */
+    onPrefetchBibDetail: (String) -> Unit = {}
 ) {
     // 官方 Navigation：返回栈、页面级转场、每个 back stack entry 的可保存状态
     // （列表滚动位置、输入框文字）都由框架负责，不再手写 currentRoute/backStack。
@@ -425,6 +444,7 @@ fun MainAppContent(
                     SearchScreen(
                         onBack = goBack,
                         onOpenBib = { bibId, isbn, title, cover ->
+                            onPrefetchBibDetail(bibId)
                             navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
                         },
                         sharedScope = sharedScope,
@@ -436,6 +456,7 @@ fun MainAppContent(
                     WishlistScreen(
                         onBack = goBack,
                         onOpenBib = { bibId, isbn, title, cover ->
+                            onPrefetchBibDetail(bibId)
                             navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
                         },
                         onGoSearch = { navigateTo(LibraryRoutes.SEARCH) },

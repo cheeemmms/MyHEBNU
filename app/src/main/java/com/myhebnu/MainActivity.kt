@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -319,6 +320,10 @@ fun MainAppContent(
         // 首页卡片 → 目标页：共享元素容器变换（卡片直接展开成整页）
         SharedTransitionLayout {
             val sharedScope = this
+            // 每个路由各自保存 rememberSaveable 状态（列表滚动位置、搜索框文字等）。
+            // AnimatedContent 在转场结束时会 dispose 旧内容，如果没有这个 holder，
+            // 从详情页返回时列表会拿到一个全新的 LazyListState，滚动位置被重置到顶部。
+            val saveableStateHolder = rememberSaveableStateHolder()
             // 录屏对齐版：页面级转场交给 `AnimatedContent` 的默认 spec
             // （fadeIn 220ms / delay 90ms 与 fadeOut 90ms），不再按路由自定义。
             AnimatedContent(
@@ -337,6 +342,9 @@ fun MainAppContent(
                 }
             ) { route ->
                 val animatedScope: AnimatedVisibilityScope = this
+                // 按路由保存各自的可保存状态：转场期间两端路由同时在组合里，
+                // 各自持有独立的 SaveableStateProvider，互不干扰。
+                saveableStateHolder.SaveableStateProvider(route) {
                 when (route) {
                 TopLevelRoute.Home.route -> HomeScreen(
                     onNavigate = { target -> navigateTo(target) },
@@ -452,6 +460,7 @@ fun MainAppContent(
                             animatedScope = animatedScope
                         )
                     }
+                }
                 }
                 }
             }

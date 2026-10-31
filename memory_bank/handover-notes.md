@@ -58,7 +58,7 @@
 | 想改什么 | 去哪里改 | 注意点 |
 | --- | --- | --- |
 | 版本号/包名/签名 | `app/build.gradle.kts` | 同步 `CHANGELOG.md`、`strings.xml` 的 `changelog_content`、Git tag；三处版本号流程见 [tech-stack.md](tech-stack.md#版本与发布) |
-| 入口/导航/会话门控 | `MainActivity.kt`、`ui/navigation/TopLevelRoute.kt` | 手写 backStack，不是 NavHost；启动只做本地判定 |
+| 入口/导航/会话门控 | `MainActivity.kt`、`ui/navigation/TopLevelRoute.kt` | `NavHost` 路由（`NavGraphBuilder.page()` 统一四类转场，`animatedScope = this`）；启动只做本地判定 |
 | 登录（CAS 单点） | `data/remote/sso/SsoLoginManager.kt`、`ZfsoftRsa.kt`、`data/repository/AuthRepository.kt` | 密码不是 PKCS#1；`execution` 与会话绑定；旧的 xtgl 直登已删除，不要复活。详见 [architecture/library-and-sso.md](architecture/library-and-sso.md#统一身份认证cas) |
 | 我的图书馆 | `ui/library/`、`data/repository/OpacRepository.kt`、`data/remote/opac/`、`di/OpacModule.kt` | 只读 7 页；独立 OkHttp（共用 CookieJar）；返回阶梯与设计约定见 [architecture/library-and-sso.md](architecture/library-and-sso.md) |
 | 想看功能 | `ui/library/Wishlist{Screen,ViewModel}.kt`、`data/repository/{WishlistRepository,WishlistBackup}.kt`、`data/local/db/{entity/WishlistEntity,dao/WishlistDao}.kt`、`ui/library/BookCovers.kt` | Room v6；封面缓存键分层（小图/大图）；备份 JSON 带 version；详见 [architecture/data-and-storage.md](architecture/data-and-storage.md) |

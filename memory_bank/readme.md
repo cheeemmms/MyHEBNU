@@ -30,15 +30,15 @@
 | 当前版本 | **v1.7.0**（2026-10-28 已发 GitHub Release，commit `673fed7`、tag `v1.7.0`）：v1.6.0 之上增加「我的图书馆」模块与统一身份认证改造 |
 | 当前阶段 | Phase 0–7 与 v1.6.0/v1.7.0 已交付；**图书馆写操作（续借/荐购/预约）与 Phase 8「打磨/收尾」未完成** |
 | 最近一次整理 | 2026-10-30 记忆库精简：删除 `design-document.md` 与仓库根 `widget/HyperOS-Widget-Adaptation-Plan.md`（内容过期），有效内容并入 handover/architecture/tech-stack；同时校正「无底部导航栏」「Room v6 四张表」「首页五张卡片」等与代码不符的描述。详见 [history/change-log.md](history/change-log.md) |
-| 最近一次实质进展 | 2026-10-31（**已提交 `8085d6b`**）**Compose 1.9 迁移 + 书目详情转场按录屏对齐**：① 依赖升级到 Compose 1.9.5 / Material3 1.4.0（AGP 8.13.2、compileSdk 36、Glance 1.2.0，Kotlin 2.2.21 / KSP / Gradle 9.5.1 不动），源码只有 1 处 API 改名（`Modifier.sharedElement` 的 `state` → `sharedContentState`）；② 详情页转场回到「整页挂共享容器」：`sharedBounds` 默认 `ScaleToBounds(FillWidth, Center)` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`；③ 详情路由的页面级转场改成 `fadeIn(200ms)`（无 delay、去掉 `scaleIn`）+ `fadeOut(60ms)`，内容与封面同时显形，落位时已是实心；④ 详情页根节点补不透明底色；⑤ 撤掉 `contentFadeThrough` / `settleContentAfterTransform` 两个开关。时序与已否决做法见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)，进度见 [implementation-plan.md](implementation-plan.md) |
+| 最近一次实质进展 | 2026-10-31（**已提交，HEAD 分支 `refactor/navigation-compose`**）**路由迁移 NavHost + 想看行容器变换 + Compose 1.9 迁移 + 书目详情转场按录屏对齐**：① 依赖升级到 Compose 1.9.5 / Material3 1.4.0（AGP 8.13.2、compileSdk 36、Glance 1.2.0，Kotlin 2.2.21 / KSP / Gradle 9.5.1 不动），源码只有 1 处 API 改名（`Modifier.sharedElement` 的 `state` → `sharedContentState`）；② 详情页转场回到「整页挂共享容器」：`sharedBounds` 默认 `ScaleToBounds(FillWidth, Center)` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`；③ 详情路由的页面级转场改成 `fadeIn(200ms)`（无 delay、去掉 `scaleIn`）+ `fadeOut(60ms)`，内容与封面同时显形，落位时已是实心；④ 详情页根节点补不透明底色；⑤ 撤掉 `contentFadeThrough` / `settleContentAfterTransform` 两个开关。时序与已否决做法见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)，进度见 [implementation-plan.md](implementation-plan.md)；⑥ 「想看」列表行接入与检索卡片相同的整页容器变换（共用 `bib-card-<bibId>` 键，`2604012`）；⑦ 路由层从手写返回栈迁移到 androidx.navigation 的 `NavHost`（`27f90b9` 先用手写 `SaveableStateProvider` 修返回丢滚动位置，`fc3573a` 整体换成 `NavHost` + `NavGraphBuilder.page()` 统一四类转场，书目详情改 query 参数 + `Uri.encode`） |
 | 最近一次实质进展（上一轮） | 2026-10-30（晚）**「想看」功能闭环 + 书籍详情页重设计 + 动画第一版定案**，8 个 commit（`0a7a119`→`31c914e`，含 `0a7a119` 本身）全部真机验收并推送：① 想看数据层（Room 5→6，wishlist 快照表）→ 详情页收藏胶囊 → 想看列表页（封面/移除确认/空态）→ 图书馆首页入口与指标（「罚金」格改「想看」）→ JSON 导出导入（SAF、按 bibId 幂等合并）；② 详情页重设计：沉浸头图（高度固定、渐变按封面比例贴图收口）+ 45% 视差 + 滚动模糊淡出 + 状态栏图标随深度反色 + 首帧性能优化（0.8 倍解码、模糊层条件渲染）；③ 封面缓存键分层（`BookCovers.kt`）与检索/想看列表预取；④ 修「换书显示上本书封面」（uiState.bibId 闸门）等三个严重缺陷；⑤ 动画第一版定案：容器变换（sharedBounds 整页展开、默认参数）保留为最重视的动画，检索结果 → 详情页不走共享元素，内容级动画用 M3 emphasized 曲线。其间否决的实验：fade through 错开（拉长转场）、RemeasureToBounds（每帧重测整页掉帧）、封面 sharedElement、纯模糊过渡（与共享元素互斥）。**注**：「检索路径不走共享元素」与「否决封面 sharedElement」两条已于同日 21:00 后由管理员推翻，见上一行「最近一次实质进展」。Compose 1.9 迁移列为 P0 待办 |
 | 最近一次实质进展（更早） | 2026-10-30（晨）课表周次判定重构（commit `01b9bce`，已验收并推送）：解析改用教务 `oldzc`/`oldjc` 位掩码并由掩码反推起止周与节次，`zcd` 文本解析降为兜底。`CourseEntity` 新增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，五处统一改调；Room 4→5。同日上午先把 v1.7.0 遗留文档补提交并入主线（`7580673`/`1e66d1b`/`ae4689a`）。 |
 | 最近一次实质进展（更早） | 2026-10-27 图书馆模块上线：汇文 OPAC 只读 7 页（首页/当前借阅/动态借书码/馆藏检索/书目详情/预约与荐购/罚金与违约）已装真机跑通数据；同一轮把教务登录从旧 xtgl 表单切到学校 CAS 单点登录，图书馆复用同一会话，旧的 xtgl 登录代码整段删除、无双路径 |
 | 最近一次实质进展（更早） | 2026-10-21 MD3 前端整改（15 个颜色角色、`AppShapes`、NavigationBar 五顶层导航，分支 `feat/md3-ui-refresh` 提交 `f99d848`；该底部导航同日在 `54557e5` 被首页卡片共享展开动画取代，现状无 tab）；小组件重做（事件边界刷新引擎 + 硬滑动 + 行数自适应） |
-| 下一步 | ① **推送**（本地领先 `origin/main` 4 个提交）；② 图书馆写操作（续借/荐购/预约委托）；③ 发版前收尾（CHANGELOG/versionCode——`main` 已积累一整批未发版功能）；④ 迁移后的可选跟进：用 `Modifier.onVisibilityChanged` 替掉瀑布流的 `isScrollInProgress` 门控、`Text(autoSize=)` 删掉书名自适应测量 |
+| 下一步 | ① **推送**（分支 `refactor/navigation-compose` 领先 `origin/main` 9 个提交）；② 图书馆写操作（续借/荐购/预约委托）；③ 发版前收尾（CHANGELOG/versionCode——`main` 已积累一整批未发版功能）；④ 迁移后的可选跟进：用 `Modifier.onVisibilityChanged` 替掉瀑布流的 `isScrollInProgress` 门控；⑤ 冷启动首次展开卡片掉帧（已定位为 debug 包 20 dex / 无 baseline.prof，release 包不存在，用户已搁置） |
 | 已知阻塞 | 无。adb 已于 2026-10-31 打通（`C:\Users\yongl\AppData\Local\Android\Sdk` 建了指向 `D:\Software_data\Android Studio\SDK` 的目录联接，插件 `resolveAdbBinary()` 走 PATH 命中）；构建/安装/推送需要 `danger-full-access` |
 | 交接状态 | **可交接**：先读 [handover-notes.md](handover-notes.md)；图书馆与 CAS 的技术细节在 [architecture/library-and-sso.md](architecture/library-and-sso.md)；未完成项在 [implementation-plan.md](implementation-plan.md) |
-| 分支状态 | `main` 是当前开发线（2026-10-30 由 `feat/md3-ui-refresh` 快进合并而来）；HEAD = `8085d6b`，本地领先 `origin/main` 4 个提交、**未推送**；迁移基线 tag `pre-compose19` = `dda8017`；工作区干净 |
+| 分支状态 | 当前开发分支 **`refactor/navigation-compose`**（`main` 在 `27f90b9`）；HEAD = `fc3573a`，领先 `origin/main` 9 个提交、**未推送**；迁移基线 tag `pre-compose19` = `dda8017`；工作区干净 |
 | 最后更新 | 2026-10-31 |
 
 ## 文件清单
@@ -58,7 +58,7 @@
 
 | 文件 | 内容 | 何时读 | 最后更新 |
 | --- | --- | --- | --- |
-| [architecture/modules-and-ui.md](architecture/modules-and-ui.md) | 包结构、模块职责、导航与页面状态、主题与 DI | 新增页面/模块、改导航或主题 | 2026-10-30 |
+| [architecture/modules-and-ui.md](architecture/modules-and-ui.md) | 包结构、模块职责、导航与页面状态、主题与 DI | 新增页面/模块、改导航或主题 | 2026-10-31 |
 | [architecture/data-and-storage.md](architecture/data-and-storage.md) | Room 实体/DAO/迁移、DataStore 键、凭证与 Cookie、缓存策略 | 改数据模型、排查缓存/迁移问题 | 2026-10-30 |
 | [architecture/ea-api.md](architecture/ea-api.md) | 教务系统认证、请求门控、课程/成绩/空教室/考试接口与响应结构 | 对接教务、排查请求失败、扩展接口 | 2026-10-30 |
 | [architecture/library-and-sso.md](architecture/library-and-sso.md) | 图书馆模块的结构、OPAC 接口、CAS 单点登录链路与 UI 约定 | 改图书馆页面、排查 OPAC/登录问题、加写操作 | 2026-10-30 |
@@ -95,6 +95,8 @@
 - 项目既有约定：**构建与真机验收由用户在 Android Studio 完成**，除非用户明确要求，代理不自动执行 Gradle 构建。
 
 ## 历史记录
+
+- **2026-10-31（路由迁移）**：`NavHost` 取代手写返回栈后同步——[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 的「主界面导航」整节改写（NavHost 注册位置、`page()` 统一四类转场、返回交 `popBackStack`、`SaveableStateHolder` 由 `NavBackStackEntry` 负责、VM owner 变化）并新增历史条目；[architecture/library-and-sso.md](architecture/library-and-sso.md) 的书目详情路由改为 query 参数说明；[architecture.md](architecture.md) 决策 #1 改为「NavHost」；[handover-notes.md](handover-notes.md) 文件地图去掉「手写 backStack」；[history/change-log.md](history/change-log.md) 补 2026-10-31 迁移行。
 
 - **2026-10-30（晚，动画返工）**：快照新增本轮返回（未提交/待验收）并把上一轮降为「上一轮」；「下一步」「分支状态」写明待验收与未提交；[architecture/modules-and-ui.md](architecture/modules-and-ui.md) 新增 [共享元素与容器变换](architecture/modules-and-ui.md#共享元素与容器变换) 一节（key 表、时序契约、硬规则与坑）并撤销「检索路径不走共享元素 / 封面 sharedElement 已否决」；[implementation-plan.md](implementation-plan.md) 新增「进行中 · 动画返工」与验证结果；[handover-notes.md](handover-notes.md) 刷新状态、文件地图、三个新坑与交接清单；[history/change-log.md](history/change-log.md) 补本轮变更行。
 - **2026-10-30（状态同步）**：核对仓库实际状态后刷新——`main` HEAD 记为新提交 `ee94009` 并标注「领先 `origin/main` 1 个提交、未推送」；Debug 构建结果更新为当日多轮成功（产物 20:46）；[implementation-plan.md](implementation-plan.md) 补 v1.8.0（待发）里程碑与「想看闭环 / 详情页重设计 / 动画定案」完成项；修正「7 个 commit」为 8 个（含 `0a7a119`）。

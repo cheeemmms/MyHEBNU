@@ -22,7 +22,7 @@
 ```text
 com.myhebnu
 ├── MyHebnuApplication.kt       # @HiltAndroidApp；通知渠道 + Worker 调度
-├── MainActivity.kt             # 单 Activity；欢迎/登录/主界面；手写返回栈；Widget 深链
+├── MainActivity.kt             # 单 Activity；欢迎/登录/主界面；NavHost 路由；Widget 深链
 ├── di/                         # NetworkModule / DatabaseModule / RepositoryModule
 ├── data/
 │   ├── local/
@@ -72,17 +72,19 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 
 ### 主界面导航
 
-- `MainAppContent` 持有 `currentRoute: String` + `backStack: SnapshotStateList<String>`。
-- `navigateTo` 压栈前进，`goBack` 弹栈；栈空回 `home`。
+- 由 **androidx.navigation 的 `NavHost`** 驱动（`MainActivity.MainAppContent`）：`rememberNavController()` + `NavHost(startDestination = TopLevelRoute.Home.route)`，注册在 `SharedTransitionLayout { … }` 内部（共享元素转场要求这个 scope 包住 NavHost）。
+- 目的地统一走 `NavGraphBuilder.page(route, arguments, content)` 这个本地扩展注册（在 `MainActivity.kt` 末尾），它把四类转场一起定死，见[共享元素与容器变换](#共享元素与容器变换)；`content` 的 receiver 是 `AnimatedContentScope`（`AnimatedContentScope : AnimatedVisibilityScope`），所以页面照旧收 `sharedScope` / `animatedScope = this`。
+- **不再手写返回栈**：原来的 `currentRoute` + `backStack` + `BackHandler` 已删除。返回由 `navController.popBackStack()` 与系统返回手势（含 Android 14 预测性返回）接管；检索页的逐级返回阶梯仍由页面自己的 `BackHandler(enabled = hasSearchState)` 实现。
+- **可保存状态由框架负责**：每个 `NavBackStackEntry` 自带 `SaveableStateHolder`（`NavHostKt` 内部用 `BackStackEntryIdViewModel`），列表滚动位置、搜索框文字随路由保存；手写 `rememberSaveableStateHolder()` 的补丁已随迁移删除。
+- 页面 ViewModel 的 owner 变为 `NavBackStackEntry`（`hiltViewModel()` 自动取），页面离开即回收；`BibDetailViewModel` 里「换书按 bibId 重置」的闸门仍保留，但不再是唯一隔离手段。
 - **没有底部导航栏，也没有抽屉**：唯一入口是首页卡片面板（`HomeCardPanel`，按 `card.route` 逐张挂共享元素 `home-card-<route>`）；各页面自带 `TopAppBar`。
-- 返回拦截：`BackHandler(enabled = currentRoute != TopLevelRoute.Home.route) { goBack() }` —— 除首页外任何路由都被系统返回手势拦下先弹栈，栈空回 `home`。
-- 页面切换用 `SharedTransitionLayout { AnimatedContent(targetState = currentRoute) }`，每个页面都接收 `sharedScope`/`animatedScope`；外层 `Box` 用 `Modifier.background(MaterialTheme.colorScheme.background)` 兜底，避免暗色下交叉淡入透出白底，并只给横向 `displayCutout` 加 inset（纵向留给页面自己处理，书籍详情页封面要铺到状态栏下面）。
-- 路由集合（`TopLevelRoute` + 字符串）：`home`、`schedule`、`grade`、`empty_room`、`exam`、`settings`、`advanced_settings`、`color_theme`、`about`、`system_update`、`semester_setup`，以及图书馆的 `library`、`library_reader_code`、`library_loans`、`library_requests`、`library_fines`、`library_search`、`library_bib\u0001…`（见 [library-and-sso.md](library-and-sso.md#页面与路由)）。
+- 页面切换在 `SharedTransitionLayout` 内的 `NavHost` 里进行；外层 `Box` 用 `Modifier.background(MaterialTheme.colorScheme.background)` 兜底，避免暗色下交叉淡入透出白底，并只给横向 `displayCutout` 加 inset（纵向留给页面自己处理，书籍详情页封面要铺到状态栏下面）。
+- 路由集合（`TopLevelRoute` + 字符串）：`home`、`schedule`、`grade`、`empty_room`、`exam`、`settings`、`advanced_settings`、`color_theme`、`about`、`system_update`、`semester_setup`，以及图书馆的 `library`、`library_reader_code`、`library_loans`、`library_requests`、`library_fines`、`library_search`、`library_bib?bibId={bibId}&isbn={isbn}&title={title}&cover={cover}`（Navigation query 参数，见 [library-and-sso.md](library-and-sso.md#页面与路由)）。
 - 二级页一律压栈前进、弹栈返回；图书馆检索页额外约定「详情 → 检索结果 → 搜索框 → 图书馆首页」的逐级返回，用 `BackHandler(enabled = hasSearchState)` 拦一次返回先 `reset()` 检索态。
-- 每个页面自带 `Scaffold` + `TopAppBar`；首页不接 `onBack`（无返回箭头），课表/成绩/空教室/考试/设置等其余页面都接 `onBack = { goBack() }`，因此在这个「无 tab」结构里都能看到返回箭头。
-- Widget 深链：`myhebnu://navigate/{route}`，由 `MainActivity.handleDeepLink()` 写入 `pendingNavigation`，主界面消费后清空返回栈并跳转。
+- 每个页面自带 `Scaffold` + `TopAppBar`；首页不接 `onBack`（无返回箭头），课表/成绩/空教室/考试/设置等其余页面都接 `onBack = goBack`，因此在这个「无 tab」结构里都能看到返回箭头。
+- Widget 深链：`myhebnu://navigate/{route}`，由 `MainActivity.handleDeepLink()` 写入 `pendingNavigation`，主界面消费时用 `navController.navigate(route) { popUpTo(navController.graph.id) { inclusive = true } }` 清栈后跳转。
 
-> 注意：`ui/navigation/AppNavigation.kt` 里的 `TopLevelRoute` 只是路由常量集合（其 KDoc 还写着「for the Navigation Drawer」，是历史注释，项目里并没有抽屉）；项目**没有使用** Navigation Compose 的 `NavHost`，尽管 `libs.navigation.compose` 仍在依赖中。
+> `ui/navigation/AppNavigation.kt` 里的 `TopLevelRoute` 只是路由常量集合（其 KDoc 还写着「for the Navigation Drawer」，是历史注释，项目里并没有抽屉）。项目已于 2026-10-31 改用 Navigation Compose 的 `NavHost`（此前 `libs.navigation.compose` 只在依赖里、代码未使用）。
 
 ## 页面与状态
 
@@ -194,6 +196,8 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 - 字符串：新增文案优先加到 `values/strings.xml` 与 `values-en/strings.xml`；当前仍有硬编码中文，改动时顺手补齐。
 
 ## 历史记录
+
+- **2026-10-31（路由迁移）**：手写 `currentRoute` + `backStack` 换成 androidx.navigation 的 `NavHost`（commit `fc3573a`，分支 `refactor/navigation-compose`）。动机是手写栈连出三起同源缺陷：转场 dispose 旧页导致列表滚动位置丢失、进程重建回首页、页面 VM 不回收。本次把导航小节改写为 NavHost 事实，书目详情路由从 `\u0001` 拼接改成 query 参数（`BIB_DETAIL_PATTERN` + 逐段 `Uri.encode`），`SaveableStateProvider` 交还框架。
 
 - **2026-10-31（转场定稿）**：把 [共享元素与容器变换](#共享元素与容器变换) 整节改写为当前事实——① 封面共享元素 `search-cover-<bibId>` **停用**，改为整页容器统一缩放；② 几何 300ms decelerate → 220ms `M3EmphasizedEasing`；③ 删掉 `ContainerSettleEnterTransition` 与 `contentFadeThrough`/`settleContentAfterTransform` 两个开关；④ 详情路由页面级转场改为 `fadeIn(200ms)`（无 delay、无 `scaleIn`）+ `fadeOut(60ms)`；⑤ 新增「已否决的做法」表（额外淡化、`Fit`+`OverlayClip`、元素级 hero、回滚 v1.7.0、`RemeasureToBounds`）。上一行 2026-10-30 记录里的「封面必须共享元素」「内容延后落定」两条已被真机对比推翻。
 

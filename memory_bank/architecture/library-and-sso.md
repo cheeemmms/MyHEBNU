@@ -46,7 +46,7 @@
 
 ## 页面与路由
 
-`LibraryRoutes` 常量（全部是普通字符串，参数用 `\u0001` 拼进 route，由 `parseBibDetail` 还原）：
+`LibraryRoutes` 常量（普通字符串路由；书目详情改用 Navigation 的 query 参数，由 `LibraryRoutes.bibDetail(...)` 生成、`MainActivity` 的 `bibDetailArguments` 声明四个 `navArgument`）：
 
 | 常量 | 值 | 页面 |
 | --- | --- | --- |
@@ -56,10 +56,11 @@
 | `REQUESTS` | `library_requests` | `RequestsScreen`（预约与荐购） |
 | `FINES` | `library_fines` | `FinesScreen`（罚金与违约） |
 | `SEARCH` | `library_search` | `SearchScreen`（馆藏检索） |
-| `BIB_DETAIL_PREFIX` | `library_bib\u0001…` | `BibDetailScreen`（书目详情） |
+| `WISHLIST` | `library_wishlist` | `WishlistScreen`（我想看的书） |
+| `BIB_DETAIL_PREFIX` | `library_bib` | `BibDetailScreen`（书目详情），完整模式见 `BIB_DETAIL_PATTERN` |
 
-- 入口是首页第五张卡片（`ui/home/components/HomeCardPanel.kt`，route=`library`，共享元素 key `home-card-library`），分支挂在 `MainActivity.kt` 的 `when (route)`。
-- 图书馆内部导航**全部压栈**（`navigateTo`），返回 **一律弹栈**（`goBack`），不使用深链。
+- 入口是首页第五张卡片（`ui/home/components/HomeCardPanel.kt`，route=`library`，共享元素 key `home-card-library`），分支用 `NavGraphBuilder.page("library")` 注册在 `MainActivity.kt` 的 `NavHost` 里。
+- 图书馆内部导航**全部压栈**（`navController.navigate`，经 `navigateTo` 包装），返回 **一律弹栈**（`navController.popBackStack`，经 `goBack` 包装），不使用深链。
 - **检索页的返回阶梯**：书目详情 →（结果仍在的）检索结果 → 搜索框（清空检索态）→ 图书馆首页。实现是 `SearchScreen` 里的 `hasSearchState = query.isNotBlank() || results.isNotEmpty() || lastSearched.isNotBlank()` + `BackHandler(enabled = hasSearchState)`，有检索态时返回先 `viewModel.reset()`，再返回才 `onBack()`；顶栏返回箭头走同一个 `handleBack`。**不要**再把 `reset()` 放进 `DisposableEffect(onDispose)`——那会在跳详情时清空检索态。
 
 ## 数据与网络层

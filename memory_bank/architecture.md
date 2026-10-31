@@ -74,7 +74,7 @@ Repository
 
 | # | 决策 | 背景与取舍 | 状态 |
 | --- | --- | --- | --- |
-| 1 | **单 Activity + 手写返回栈**，用 `AnimatedContent` 切页，不用 `NavHost` | 页面数量少、需要统一转场与会话门控；代价是导航能力自建，`navigation-compose` 依赖实际未使用 | 生效 |
+| 1 | **单 Activity + Navigation Compose（`NavHost`）**：页面级四类转场由本地扩展 `NavGraphBuilder.page()` 统一，共享元素用 `SharedTransitionLayout` 包住 `NavHost` | 2026-10-31 前是手写 `currentRoute` + `backStack` + `AnimatedContent`，连出三起同源缺陷（转场 dispose 旧页丢滚动位置、进程重建回首页、页面 VM 不回收）；`NavBackStackEntry` 自带 `SaveableStateHolder` 与 VM owner 后一并解决 | 生效（2026-10-31 起，取代手写栈） |
 | 2 | **首页/课表/成绩缓存优先**，把网络拉取移到各页面进入时 | 降低启动等待与教务服务端压力；代价是可能短暂显示旧数据，用 Toast 与过期判定兜底 | 生效（v1.5.0） |
 | 3 | **教务三步门控 + 浏览器请求头伪装** | ZFSOFT 会拒绝非浏览器 AJAX；缺页面加载步骤返回“无功能权限” HTML | 生效 |
 | 4 | **学期枚举 `[3,12,16]`**，`16` 为小学期；区分“当前学期”与“展示学期” | 支持小学期与下学期课表预览，同时不把全局学期切走 | 生效 |

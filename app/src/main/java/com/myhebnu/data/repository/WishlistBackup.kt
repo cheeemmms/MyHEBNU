@@ -13,22 +13,34 @@ import com.myhebnu.data.local.db.entity.WishlistEntity
  * 反序列化走一层**全可空的中间结构**，而不是直接把 JSON 映射到 [WishlistEntity]：
  * Gson 用 Unsafe 分配对象，缺字段时给非空属性塞的是 null，等到使用时才崩。
  * 中间结构把「字段缺失」变成「显式判空 + 跳过坏行」，坏文件不会拖垮整个导入。
+ *
+ * ## JSON 键名是显式契约，不依赖字段名
+ *
+ * 每个字段都写了 `@SerializedName`：release 包会跑 R8，模型类的字段名被重命名
+ * （`bibId` → `a`）以后，导出的文件就与 debug 包互相读不了。`@SerializedName` 的值
+ * 混淆后保持原样，键名从此与字段名解耦。与之配套的两道护栏：
+ *
+ * - `app/proguard-rules.pro` 对本文件的模型类做了字段级 keep。否则字段会被裁剪
+ *   （`version` 曾整个消失），`items` 的泛型签名退化成裸 `ArrayList`，Gson 只能把元素
+ *   解析成 `LinkedTreeMap`，导入时抛 `cannot be cast to BackupItem`；
+ * - `app/src/test/java/com/myhebnu/data/repository/WishlistBackupTest.kt` 把键名钉死，
+ *   日后改字段名会立刻失败。
  */
 data class WishlistBackupFile(
-    val version: Int? = null,
-    val exportedAt: Long? = null,
-    val items: List<BackupItem>? = null
+    @SerializedName("version") val version: Int? = null,
+    @SerializedName("exportedAt") val exportedAt: Long? = null,
+    @SerializedName("items") val items: List<BackupItem>? = null
 )
 
 data class BackupItem(
-    val bibId: String? = null,
-    val title: String? = null,
-    val author: String? = null,
-    val publisher: String? = null,
-    val pubYear: String? = null,
-    val isbn: String? = null,
+    @SerializedName("bibId") val bibId: String? = null,
+    @SerializedName("title") val title: String? = null,
+    @SerializedName("author") val author: String? = null,
+    @SerializedName("publisher") val publisher: String? = null,
+    @SerializedName("pubYear") val pubYear: String? = null,
+    @SerializedName("isbn") val isbn: String? = null,
     @SerializedName("coverUrl") val coverUrl: String? = null,
-    val addedAt: Long? = null
+    @SerializedName("addedAt") val addedAt: Long? = null
 )
 
 /** 导入结果：新增了几条、跳过了几条（本地已有）。 */
@@ -67,14 +79,17 @@ object WishlistBackup {
      * 解析备份文件。
      *
      * 只要求 `bibId` 非空——它是主键，缺了就无法导入；其余字段缺失时补空串，
-     * 至少不会让这一行变得不可用。
+     * 至少不会让这一行变得不可用。元素不是对象（例如数组里混进了数字）时跳过该行，
+     * 而不是让整个文件导入失败。
      */
     fun decode(json: String): Result<Pair<List<WishlistEntity>, Int>> = runCatching {
         val file = gson.fromJson(json, WishlistBackupFile::class.java)
             ?: error("文件内容为空")
-        val rawItems = file.items ?: error("文件里没有书籍数据")
+        val rawItems: List<*> = file.items
+            ?: error("文件里没有书籍数据：可能是旧版本导出的文件，请重新导出后再导入")
 
-        val entries = rawItems.mapNotNull { item ->
+        val entries = rawItems.mapNotNull { raw ->
+            val item = raw as? BackupItem ?: return@mapNotNull null
             val bibId = item.bibId?.trim().orEmpty()
             if (bibId.isEmpty()) return@mapNotNull null
             WishlistEntity(

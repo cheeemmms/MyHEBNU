@@ -153,6 +153,7 @@
 | 9 | `sharedCoverModifier` 现在只剩单侧声明 | 坑 | 中 | 2026-10-31 起详情页不再挂封面共享元素，只有 `WishlistScreen.kt:267` 还在声明 `search-cover-<bibId>`；配对找不到 ⇒ `isMatchFound == false`，转场时等同不生效。想恢复封面独立动画，必须两端同时挂回 |
 | 10 | 想看缩略图放大会发虚 | 坑 | 中 | 列表里是 64×88 级小图，长到整屏头图必然软；要清晰得在列表侧提升解码尺寸（内存代价）或落定后切大图 |
 | 11 | 列表行不要整行做容器变换 | 坑 | 高 | 行是扁条，`ScaleToBounds` 会横向放大近 10 倍，观感是「行中间文字被拽到版心再放大」；只让封面成为共享元素 |
+| 12 | Gson 反射模型必须 proguard keep + 逐字段 `@SerializedName` | 坑 | 高 | `app/proguard-rules.pro` 只 keep 了 `com.myhebnu.data.remote.**`；`WishlistBackupFile` / `BackupItem` 在 `data.repository`，v1.7.1 首发被 R8 ①重命名成 `a`/`b`（导出的 JSON 键名随构建而变，debug↔release 互不兼容）②`items` 泛型签名退化成裸 `ArrayList`（Gson 解析出 `LinkedTreeMap`，抛 `cannot be cast to BackupItem`）③裁掉只写不读的 `version`。改完必须看 `app/build/outputs/mapping/release/mapping.txt` 确认类没被改名，并跑 `WishlistBackupTest` |
 
 > 安全项 2026-10-21 用户决定**暂时搁置**，保留记录不实施；恢复优先级见 [architecture/security.md](architecture/security.md)。
 

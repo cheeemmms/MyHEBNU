@@ -30,10 +30,23 @@ object LibraryRoutes {
         val bibId: String,
         val isbn: String,
         val title: String,
+        /**
+         * 进入这一页之前，列表卡片上正在显示的那张封面地址。
+         *
+         * 详情接口回来之前，详情页靠它在首帧就画出同一张图（缓存键按 bibId，同一份位图），
+         * 容器变换过程中不会出现「封面先消失、接口回来再长出来」的空窗。
+         */
+        val cover: String = "",
     )
 
-    fun bibDetail(bibId: String, isbn: String?, title: String?): String =
-        BIB_DETAIL_PREFIX + SEP + bibId + SEP + isbn.orEmpty() + SEP + title.orEmpty()
+    fun bibDetail(
+        bibId: String,
+        isbn: String?,
+        title: String?,
+        cover: String? = null,
+    ): String =
+        BIB_DETAIL_PREFIX + SEP + bibId + SEP + isbn.orEmpty() + SEP + title.orEmpty() +
+            SEP + cover.orEmpty()
 
     fun isBibDetail(route: String): Boolean = route.startsWith(BIB_DETAIL_PREFIX + SEP)
 
@@ -45,6 +58,7 @@ object LibraryRoutes {
             bibId = parts[1],
             isbn = parts[2],
             title = parts[3],
+            cover = parts.getOrNull(4).orEmpty(),
         )
     }
 }

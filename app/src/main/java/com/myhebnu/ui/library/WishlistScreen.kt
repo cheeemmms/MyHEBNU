@@ -50,8 +50,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.imageLoader
 import com.myhebnu.data.local.db.entity.WishlistEntity
-import com.myhebnu.ui.components.QuickCardBoundsTransform
-import com.myhebnu.ui.components.sharedCardPageModifier
+import com.myhebnu.ui.components.sharedCoverModifier
 import com.myhebnu.ui.design.GroupedSurface
 import com.myhebnu.ui.design.ScreenScaffold
 import com.myhebnu.ui.design.SectionDivider
@@ -86,7 +85,7 @@ private fun backupFileName(): String {
 @Composable
 fun WishlistScreen(
     onBack: () -> Unit,
-    onOpenBib: (bibId: String, isbn: String, title: String) -> Unit,
+    onOpenBib: (bibId: String, isbn: String, title: String, cover: String) -> Unit,
     onGoSearch: () -> Unit,
     modifier: Modifier = Modifier,
     sharedScope: SharedTransitionScope? = null,
@@ -202,7 +201,8 @@ fun WishlistScreen(
                                 onOpenBib(
                                     item.entry.bibId,
                                     item.entry.isbn,
-                                    item.entry.title
+                                    item.entry.title,
+                                    item.coverUrl
                                 )
                             },
                             onRemove = { pendingRemoval = item }
@@ -260,19 +260,20 @@ private fun WishlistRow(
 ) {
     val entry: WishlistEntity = item.entry
 
-    // 与检索结果、首页卡片同一套共享元素 key：进详情时这一行会展开成整页
-    val rowTransform = sharedCardPageModifier(
-        key = "search-card-${entry.bibId}",
+    // 这一行的几何连续性只由封面承担：列表行是「满宽 × 88dp」的扁条，若让整行做容器变换，
+    // ScaleToBounds 要用 max(放大比) 盖住容器，横向放大近 10 倍——屏幕上看到的是行中间那段
+    // 文字被拽到版心再放大。这里只让封面成为共享元素（转场期间是一张持续存在、不透明的
+    // 图层，从缩略图原位长到头图原位），行里的书名/作者随页面淡出。
+    val coverElement = sharedCoverModifier(
+        key = "search-cover-${entry.bibId}",
         sharedScope = sharedScope,
-        animatedScope = animatedScope,
-        boundsTransform = QuickCardBoundsTransform
+        animatedScope = animatedScope
     )
 
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .then(rowTransform)
                 .clickable(onClick = onClick)
                 .padding(
                     start = Spacing.lg,
@@ -286,6 +287,7 @@ private fun WishlistRow(
                 modifier = Modifier
                     .width(CoverWidth)
                     .height(CoverHeight)
+                    .then(coverElement)
                     .clip(MaterialTheme.shapes.small)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {

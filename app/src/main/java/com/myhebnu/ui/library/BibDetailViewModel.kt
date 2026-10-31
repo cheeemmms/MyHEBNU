@@ -75,8 +75,16 @@ class BibDetailViewModel @Inject constructor(
      * 1. **把上一本的状态整个丢掉**——否则界面会先按旧数据渲染一帧，
      *    表现为「打开 B 书时先闪一下 A 书的页面」；
      * 2. 重新订阅 [isWished]，爱心才不会是上一本的状态。
+     *
+     * @param initialCover 列表卡片上正在显示的封面地址。换书时不清掉它，
+     *   详情接口回来之前页面就有图可画，容器变换不会中途露出底色。
      */
-    fun load(bibId: String, isbn: String?, fallbackTitle: String?) {
+    fun load(
+        bibId: String,
+        isbn: String?,
+        fallbackTitle: String?,
+        initialCover: String = ""
+    ) {
         if (bibId.isBlank()) {
             _uiState.update { it.copy(isLoading = false, error = "缺少书目标识") }
             return
@@ -87,10 +95,11 @@ class BibDetailViewModel @Inject constructor(
         loadedBibId = bibId
 
         if (switchedBook) {
-            // 只保留路由带来的标题做占位，其余全部清空
+            // 只保留路由带来的标题与封面做占位，其余全部清空
             _uiState.value = BibDetailUiState(
                 isLoading = true,
-                title = fallbackTitle.orEmpty()
+                title = fallbackTitle.orEmpty(),
+                coverUrl = initialCover
             )
             _isWished.value = false
         }

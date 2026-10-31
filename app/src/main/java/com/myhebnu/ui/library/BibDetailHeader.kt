@@ -85,10 +85,12 @@ private const val ScrimSpan = 0.35f
  *    退化成按原图分辨率解码，内存和首次加载都遭殃。
  * 3. 模糊半径固定、只改透明度——动态改半径每次都要重建离屏缓冲。
  *
- * 至于「封面的底边不能露出来」：容器固定后，矮封面底部会留白，
- * 所以渐变终点**跟着图片实际底边走**（按封面宽高比算出），而不是写死容器百分比。
+ * 至于「封面的底边不能露出来」：封面层统一 `ContentScale.Crop` 铺满整个容器，
+ * 图片底边恒等于容器底边，渐变也就贴着容器底部收口。
  *
  * @param progress 滚动加深进度 0..1，必须只在绘制阶段读取
+ * @param coverModifier 封面层的附加修饰符，用来把这张图挂成卡片→详情的共享元素，
+ *   为空时就是普通绘制
  */
 @Composable
 fun BookBackdrop(
@@ -99,14 +101,12 @@ fun BookBackdrop(
     /** 模糊层是否参与绘制。进度接近 0 时省掉它：一帧 24dp 高斯模糊在首次进入时是实打实的开销。 */
     blurVisible: Boolean,
     progress: () -> Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    coverModifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val backgroundColor = MaterialTheme.colorScheme.background
     val hasCover = coverUrl.isNotBlank()
-
-    // 封面宽高比（宽 / 高）：用来算图片在容器里的实际显示高度，渐变才能贴着图片底边收
-    var coverAspect by remember(coverUrl) { mutableStateOf(0f) }
 
     val request = remember(coverUrl, bibId, imageSizePx) {
         if (!hasCover) null else bookCoverRequest(
@@ -130,61 +130,56 @@ fun BookBackdrop(
                 else MaterialTheme.colorScheme.background
             )
     ) {
-        if (request != null) {
-            // 第一层：清晰封面。固定高度 + FillWidth：宽度一定完整，超出的高度被裁掉，
-            // 不足时底部留背景色（由下面的渐变收口）。
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                contentScale = ContentScale.FillWidth,
-                alignment = Alignment.TopCenter,
-                onSuccess = { state ->
-                    val size = state.painter.intrinsicSize
-                    if (size.width > 0f && size.height > 0f) {
-                        coverAspect = size.width / size.height
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(headerHeight)
-            )
+        // 封面层：单独成一个节点，才能把「这张图」挂成共享元素（卡片 → 头图）。
+        // 取景与卡片完全一致（Crop + 顶部居中）：两端画的是同一张图的同一处，
+        // 换手时不会出现「同一本书换了个裁切」的跳变。
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(headerHeight)
+                .then(coverModifier)
+        ) {
+            if (request != null) {
+                AsyncImage(
+                    model = request,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.TopCenter,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-            // 第二层：模糊版。整幅一起模糊——封面本身印着书名，
-            // 顶部若保持清晰会和页面标题叠成双重标题。
-            // 进度接近 0 时不参与绘制，省掉首次进入时那一帧高斯模糊。
-            if (blurVisible) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = progress() }
-                ) {
-                    AsyncImage(
-                        model = request,
-                        contentDescription = null,
-                        contentScale = ContentScale.FillWidth,
-                        alignment = Alignment.TopCenter,
+                // 模糊层：整幅一起模糊——封面本身印着书名，
+                // 顶部若保持清晰会和页面标题叠成双重标题。
+                // 进度接近 0 时不参与绘制，省掉首次进入时那一帧高斯模糊。
+                if (blurVisible) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(headerHeight)
-                            .blur(BlurRadius, BlurredEdgeTreatment.Rectangle)
-                    )
+                            .fillMaxSize()
+                            .graphicsLayer { alpha = progress() }
+                    ) {
+                        AsyncImage(
+                            model = request,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.TopCenter,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(BlurRadius, BlurredEdgeTreatment.Rectangle)
+                        )
+                    }
                 }
             }
         }
 
-        // 第三层：贴着图片底边的渐变 + 滚动时整幅淡向背景色
+        // 渐变层：贴着图片底边的渐变 + 滚动时整幅淡向背景色
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .drawWithContent {
                     drawContent()
 
-                    // 图片在本容器里的实际底边（px）：宽固定，高按封面比例换算
-                    val imageBottom = if (coverAspect > 0f) {
-                        (size.width / coverAspect).coerceAtMost(size.height)
-                    } else {
-                        size.height
-                    }
+                    // Crop 让图片铺满整个容器，图片底边就是容器底边
+                    val imageBottom = size.height
                     // 渐变只在图片最后 35% 里走完，图片底边处正好全不透明 ⇒ 不会露出断口
                     val start = imageBottom - (imageBottom * ScrimSpan)
                     drawRect(

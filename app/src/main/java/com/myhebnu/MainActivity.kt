@@ -10,6 +10,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.AuthRepository
+import com.myhebnu.ui.components.ContainerEnterTransition
+import com.myhebnu.ui.components.ContainerExitTransition
 import com.myhebnu.ui.about.AboutScreen
 import com.myhebnu.ui.about.SystemUpdateScreen
 import com.myhebnu.ui.auth.LoginScreen
@@ -314,7 +321,25 @@ fun MainAppContent(
         // 首页卡片 → 目标页：共享元素容器变换（卡片直接展开成整页）
         SharedTransitionLayout {
             val sharedScope = this
-            AnimatedContent(targetState = currentRoute) { route ->
+            AnimatedContent(
+                targetState = currentRoute,
+                transitionSpec = {
+                    if (isBibDetailRoute(initialState) || isBibDetailRoute(targetState)) {
+                        // 书籍详情这条线只做 fade-through，不缩放。
+                        // 页面级的 scaleIn(0.92) 会和共享元素的容器变换抢同一个位移：
+                        // 去程目标是整页共享节点，看不到它；回程目标是列表页，看得到。
+                        // 一进一出于是成了两套动画——这里把这条线钉成纯淡入淡出。
+                        ContainerEnterTransition togetherWith ContainerExitTransition
+                    } else {
+                        // 其余路由沿用 Compose 默认 spec（AnimatedContent 自带的同一组参数）。
+                        (fadeIn(animationSpec = tween(220, delayMillis = 90)) +
+                            scaleIn(
+                                animationSpec = tween(220, delayMillis = 90),
+                                initialScale = 0.92f
+                            )) togetherWith fadeOut(animationSpec = tween(90))
+                    }
+                }
+            ) { route ->
                 val animatedScope: AnimatedVisibilityScope = this
                 when (route) {
                 TopLevelRoute.Home.route -> HomeScreen(
@@ -401,15 +426,17 @@ fun MainAppContent(
 
                 LibraryRoutes.SEARCH -> SearchScreen(
                     onBack = { goBack() },
-                    onOpenBib = { bibId, isbn, title ->
-                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title))
-                    }
+                    onOpenBib = { bibId, isbn, title, cover ->
+                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
+                    },
+                    sharedScope = sharedScope,
+                    animatedScope = animatedScope
                 )
 
                 LibraryRoutes.WISHLIST -> WishlistScreen(
                     onBack = { goBack() },
-                    onOpenBib = { bibId, isbn, title ->
-                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title))
+                    onOpenBib = { bibId, isbn, title, cover ->
+                        navigateTo(LibraryRoutes.bibDetail(bibId, isbn, title, cover))
                     },
                     onGoSearch = { navigateTo(LibraryRoutes.SEARCH) },
                     sharedScope = sharedScope,
@@ -423,6 +450,7 @@ fun MainAppContent(
                             bibId = detailArgs.bibId,
                             isbn = detailArgs.isbn,
                             fallbackTitle = detailArgs.title,
+                            fallbackCover = detailArgs.cover,
                             onBack = { goBack() },
                             sharedScope = sharedScope,
                             animatedScope = animatedScope
@@ -434,6 +462,19 @@ fun MainAppContent(
         }
     }
 }
+
+// ============================================================
+// Helper: 书籍详情路由判定
+// ============================================================
+
+/**
+ * 是否是书籍详情页路由。
+ *
+ * 详情页与它的两个入口（检索结果、想看列表）之间走共享元素容器变换，
+ * 页面级转场必须让位给容器变换，见 `MainAppContent` 里的 `transitionSpec`。
+ */
+private fun isBibDetailRoute(route: String): Boolean =
+    LibraryRoutes.parseBibDetail(route) != null
 
 // ============================================================
 // Helper: parse custom presets JSON for seed-hue lookup

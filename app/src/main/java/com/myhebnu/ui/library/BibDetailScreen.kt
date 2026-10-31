@@ -44,8 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.myhebnu.ui.components.QuickCardBoundsTransform
+import com.myhebnu.ui.components.ContainerTransformBoundsTransform
 import com.myhebnu.ui.components.sharedCardPageModifier
+import com.myhebnu.ui.components.sharedCoverModifier
 import com.myhebnu.ui.design.GroupRow
 import com.myhebnu.ui.design.GroupedSurface
 import com.myhebnu.ui.design.Spacing
@@ -94,6 +95,7 @@ fun BibDetailScreen(
     fallbackTitle: String?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    fallbackCover: String? = null,
     sharedScope: SharedTransitionScope? = null,
     animatedScope: AnimatedVisibilityScope? = null,
     viewModel: BibDetailViewModel = hiltViewModel()
@@ -104,26 +106,48 @@ fun BibDetailScreen(
     // 这一帧里若直接用旧状态，封面/编者信息都会串成上一本的
     // （更糟的是封面请求会拿「上一本的 URL + 这一本的 bibId」去缓存）。
     // 所以这里按「状态属于当前这本书」做一次闸门。
+    //
+    // 闸门里的封面不是空的：列表卡片点进来时把那张图的地址带了过来，
+    // 缺了才退回按 ISBN 拼的图床地址。容器变换过程中页面因此始终有图，
+    // 不会等详情接口回来才把封面补上。
+    val immediateCover = fallbackCover.orEmpty().ifBlank { LibraryFormat.coverUrl(isbn) }
     val uiState = if (rawState.bibId == bibId) {
         rawState
     } else {
         BibDetailUiState(
             bibId = bibId,
             isLoading = true,
-            title = fallbackTitle.orEmpty()
+            title = fallbackTitle.orEmpty(),
+            coverUrl = immediateCover
         )
     }
     val isWished by viewModel.isWished.collectAsStateWithLifecycle()
 
     LaunchedEffect(bibId) {
-        viewModel.load(bibId = bibId, isbn = isbn, fallbackTitle = fallbackTitle)
+        viewModel.load(
+            bibId = bibId,
+            isbn = isbn,
+            fallbackTitle = fallbackTitle,
+            initialCover = immediateCover
+        )
     }
 
     val pageTransform = sharedCardPageModifier(
         key = "search-card-$bibId",
         sharedScope = sharedScope,
         animatedScope = animatedScope,
-        boundsTransform = QuickCardBoundsTransform
+        boundsTransform = ContainerTransformBoundsTransform,
+        contentFadeThrough = true,
+        // 头图挂着共享封面（在覆盖层绘制、压在页面内容之上），页面内容等它撤走后再进场，
+        // 否则正文会在转场中途被封面盖住、又在 300ms 那一帧突然冒出来。
+        settleContentAfterTransform = true
+    )
+
+    // 封面 → 头图的共享元素，挂在 BookBackdrop 的封面层上
+    val coverElement = sharedCoverModifier(
+        key = "search-cover-$bibId",
+        sharedScope = sharedScope,
+        animatedScope = animatedScope
     )
 
     // uiState 已经在上面按 bibId 做过闸门，这里拿到的就是当前这本书的数据
@@ -223,6 +247,7 @@ fun BibDetailScreen(
             },
             blurVisible = blurVisible,
             progress = { depthProgress.value },
+            coverModifier = coverElement,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 // 背景只跟 45% 的滚动量：内容全速上移、封面慢半拍，产生纵深。

@@ -63,7 +63,6 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import com.myhebnu.ui.components.ContainerTransformBoundsTransform
 import com.myhebnu.ui.components.sharedCardPageModifier
-import com.myhebnu.ui.components.sharedCoverModifier
 import com.myhebnu.ui.design.GroupRow
 import com.myhebnu.ui.design.GroupedSurface
 import com.myhebnu.ui.design.InlineNotice
@@ -355,9 +354,9 @@ private fun coverRatioFor(seed: String): Float =
  * 题名 16sp 半粗、作者 14sp、出版者与出版年 12sp 单行，靠字号与颜色一起分主次。
  *
  * 卡片根节点就是共享元素：点开后整张卡（封面 + 文字块）原地长成详情页整页，
- * 返回时再收回这张卡。容器尺寸走 [ContainerTransformBoundsTransform]（300ms），
- * 两端内容用 fade-through 衔接——卡片上一页的左对齐书名先退，详情页居中的标题后进，
- * 不会出现两套标题同屏的重影。
+ * 返回时再收回这张卡。容器尺寸走 [ContainerTransformBoundsTransform]（220ms），
+ * 两端内容随容器一起缩放、在同一时刻同屏交接——卡片上被放大中的书名与详情页居中标题
+ * 在相近尺寸处互换，观感是一段连续的放大，而不是「先退干净再进」。
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -378,24 +377,13 @@ private fun BookCard(
             key = "search-card-$sharedKey",
             sharedScope = sharedScope,
             animatedScope = animatedScope,
-            boundsTransform = ContainerTransformBoundsTransform,
-            contentFadeThrough = true
+            boundsTransform = ContainerTransformBoundsTransform
         )
     } else {
         Modifier
     }
 
-    // 封面单独挂共享元素：容器只保证外框连续，封面若只靠两端淡变换手，
-    // 卡片的小图和详情的大图会错位、发虚，看起来就是「封面断开了一下」。
-    val coverElement = if (enableSharedElement) {
-        sharedCoverModifier(
-            key = "search-cover-$sharedKey",
-            sharedScope = sharedScope,
-            animatedScope = animatedScope
-        )
-    } else {
-        Modifier
-    }
+    // 录屏对齐版：不单独挂封面共享层，封面随整页容器一起缩放（与录屏那一版一致）。
 
     Column(
         modifier = Modifier
@@ -409,7 +397,7 @@ private fun BookCard(
             cover = cover,
             title = title,
             seed = sharedKey,
-            sharedModifier = coverElement,
+            sharedModifier = Modifier,
             modifier = Modifier.fillMaxWidth()
         )
 

@@ -4,6 +4,10 @@ import android.app.Activity
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,8 +21,6 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +48,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.myhebnu.ui.components.ContainerTransformBoundsTransform
 import com.myhebnu.ui.components.sharedCardPageModifier
-import com.myhebnu.ui.components.sharedCoverModifier
 import com.myhebnu.ui.design.GroupRow
 import com.myhebnu.ui.design.GroupedSurface
 import com.myhebnu.ui.design.Spacing
@@ -136,18 +137,7 @@ fun BibDetailScreen(
         key = "search-card-$bibId",
         sharedScope = sharedScope,
         animatedScope = animatedScope,
-        boundsTransform = ContainerTransformBoundsTransform,
-        contentFadeThrough = true,
-        // 头图挂着共享封面（在覆盖层绘制、压在页面内容之上），页面内容等它撤走后再进场，
-        // 否则正文会在转场中途被封面盖住、又在 300ms 那一帧突然冒出来。
-        settleContentAfterTransform = true
-    )
-
-    // 封面 → 头图的共享元素，挂在 BookBackdrop 的封面层上
-    val coverElement = sharedCoverModifier(
-        key = "search-cover-$bibId",
-        sharedScope = sharedScope,
-        animatedScope = animatedScope
+        boundsTransform = ContainerTransformBoundsTransform
     )
 
     // uiState 已经在上面按 bibId 做过闸门，这里拿到的就是当前这本书的数据
@@ -156,7 +146,7 @@ fun BibDetailScreen(
     var showTitleDialog by rememberSaveable(bibId) { mutableStateOf(false) }
     var holdingsExpanded by rememberSaveable(bibId) { mutableStateOf(false) }
 
-    val listState = rememberLazyListState()
+    val scrollState = rememberScrollState()
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val density = LocalDensity.current
 
@@ -176,6 +166,9 @@ fun BibDetailScreen(
     BoxWithConstraints(
         modifier = modifier
             .then(pageTransform)
+            // 不透明底色：容器变换期间整页在放大，没有底色就会露出 Activity 的 window 背景，
+            // 观感是一段「透明矩形在扩张」。
+            .background(MaterialTheme.colorScheme.background)
             .fillMaxSize()
     ) {
         val screenHeight = maxHeight
@@ -185,15 +178,9 @@ fun BibDetailScreen(
         val titleMaxWidth = screenWidth - Spacing.xxl * 2
         val headerPx = with(density) { headerMaxHeight.toPx() }
 
-        /** 首屏已滚动像素；滚过首屏后给一个定值，背景自然停在视野之外。 */
-        val scrolled = remember(headerPx) {
-            derivedStateOf {
-                if (listState.firstVisibleItemIndex == 0) {
-                    listState.firstVisibleItemScrollOffset.toFloat()
-                } else {
-                    headerPx * 4f
-                }
-            }
+        /** 首屏已滚动像素：整页一次布局，直接读滚动量即可。 */
+        val scrolled = remember {
+            derivedStateOf { scrollState.value.toFloat() }
         }
 
         /**
@@ -235,6 +222,16 @@ fun BibDetailScreen(
             derivedStateOf { depthProgress.value > 0.02f }
         }
 
+        /**
+         * 整页（头图 + 题名 + 作者 + 想看 + 馆藏 + 简介 + 返回按钮）都挂在这个共享节点里，
+         * 由容器统一缩放进场：第 0 帧就是「整页被装进卡片矩形」，随后按 220ms 长到满屏，
+         * 所有元素同一条曲线、同一个缩放比例，一起到、一起落位。
+         *
+         * 内容不再分帧露头的关键在下面：正文用 `Column + verticalScroll` 而不是
+         * `LazyColumn`——懒列表的视口只有「当前矩形」那么大，矩形没长过去的条目不会被
+         * 组合和绘制，于是靠上的题名/作者/想看先出现、靠下的馆藏要等矩形长过去才冒头。
+         * 换成一次性布局的滚动列之后，整页从第一帧就存在，只是被整体缩小了。
+         */
         BookBackdrop(
             coverUrl = uiState.coverUrl,
             bibId = bibId,
@@ -247,7 +244,6 @@ fun BibDetailScreen(
             },
             blurVisible = blurVisible,
             progress = { depthProgress.value },
-            coverModifier = coverElement,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 // 背景只跟 45% 的滚动量：内容全速上移、封面慢半拍，产生纵深。
@@ -270,78 +266,69 @@ fun BibDetailScreen(
                     .padding(horizontal = Spacing.screen)
             )
 
-            else -> LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = bottomInset)
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(bottom = bottomInset)
             ) {
-                item {
-                    Column {
-                        Spacer(Modifier.height(titleTop))
+                Spacer(Modifier.height(titleTop))
 
-                        BookTitleBlock(
-                            title = uiState.title,
-                            author = uiState.author,
-                            wished = isWished,
-                            // 书名还没到手时不写库：否则会落一条没有标题的空记录
-                            wishEnabled = uiState.title.isNotBlank(),
-                            onToggleWish = viewModel::toggleWish,
-                            onTitleClick = { showTitleDialog = true },
-                            titleMaxWidth = titleMaxWidth
-                        )
+                BookTitleBlock(
+                    title = uiState.title,
+                    author = uiState.author,
+                    wished = isWished,
+                    // 书名还没到手时不写库：否则会落一条没有标题的空记录
+                    wishEnabled = uiState.title.isNotBlank(),
+                    onToggleWish = viewModel::toggleWish,
+                    onTitleClick = { showTitleDialog = true },
+                    titleMaxWidth = titleMaxWidth
+                )
 
-                        // 按钮下方给一个呼吸间距后就接馆藏——这一块是首屏的第二主角，
-                        // 离得太远会让上面的留白显得空。
-                        Spacer(Modifier.height(Spacing.xxl))
+                // 按钮下方给一个呼吸间距后就接馆藏——这一块是首屏的第二主角，
+                // 离得太远会让上面的留白显得空。
+                Spacer(Modifier.height(Spacing.xxl))
 
-                        HoldingCard(
-                            holdings = uiState.holdings,
-                            expanded = holdingsExpanded,
-                            onToggleExpand = { holdingsExpanded = !holdingsExpanded },
-                            modifier = Modifier.padding(horizontal = Spacing.screen)
-                        )
+                HoldingCard(
+                    holdings = uiState.holdings,
+                    expanded = holdingsExpanded,
+                    onToggleExpand = { holdingsExpanded = !holdingsExpanded },
+                    modifier = Modifier.padding(horizontal = Spacing.screen)
+                )
 
-                        Spacer(Modifier.height(Spacing.xxl))
-                    }
-                }
+                Spacer(Modifier.height(Spacing.xxl))
 
                 if (uiState.abstract.isNotBlank()) {
-                    item {
-                        AbstractSection(
-                            text = uiState.abstract,
-                            modifier = Modifier.padding(horizontal = Spacing.screen)
-                        )
-                        Spacer(Modifier.height(Spacing.xxl))
-                    }
+                    AbstractSection(
+                        text = uiState.abstract,
+                        modifier = Modifier.padding(horizontal = Spacing.screen)
+                    )
+                    Spacer(Modifier.height(Spacing.xxl))
                 }
 
                 if (hasPublishInfo(uiState)) {
-                    item {
-                        PublishInfoSection(
-                            publisher = uiState.publisher,
-                            pubYear = uiState.pubYear,
-                            isbn = uiState.isbn,
-                            marcFields = uiState.marcFields,
-                            modifier = Modifier.padding(horizontal = Spacing.screen)
-                        )
-                        Spacer(Modifier.height(Spacing.xxl))
-                    }
+                    PublishInfoSection(
+                        publisher = uiState.publisher,
+                        pubYear = uiState.pubYear,
+                        isbn = uiState.isbn,
+                        marcFields = uiState.marcFields,
+                        modifier = Modifier.padding(horizontal = Spacing.screen)
+                    )
+                    Spacer(Modifier.height(Spacing.xxl))
                 }
 
-                item {
-                    Text(
-                        text = buildString {
-                            append("数据来自图书馆汇文系统")
-                            if (uiState.clickCount > 0) {
-                                append(" · 已被查看 ${uiState.clickCount} 次")
-                            }
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = Spacing.xl)
-                    )
-                    Spacer(Modifier.height(Spacing.xxxl))
-                }
+                Text(
+                    text = buildString {
+                        append("数据来自图书馆汇文系统")
+                        if (uiState.clickCount > 0) {
+                            append(" · 已被查看 ${uiState.clickCount} 次")
+                        }
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.xl)
+                )
+                Spacer(Modifier.height(Spacing.xxxl))
             }
         }
 

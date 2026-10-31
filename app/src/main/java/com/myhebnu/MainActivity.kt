@@ -11,10 +11,10 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,8 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.myhebnu.data.local.preferences.UserPreferences
 import com.myhebnu.data.repository.AuthRepository
-import com.myhebnu.ui.components.ContainerEnterTransition
-import com.myhebnu.ui.components.ContainerExitTransition
 import com.myhebnu.ui.about.AboutScreen
 import com.myhebnu.ui.about.SystemUpdateScreen
 import com.myhebnu.ui.auth.LoginScreen
@@ -321,22 +319,20 @@ fun MainAppContent(
         // 首页卡片 → 目标页：共享元素容器变换（卡片直接展开成整页）
         SharedTransitionLayout {
             val sharedScope = this
+            // 录屏对齐版：页面级转场交给 `AnimatedContent` 的默认 spec
+            // （fadeIn 220ms / delay 90ms 与 fadeOut 90ms），不再按路由自定义。
             AnimatedContent(
                 targetState = currentRoute,
                 transitionSpec = {
                     if (isBibDetailRoute(initialState) || isBibDetailRoute(targetState)) {
-                        // 书籍详情这条线只做 fade-through，不缩放。
-                        // 页面级的 scaleIn(0.92) 会和共享元素的容器变换抢同一个位移：
-                        // 去程目标是整页共享节点，看不到它；回程目标是列表页，看得到。
-                        // 一进一出于是成了两套动画——这里把这条线钉成纯淡入淡出。
-                        ContainerEnterTransition togetherWith ContainerExitTransition
+                        // 书目详情：内容从第 0 帧就和封面一起显形（不延迟），旧页 60ms 让位；
+                        // 不做 scaleIn —— 缩放会和容器几何抢同一段位移。
+                        fadeIn(tween(200)) togetherWith fadeOut(tween(60))
                     } else {
-                        // 其余路由沿用 Compose 默认 spec（AnimatedContent 自带的同一组参数）。
-                        (fadeIn(animationSpec = tween(220, delayMillis = 90)) +
-                            scaleIn(
-                                animationSpec = tween(220, delayMillis = 90),
-                                initialScale = 0.92f
-                            )) togetherWith fadeOut(animationSpec = tween(90))
+                        // 其余路由保持 Compose 默认观感。
+                        (fadeIn(tween(220, delayMillis = 90)) +
+                            scaleIn(tween(220, delayMillis = 90), initialScale = 0.92f)) togetherWith
+                            fadeOut(tween(90))
                     }
                 }
             ) { route ->
@@ -467,18 +463,12 @@ fun MainAppContent(
 // Helper: 书籍详情路由判定
 // ============================================================
 
-/**
- * 是否是书籍详情页路由。
- *
- * 详情页与它的两个入口（检索结果、想看列表）之间走共享元素容器变换，
- * 页面级转场必须让位给容器变换，见 `MainAppContent` 里的 `transitionSpec`。
- */
-private fun isBibDetailRoute(route: String): Boolean =
-    LibraryRoutes.parseBibDetail(route) != null
-
 // ============================================================
 // Helper: parse custom presets JSON for seed-hue lookup
 // ============================================================
+
+/** 是图书馆的书目详情路由（那条路由走共享元素容器变换）。 */
+private fun isBibDetailRoute(route: String): Boolean = LibraryRoutes.parseBibDetail(route) != null
 
 private fun parsePresetsJson(json: String): List<com.myhebnu.ui.theme.ColorPreset> {
     return try {

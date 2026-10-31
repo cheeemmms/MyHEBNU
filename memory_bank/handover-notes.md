@@ -24,13 +24,13 @@
 | 项 | 内容 |
 | --- | --- |
 | 来源 | 自有仓库 `https://github.com/cheeemmms/MyHEBNU.git`，非 fork |
-| 分支/提交 | **工作分支 `main`**（`feat/md3-ui-refresh` 已于 2026-10-30 快进并入并停更，停在 `ae4689a`）；记忆库整理前 HEAD = `dae920c`，远端同步 |
+| 分支/提交 | **工作分支 `main`**（`feat/md3-ui-refresh` 已于 2026-10-30 快进并入并停更，停在 `ae4689a`）；2026-10-30 21:05 起 HEAD = `ee94009`（记忆库精简），本地领先 `origin/main` 1 个提交、**尚未推送** |
 | 历史规模 | 2026-06-04 起，132 次提交；`backup/2026-08-30`（`797e0ef`）保留一次回退前的未提交改动 |
 | 当前版本 | **v1.7.0**（versionCode 9，2026-10-28 发布）；main 在其上已积累一整批未发版功能（见下） |
-| v1.7.0 后新功能 | **「想看」闭环**（Room v6 wishlist → 详情页胶囊 → 列表页 → 首页入口/指标 → JSON 导出导入）；**详情页重设计**（沉浸头图 + 视差 + 滚动模糊淡出 + 状态栏反色）；**动画定案**（容器变换保留默认实现且最受重视；检索路径不走共享元素；内容动画用 M3 emphasized 曲线） |
+| v1.7.0 后新功能 | **「想看」闭环**（Room v6 wishlist → 详情页胶囊 → 列表页 → 首页入口/指标 → JSON 导出导入）；**详情页重设计**（沉浸头图 + 视差 + 滚动模糊淡出 + 状态栏反色）；**检索/想看 → 详情页的容器变换返工**（封面改真 `sharedElement`、内容延后落定、往返统一 300ms；**未提交、待真机验收**）；内容级动画用 M3 emphasized 曲线 |
 | 当前可用程度 | **能构建、已上真机**：以上功能全部在 24129PN74C 真机验收通过 |
-| 最近一次验证 | 2026-10-30 多轮 `assembleDebug` + `adb install -r`；`dumpsys gfxinfo` 实测确认首次进入页面的掉帧为首帧组合固有成本，与转场配置无关 |
-| 工作区状态 | 代码与记忆库均已提交推送 |
+| 最近一次验证 | 2026-10-30 21:54 `assembleDebug` + `adb install -r` 成功（动画返工版）；同日晚 `dumpsys gfxinfo` 实测确认首次进入页面的掉帧为首帧组合固有成本，与转场配置无关。**动画返工尚未由用户验收** |
+| 工作区状态 | `HEAD = ee94009`（记忆库精简，领先 `origin/main` 1 个提交、未推送）；**工作区还有未提交的动画返工**：8 个 `app/` 源文件 + 4 个记忆库文件已修改、未 `git add`，已构建并装到 `db072f50`（包 `com.myhebnu.debug`） |
 
 ## 产品定位与边界
 
@@ -62,7 +62,7 @@
 | 登录（CAS 单点） | `data/remote/sso/SsoLoginManager.kt`、`ZfsoftRsa.kt`、`data/repository/AuthRepository.kt` | 密码不是 PKCS#1；`execution` 与会话绑定；旧的 xtgl 直登已删除，不要复活。详见 [architecture/library-and-sso.md](architecture/library-and-sso.md#统一身份认证cas) |
 | 我的图书馆 | `ui/library/`、`data/repository/OpacRepository.kt`、`data/remote/opac/`、`di/OpacModule.kt` | 只读 7 页；独立 OkHttp（共用 CookieJar）；返回阶梯与设计约定见 [architecture/library-and-sso.md](architecture/library-and-sso.md) |
 | 想看功能 | `ui/library/Wishlist{Screen,ViewModel}.kt`、`data/repository/{WishlistRepository,WishlistBackup}.kt`、`data/local/db/{entity/WishlistEntity,dao/WishlistDao}.kt`、`ui/library/BookCovers.kt` | Room v6；封面缓存键分层（小图/大图）；备份 JSON 带 version；详见 [architecture/data-and-storage.md](architecture/data-and-storage.md) |
-| 书籍详情页 | `ui/library/BibDetail{Screen,ViewModel,Header}.kt`、`HoldingCard.kt` | 沉浸头图 + 视差 + 滚动过渡；**换书闸门**：uiState.bibId 必须与路由 bibId 比对，否则封面/缓存串号；不使用 ScreenScaffold |
+| 书籍详情页 | `ui/library/BibDetail{Screen,ViewModel,Header}.kt`、`HoldingCard.kt` | 沉浸头图 + 视差 + 滚动过渡；**换书闸门**：uiState.bibId 必须与路由 bibId 比对，否则封面/缓存串号；**首帧封面来自路由**：`LibraryRoutes.bibDetail(bibId, isbn, title, cover)` 第 4 段 → `BibDetailScreen(fallbackCover=)` → 闸门状态，否则转场首帧无封面；头图封面层是共享元素 `search-cover-<bibId>`。不使用 ScreenScaffold |
 | 课表逻辑 | `ui/schedule/ScheduleViewModel.kt`、`data/repository/ScheduleRepository.kt` | 881 行；改前先看 `_currentYear/_currentTerm` vs `_viewYear/_viewTerm`；登录页判定不要用裸 `contains("登录")` |
 | 课表 UI | `ui/schedule/components/WeekViewGrid.kt`、`CourseCard.kt`、`WeekSelector.kt` | 节次列宽 5 列 36dp / 7 列 28dp；卡片高度由父层传入 |
 | 成绩 | `data/repository/GradeRepository.kt`、`ui/grade/GradeViewModel.kt`、`GpaCard.kt` | 成绩页只观察 Room；网络刷新写库；GPA 公式在 `GpaCalculator` |
@@ -149,7 +149,10 @@
 | 5 | BlendMode 遮罩必须开离屏合成 | 坑 | 高 | `drawWithContent` 里用 `BlendMode.DstIn` 等时必须配 `graphicsLayer(compositingStrategy = Offscreen)`，否则与窗口背景混合整块变黑（2026-10-30 详情页实测） |
 | 6 | 远程图片禁止无约束尺寸 | 坑 | 高 | `wrapContentHeight` 等无约束布局会让 Coil 推断不出目标尺寸、按原图解码；所有封面请求经 `bookCoverRequest` 显式给 size |
 | 7 | 换书时 uiState 必须按 bibId 闸门 | 坑 | 高 | 详情页 ViewModel 是 Activity 级复用，换书首帧旧状态仍在；已用 `rawState.bibId == bibId` 闸门修复，改详情页时不可移除 |
-| 8 | 容器变换动画已定案 | 约定 | 高 | sharedBounds 整页展开 + 默认 enter/exit/resizeMode 就是最受重视的动画；fade through / RemeasureToBounds / 封面 sharedElement 三个实验均已否决（2026-10-30），不要重新引入 |
+| 8 | 容器变换 + 共享封面是定案 | 约定 | 高 | 检索/想看 → 详情：卡片根挂 `sharedBounds`（300ms 整卡长成整页），卡片封面与头图封面再挂 `sharedElement`（`sharedCoverModifier`），目标页内容用 `settleContentAfterTransform` 延后到容器走完。规则与时长见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)。**仍被否决的**：全局 fade through 错开、`ResizeMode.RemeasureToBounds`（每帧重测整页掉帧）。**不要**据此回退封面共享元素——2026-10-30 那版「否决」是模型误改的产物 |
+| 9 | 共享封面压住正文 | 坑 | 高 | `sharedElement` 在覆盖层绘制、位于页面内容之上；目标页内容若在 300ms 内淡入，会被封面盖住再突然冒出。挂共享封面的目标页必须用 `settleContentAfterTransform = true` |
+| 10 | 想看缩略图放大会发虚 | 坑 | 中 | 列表里是 64×88 级小图，长到整屏头图必然软；要清晰得在列表侧提升解码尺寸（内存代价）或落定后切大图 |
+| 11 | 列表行不要整行做容器变换 | 坑 | 高 | 行是扁条，`ScaleToBounds` 会横向放大近 10 倍，观感是「行中间文字被拽到版心再放大」；只让封面成为共享元素 |
 
 > 安全项 2026-10-21 用户决定**暂时搁置**，保留记录不实施；恢复优先级见 [architecture/security.md](architecture/security.md)。
 
@@ -162,12 +165,15 @@
 - [ ] 关键路径手动验证：登录 → 首页 → 课表 → 成绩 → 空教室 → 考试
 - [ ] 图书馆路径手动验证：首页指标 → 检索（瀑布流/翻页/封面）→ 书目详情（含滚动过渡）→ 当前借阅 → 借书码
 - [ ] 想看路径手动验证：详情页收藏 → 首页指标/入口 → 列表 → 导出 → 清空 → 导入 → 幂等重复导入
+- [ ] 动画返工验收：检索卡片 → 详情（封面是否连续、内容是否在封面落定后出现、返回是否对称）；想看行 → 详情（文字不得被放大到版心）
 - [ ] Widget/提醒至少各验证一次（真机）
 - [ ] [tech-stack.md](tech-stack.md) 中的命令可复现
 - [ ] 未验证项已明确标注，未把推测写成结论
 - [ ] 改动已刷新 [readme.md](readme.md) 快照与受影响文件
 
 ## 历史记录
+
+- **2026-10-30（晚，动画返工）**：刷新「v1.7.0 后新功能」「最近一次验证」「工作区状态」（HEAD `ee94009` + 未推送 + 未提交的动画返工）；文件地图的书籍详情页补 `fallbackCover` 与共享封面；待办 #8 改写为「容器变换 + 共享封面的定案」，新增 #9 覆盖层遮盖、#10 缩略图发虚、#11 行级容器变换三坑；交接清单加动画验收项。代码尚未提交，验收通过后才入库。
 
 - **2026-10-30（记忆库整理）**：新增「产品定位与边界」（并入原 `design-document.md` 的定位/目标/非目标/已放弃项，该文件随后删除）；「待办与坑」只保留交接必需的行为约定与坑，任务与验收标准统一指向 [implementation-plan.md](implementation-plan.md)；修正 HEAD（`dae920c`）、提交数（132）、数据库表数（4 张：courses/exams/grades/wishlist）。
 

@@ -126,7 +126,7 @@ POST /cas/login?v=<random>        → 表单提交，password 经 RSA 加密
 | --- | --- |
 | 设计令牌 | 颜色只取 `MaterialTheme.colorScheme`（成功色用 `LocalSemanticColors`）、形状只取 `MaterialTheme.shapes`、间距只取 `Spacing`、可点元素 ≥ `MinTouchTarget`（48dp） |
 | 骨架屏 | 首载用 `SkeletonBox(modifier, shape)`（`ui/design/Components.kt`，1.4s 线性高光、`drawBehind` 只重绘不重组）拼出真实布局，图书馆首页是 `LibraryHomeSkeleton`；**不要再回退到居中的 `CircularProgressIndicator`**——转圈会让共享元素转场抖 |
-| 共享元素 | 每个入口用 `sharedCardPageModifier(key, sharedScope, animatedScope)` 挂到目标页 `ScreenScaffold(modifier)` 上；key 约定：首页卡片 `home-card-<route>`、检索卡片与详情页 `search-card-<bibId>`；卡片转场用 `QuickCardBoundsTransform`（220ms，`FastOutSlowInEasing`），首页其它卡片仍用默认弹簧 |
+| 共享元素 | 页面级容器变换用 `sharedCardPageModifier(key, sharedScope, animatedScope, boundsTransform?)` 挂在目标页根容器；key 约定：首页卡片 `home-card-<route>`、检索卡片与详情页 `search-card-<bibId>`、**封面 `search-cover-<bibId>`**（检索卡片封面、想看行缩略图、详情头图封面层三处，用 `sharedCoverModifier` 挂真 `sharedElement`）。想看行只让封面成为共享元素、行自身不做容器变换。完整时序与坑见 [modules-and-ui.md#共享元素与容器变换](modules-and-ui.md#共享元素与容器变换) |
 | 检索结果 | 双列 `LazyVerticalStaggeredGrid`（`StaggeredGridCells.Fixed(2)`，间距 `Spacing.md`）；**封面宽高比必须由 `coverRatioFor(seed)` 预先定死**（`COVER_RATIOS = [0.62, 0.68, 0.74, 0.8]`），不能在图片加载完成后回写，否则交错网格重排会明显卡顿 |
 | 滚动位置 | `gridState` 放在 `SearchViewModel`（`val gridState = LazyStaggeredGridState()`），滚顶用一次性标志 `pendingScrollToTop` + `onScrolledToTop()` 消费；这样从详情返回停在原位置 |
 | 翻页 | 每页 20 条，底部 `ResultPager`（上一页 / `page / totalPage` / 下一页），服务端返回空页只提示「这一页没有更多结果了」，不清空已有结果 |

@@ -25,6 +25,7 @@
 | v1.5.0 | 成绩/课表缓存优先、悬浮刷新、节次起止时间 | 完成 | 2026-09-13 发布，versionCode 7 |
 | v1.6.0 | 图书馆模块（汇文 OPAC 只读 7 页）+ 教务/图书馆统一走学校 CAS | 完成 | 2026-10-22 发布，versionCode 8 |
 | v1.7.0 | 图书馆 UI 四轮迭代（逐级返回、页码翻页、荐购标签、瀑布流、骨架屏、转场提速） | 完成 | 2026-10-28 发布，versionCode 9，GitHub Release latest |
+| v1.8.0（待发） | 「想看」闭环、书籍详情页重设计、课表周次位掩码重构、动画返工 | 待发 | 功能已全部落地并真机验收（动画返工待验）；**未定版**：versionCode 仍为 9、`CHANGELOG.md` 未写该批内容，发版前需四 Tab / 图书馆 7 页 / Widget / 提醒全量回归 |
 | M8 | Phase 8：国际化、无障碍、错误处理、离线、性能 | 待办 | 全部子项验收 + 版本发布 |
 | M9 | 发布前工程收尾 | 待办 | 许可证/README/日志/安全项对齐 |
 
@@ -49,6 +50,13 @@
 | 5 | **权限最小化**：移除未使用的 `SCHEDULE_EXACT_ALARM` | 搁置 | 无 | `AndroidManifest.xml` |
 
 > 安全项完整说明与威胁模型见 [architecture/security.md](architecture/security.md)。2026-10-21 用户决定暂时搁置，恢复时按该文档的优先级执行。
+
+### 进行中 · 动画返工（2026-10-30 晚，未提交）
+
+| # | 任务 | 状态 | 验收标准 | 关联文件 |
+| --- | --- | --- | --- | --- |
+| A1 | **检索结果 / 想看 → 书籍详情的容器变换返工**：封面改真 `sharedElement`、两端取景统一 Crop、容器内不透明、目标页内容延后落定、往返统一 300ms decelerate、`AnimatedContent` 给 bibDetail 往返单独 `transitionSpec`、路由携带 `cover` 避免首帧空封面 | **进行中**（已构建并装机 2026-10-30 21:54，**待用户真机验收**） | ① 卡片 → 详情封面连续、不闪不重画；② 内容在封面落定后出现（300ms + 160ms）；③ 返回对称缩回卡片、卡片文字淡入；④ 想看行 → 详情只有封面连续、行内文字不被放大；⑤ 其它路由转场不受影响 | `ui/components/SharedCardPage.kt`、`MainActivity.kt`、`ui/library/{SearchScreen,BibDetailScreen,BibDetailHeader,WishlistScreen,BibDetailViewModel,LibraryRoutes}.kt` |
+
 
 ### P1 · 图书馆后续
 
@@ -99,6 +107,7 @@
 | v1.7.0 发布 | `versionCode 9`、`versionName 1.7.0`；`assembleRelease` 产出 7,933,712 B 签名 APK；commit `673fed7` + 文档提交 `d10ca1d` 已推送；GitHub Release 置为 latest，应用内更新日志只留「解决了一些已知问题」 | 2026-10-28 |
 | 遗留文档补提交 + 并入主线 | v1.7.0 更新日志（`7580673`）与记忆库重整（`1e66d1b`）此前停留在工作区，已按主题拆成两次提交入库；`feat/md3-ui-refresh` 快进合并进 `main` 并推送，两条分支同指。未改 `app/` 源码 | 2026-10-30 |
 | 课表周次判定重构 | 解析改用教务 `oldzc`/`oldjc` 位掩码（`zcd` 文本降为兜底），修掉「第N周」写法回退成整学期、以及「1-2周,4-6周(双),7-16周」被当成整门双周而漏 6 周课的两个缺陷；`CourseEntity` 增 `weekBits`/`periodBits` 与唯一判定入口 `isActiveInWeek()`，五处判定统一；Room 4→5。真机 20 行掩码与教务文本逐周比对 0 差异，管理员验收通过（`01b9bce`） | 2026-10-30 |
+| 「想看」闭环 + 详情页重设计 + 动画定案 | wishlist 快照表（Room 5→6）→ 详情页收藏胶囊 → 想看列表页（封面/移除确认/空态）→ 图书馆首页「罚金」格改「想看」→ SAF JSON 导出导入（按 bibId 幂等合并）；详情页沉浸头图 + 45% 视差 + 滚动模糊淡出 + 状态栏反色 + 首帧优化（0.8 倍解码、模糊层条件渲染）；`BookCovers.kt` 封面缓存键分层 + 检索/想看列表预取；修「换书显示上本书封面」（`uiState.bibId` 闸门）等三个缺陷。动画第一版定案：容器变换（sharedBounds 整页展开）保留默认参数、检索结果 → 详情页不走共享元素、否决 fade through 错开 / RemeasureToBounds / 封面 sharedElement / 纯模糊过渡（**其中「检索路径不走共享元素 + 否决封面 sharedElement」两条已于同日 21:00 后被管理员推翻，改为本次「动画返工」**）。7 个功能提交 `0a7a119`→`31c914e`，真机验收通过 | 2026-10-30 |
 
 ## 验证方式
 
@@ -108,11 +117,11 @@
 | --- | --- | --- | --- |
 | 代理端口 | `Test-NetConnection 127.0.0.1 -Port 7897` | True | 2026-10-21：True；`gradle.properties` 已对齐 |
 | 冷启动 | `adb shell am start -W -n com.myhebnu.debug/com.myhebnu.MainActivity` | 有本地会话时直接进首页；无启动期 `hasValidSession` 网络日志 | 2026-10-21：`TotalTime 528ms` / `WaitTime 554ms`（无本地会话→登录页）；启动日志无 `hasValidSession`；登录态待复测 |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk` | **2026-10-28 通过**：本轮多次增量构建 9–19s；已装机 `com.myhebnu.debug`（`lastUpdateTime=2026-10-28 21:13:02`） |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `BUILD SUCCESSFUL`；`app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk` | **2026-10-30 21:54 通过**（动画返工版，产物时间戳 21:54）；同日晚间动画实验多轮增量构建 57s–1m19s 均成功 |
 | Release 构建 | `.\gradlew.bat assembleRelease` | 签名 APK；包名 `com.myhebnu`；versionCode 9 | **2026-10-28 通过**：`MyHEBNU-v1.7.0-release.apk` 7,933,712 B，`apksigner verify` 通过，已发布 GitHub Release |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | 通过 | 2026-10-21：`LoginPageDetectorTest` 5 + `WidgetScheduleLogicTest` 24 = 29 tests / 0 failures |
 | 静态检查 | `.\gradlew.bat lintDebug` | 无 error 级问题 | 未执行 |
-| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | 2026-10-28：Success（24129PN74C） |
+| 安装到设备 | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 安装成功（debug 包名 `com.myhebnu.debug`） | **2026-10-30 21:54：Success**（24129PN74C，序列号 `db072f50`）；动画返工版已装机待验收 |
 | 冷启动 | 清后台后启动，观察首页 | 无白闪；首页直接出卡片；无网络等待 | 未执行 |
 | 课表缓存优先 | 断网后进课表 | 立即显示缓存；不出现加载圈长期停留 | 未执行 |
 | 会话自愈 | 使会话失效后进考试/成绩页 | 自动重登，不出现 HTTP 901/302 死循环 | 未执行 |
@@ -144,6 +153,7 @@
 
 ## 历史记录
 
+- **2026-10-30（晚，动画返工）**：新增「进行中 · 动画返工」任务组（A1，待真机验收）；Debug 构建与安装的验证结果更新到 21:54；`v1.8.0（待发）` 里程碑描述里的「动画定案」改为「动画返工」。**注意**：此前记录的「检索路径不走共享元素 / 封面 sharedElement 已否决」是模型误改的产物，已撤销，详见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)。
 - **2026-10-28**：补 v1.6.0 / v1.7.0 里程碑与「图书馆后续」任务组（续借、荐购、预约委托、i18n）；已完成表补图书馆模块、CAS 登录、四轮界面迭代与 v1.7.0 发布；Release/Debug 构建与安装的验证结果更新到 v1.7.0。
 - **2026-10-21**：本文件由旧 `implementation-plan.md`（Phase 0–8 + Batch 1–5 的完整历史计划，427 行）重写为「当前路线图」。已完成阶段的交付物与决策记录压缩到 [history/change-log.md](history/change-log.md)，原始细节保留在 Git 历史与 `progress.md` 旧版本（`git log -- memory-bank/progress.md`）。
 - **2026-10-21（第二轮）**：代理对齐 7897；许可证统一为 AGPL-3.0 并补 `LICENSE`；关闭考试分页项（用户实测正常）；小学期成绩改为“待验证/暂不实施”；i18n 标记搁置；新增安全项 P0 与 [architecture/security.md](architecture/security.md)。

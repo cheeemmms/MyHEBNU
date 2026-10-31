@@ -74,13 +74,13 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 目的 | 命令 | 产物/说明 | 最近结果 |
 | --- | --- | --- | --- |
 | 查看工具链 | `.\gradlew.bat --version` | Gradle/JVM 版本 | 2026-10-21 通过：Gradle 9.5.1，Launcher JVM 21.0.10（Android Studio JBR） |
-| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-28 通过**：本轮增量构建 9–17s；装机 `lastUpdateTime=2026-10-28 21:13:02` |
+| Debug 构建 | `.\gradlew.bat assembleDebug` | `app/build/outputs/apk/debug/MyHEBNU-v1.7.0-debug.apk`；包名 `com.myhebnu.debug` | **2026-10-30 21:54 通过**（动画返工版；同日动画实验多轮增量构建 57s–1m19s 均成功，产物时间戳 21:54） |
 | Release 构建 | `.\gradlew.bat assembleRelease` | `app/build/outputs/apk/release/MyHEBNU-v1.7.0-release.apk`；包名 `com.myhebnu`；需签名（R8 + shrinkResources） | **2026-10-28 通过**：7,933,712 B，versionCode 9，`apksigner verify` 通过 |
 | 发版 | `gh release create v<版本> <apk> --target <分支> --title … --notes-file …` | GitHub Release；`releases/latest` 是应用内更新检查的数据源 | 2026-10-28 发布 v1.7.0，见「版本与发布」 |
 | 仅编译 Kotlin | `.\gradlew.bat compileDebugKotlin` | 快速语法/类型检查 | 通过（2026-10-21 随 `assembleDebug` 执行） |
 | 单元测试 | `.\gradlew.bat testDebugUnitTest` | JVM 单测 | **2026-10-28 通过**：`LoginPageDetectorTest`、`WidgetScheduleLogicTest`、`ZfsoftRsaTest` 全部通过 |
 | 静态检查 | `.\gradlew.bat lintDebug` | Lint 报告 | 未执行 |
-| 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 需连接设备 | **2026-10-28 通过**：24129PN74C，`Success`；debug 包名 `com.myhebnu.debug`（应用名「MyHEBNU D」） |
+| 安装 Debug | `adb install -r app\build\outputs\apk\debug\MyHEBNU-v1.7.0-debug.apk` | 需连接设备 | **2026-10-30 21:54 通过**：24129PN74C（`db072f50`），`Success`；debug 包名 `com.myhebnu.debug`（应用名「MyHEBNU D」） |
 | 应用日志 | `adb logcat -s MyHEBNU:*` | 主要链路日志 | 未执行 |
 | Widget 日志 | `adb logcat -s MyHEBNU-Widget:*` | Widget 进程日志 | 未执行 |
 
@@ -95,7 +95,7 @@ AGP 8.7.3  ←→  Kotlin 2.2.21  ←→  KSP 2.2.21-2.0.5
 | 操作系统 | Windows（PowerShell 7） |
 | 项目路径 | `D:\Personal_file\VibeCoding\Program\My-University` |
 | Git remote | `https://github.com/cheeemmms/MyHEBNU.git`，工作分支 `main`（`feat/md3-ui-refresh` 已快进并入并停更） |
-| Git 状态 | 2026-10-30：`main` 在 `dae920c`（记忆库同步提交），与远端同步；v1.7.0 发版提交为 `673fed7`；`backup/2026-08-30` 备份分支指向 `797e0ef` |
+| Git 状态 | 2026-10-30：`main` 在 `ee94009`（记忆库精简提交），本地领先 `origin/main` 1 个提交（**未推送**）；v1.7.0 发版提交为 `673fed7`；`backup/2026-08-30` 备份分支指向 `797e0ef` |
 | GitHub CLI | `gh 2.89.0`，已登录 `cheeemmms`；`git credential.helper=manager` |
 | Android Studio（JAVA_HOME） | `C:\Program Files\Android\Android Studio`，JBR 21.0.10 |
 | 另一处 Android Studio | `D:\Software\Android\bin\studio64.exe`（也存在） |

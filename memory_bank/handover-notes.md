@@ -149,8 +149,8 @@
 | 5 | BlendMode 遮罩必须开离屏合成 | 坑 | 高 | `drawWithContent` 里用 `BlendMode.DstIn` 等时必须配 `graphicsLayer(compositingStrategy = Offscreen)`，否则与窗口背景混合整块变黑（2026-10-30 详情页实测） |
 | 6 | 远程图片禁止无约束尺寸 | 坑 | 高 | `wrapContentHeight` 等无约束布局会让 Coil 推断不出目标尺寸、按原图解码；所有封面请求经 `bookCoverRequest` 显式给 size |
 | 7 | 换书时 uiState 必须按 bibId 闸门 | 坑 | 高 | 详情页 ViewModel 是 Activity 级复用，换书首帧旧状态仍在；已用 `rawState.bibId == bibId` 闸门修复，改详情页时不可移除 |
-| 8 | 容器变换 + 共享封面是定案 | 约定 | 高 | 检索/想看 → 详情：卡片根挂 `sharedBounds`（300ms 整卡长成整页），卡片封面与头图封面再挂 `sharedElement`（`sharedCoverModifier`），目标页内容用 `settleContentAfterTransform` 延后到容器走完。规则与时长见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换)。**仍被否决的**：全局 fade through 错开、`ResizeMode.RemeasureToBounds`（每帧重测整页掉帧）。**不要**据此回退封面共享元素——2026-10-30 那版「否决」是模型误改的产物 |
-| 9 | 共享封面压住正文 | 坑 | 高 | `sharedElement` 在覆盖层绘制、位于页面内容之上；目标页内容若在 300ms 内淡入，会被封面盖住再突然冒出。挂共享封面的目标页必须用 `settleContentAfterTransform = true` |
+| 8 | 容器变换是唯一主角，不拆元素 | 约定 | 高 | 检索/想看 → 详情：整页挂 `sharedBounds`（220ms `M3EmphasizedEasing` 长成整页、默认 `FillWidth` + `ParentClip`、不传 enter/exit），页面级对详情路由 `fadeIn(200ms)`/`fadeOut(60ms)`。**不要**再拆成「封面飞 + 书名飞 + 其余淡入」（2026-10-31 真机否决，用户原话「甚至还不如上一版」）。规则、时序与已否决清单见 [architecture/modules-and-ui.md](architecture/modules-and-ui.md#共享元素与容器变换) |
+| 9 | `sharedCoverModifier` 现在只剩单侧声明 | 坑 | 中 | 2026-10-31 起详情页不再挂封面共享元素，只有 `WishlistScreen.kt:267` 还在声明 `search-cover-<bibId>`；配对找不到 ⇒ `isMatchFound == false`，转场时等同不生效。想恢复封面独立动画，必须两端同时挂回 |
 | 10 | 想看缩略图放大会发虚 | 坑 | 中 | 列表里是 64×88 级小图，长到整屏头图必然软；要清晰得在列表侧提升解码尺寸（内存代价）或落定后切大图 |
 | 11 | 列表行不要整行做容器变换 | 坑 | 高 | 行是扁条，`ScaleToBounds` 会横向放大近 10 倍，观感是「行中间文字被拽到版心再放大」；只让封面成为共享元素 |
 

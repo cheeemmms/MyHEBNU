@@ -55,7 +55,7 @@
 
 | # | 任务 | 状态 | 验收标准 | 关联文件 |
 | --- | --- | --- | --- | --- |
-| A1 | **检索结果 / 想看 → 书籍详情的容器变换返工**：封面改真 `sharedElement`、两端取景统一 Crop、容器内不透明、目标页内容延后落定、往返统一 300ms decelerate、`AnimatedContent` 给 bibDetail 往返单独 `transitionSpec`、路由携带 `cover` 避免首帧空封面 | **已验收（`8085d6b`）**：最终形态 = 整页挂共享容器（`sharedBounds` 默认 `FillWidth` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`）+ 详情路由 `fadeIn(200ms, 无 delay、无 scaleIn)` / `fadeOut(60ms)` | ① 卡片 → 详情封面连续、不闪不重画；② 内容在封面落定后出现（300ms + 160ms）；③ 返回对称缩回卡片、卡片文字淡入；④ 想看行 → 详情只有封面连续、行内文字不被放大；⑤ 其它路由转场不受影响 | `ui/components/SharedCardPage.kt`、`MainActivity.kt`、`ui/library/{SearchScreen,BibDetailScreen,BibDetailHeader,WishlistScreen,BibDetailViewModel,LibraryRoutes}.kt` |
+| A1 | **检索结果 / 想看 → 书籍详情的容器变换定稿**：整页挂 `sharedBounds`（几何 220ms `M3EmphasizedEasing`、默认 `FillWidth` + `ParentClip`、不传 enter/exit）、详情根节点不透明、页面级对详情路由 `fadeIn(200ms)` + `fadeOut(60ms)`、路由第 5 段携带 `cover` 避免首帧空封面、撤掉 `contentFadeThrough`/`settleContentAfterTransform` | **已验收（`8085d6b`）**：最终形态 = 整页挂共享容器（`sharedBounds` 默认 `FillWidth` + `ParentClip`、不传 enter/exit、几何 220ms `M3EmphasizedEasing`）+ 详情路由 `fadeIn(200ms, 无 delay、无 scaleIn)` / `fadeOut(60ms)` | ① 封面从卡片尺寸连续长成整页头图、不重画；② 详情内容第 0 帧就随封面显形（曾试「等容器走完再落定」，用户否决）；③ 返回对称缩回、落位即实心；④ 想看行只吃页面级淡入；⑤ 其它路由仍走 Compose 默认 spec | `ui/components/SharedCardPage.kt`、`MainActivity.kt`、`ui/library/{SearchScreen,BibDetailScreen,BibDetailHeader,WishlistScreen,BibDetailViewModel,LibraryRoutes}.kt` |
 
 
 ### P1 · 图书馆后续

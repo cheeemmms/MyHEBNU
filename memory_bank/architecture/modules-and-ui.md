@@ -134,7 +134,7 @@ Welcome（仅首次启动） → Login（无有效会话） → Main（已登录
 | --- | --- | --- |
 | `home-card-<route>` | 首页卡片（`HomeCardPanel`）与目标页根容器 | 首页 → 各顶层页 |
 | `search-card-<bibId>` | 检索卡片根 `Column`、详情页根 `BoxWithConstraints` | 检索结果 / 想看 → 详情 |
-| `search-cover-<bibId>` | **已停用**（2026-10-31）。封面不再单独挂 `sharedElement`，随整页容器一起缩放 | — |
+| `search-cover-<bibId>` | **仅 `WishlistScreen.kt:267` 单侧声明**（2026-10-31 起详情页不再挂封面共享元素）。没有配对 ⇒ `isMatchFound == false`，转场时等同不生效；要恢复封面独立动画得两端同时挂 | — |
 
 两个入口都在 `ui/components/SharedCardPage.kt`：`sharedCardPageModifier(key, sharedScope, animatedScope, boundsTransform = null)`（页面/卡片级）、`sharedCoverModifier(key, sharedScope, animatedScope)`（保留但当前无调用方）。
 
